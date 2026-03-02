@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './MarketingModule.css';
-
-const API_URL = 'http://localhost:3001';
+import { apiPost } from '../utils/api';
 
 // Demo fallback data when no IM has been generated yet
 const DEMO_EMISSION_DATA = {
@@ -96,10 +95,7 @@ function MarketingModule({ user, project, onBack }) {
       const fd = imData.formData;
       const gc = imData.generatedContent;
 
-      const response = await fetch(`${API_URL}/api/marketing/generate-landing-page`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const response = await apiPost('/api/marketing/generate-landing-page', {
           companyName: fd.companyName || user.company,
           orgNr: fd.orgNr || '',
           location: fd.location || '',
@@ -118,7 +114,6 @@ function MarketingModule({ user, project, onBack }) {
           revenue: fd.revenue || '',
           result: fd.result || '',
           equity: fd.equity || ''
-        })
       });
       
       const data = await response.json();
@@ -160,13 +155,9 @@ function MarketingModule({ user, project, onBack }) {
   const setupEmailCampaign = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/marketing/setup-email-campaign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const response = await apiPost('/api/marketing/setup-email-campaign', {
           projectId: project?.id || 1,
           companyName: user.company
-        })
       });
       
       await response.json();
@@ -198,14 +189,10 @@ function MarketingModule({ user, project, onBack }) {
   const setupGoogleAds = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/marketing/setup-google-ads`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const response = await apiPost('/api/marketing/setup-google-ads', {
           projectId: project?.id || 1,
           companyName: user.company,
           budget: campaign.googleAds.budget
-        })
       });
       
       await response.json();

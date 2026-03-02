@@ -3,6 +3,8 @@ const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 const cors = require('cors');
 const PDFDocument = require('pdfkit');
+const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
@@ -13,6 +15,58 @@ const anthropic = new Anthropic({
 });
 
 console.log('API Key configured:', !!process.env.ANTHROPIC_API_KEY);
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  AUTHENTICATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+// In-memory token store (resets on server restart — fine for demo)
+const validTokens = new Set();
+
+// Login endpoint — validates against env vars
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  const demoEmail = process.env.DEMO_EMAIL || 'demo@kapital.se';
+  const demoPassword = process.env.DEMO_PASSWORD || 'Demo2026!';
+
+  if (email === demoEmail && password === demoPassword) {
+    const token = crypto.randomUUID();
+    validTokens.add(token);
+    console.log(`Login successful for ${email}. Active tokens: ${validTokens.size}`);
+    return res.json({
+      token,
+      user: {
+        email,
+        company: 'Demo Företag AB',
+        role: 'admin'
+      }
+    });
+  }
+
+  return res.status(401).json({ error: 'Felaktigt e-post eller lösenord' });
+});
+
+// Auth middleware — protects all /api/* routes except /api/auth/*
+const requireAuth = (req, res, next) => {
+  // Skip auth for login route
+  if (req.path.startsWith('/api/auth/')) return next();
+  // Skip auth for non-API routes (static files)
+  if (!req.path.startsWith('/api/')) return next();
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Ingen giltig session. Logga in igen.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (!validTokens.has(token)) {
+    return res.status(401).json({ error: 'Session har gått ut. Logga in igen.' });
+  }
+
+  next();
+};
+
+app.use(requireAuth);
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  DOCUMENT TYPE QUALIFICATION
@@ -907,6 +961,23 @@ app.get('/api/marketing/analytics/:projectId', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  PRODUCTION: SERVE REACT BUILD
+// ═══════════════════════════════════════════════════════════════════════════
+
+if (process.env.NODE_ENV === 'production') {
+  const buildPath = path.join(__dirname, '..', 'frontend', 'build');
+  app.use(express.static(buildPath));
+  
+  // Catch-all: serve React app for any non-API route
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api/')) {
+      res.sendFile(path.join(buildPath, 'index.html'));
+    }
+  });
+  console.log('Production mode: serving React build from', buildPath);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  SERVER START
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -914,7 +985,9 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
   console.log('API Key configured:', !!process.env.ANTHROPIC_API_KEY);
+  console.log('Demo login configured:', !!process.env.DEMO_EMAIL);
   console.log('\n📍 Available endpoints:');
+  console.log('  POST /api/auth/login');
   console.log('  POST /api/qualify-document');
   console.log('  POST /api/lookup-company');
   console.log('  POST /api/generate-executive-summary');

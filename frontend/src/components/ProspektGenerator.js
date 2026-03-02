@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import './ProspektGenerator.css';
-
-const API_URL = 'http://localhost:3001';
+import { apiPost } from '../utils/api';
 
 function ProspektGenerator({ user, project, onBack }) {
   // ═══════════════════════════════════════════════════════════════════════════
@@ -81,11 +80,7 @@ function ProspektGenerator({ user, project, onBack }) {
     setLookupError('');
     
     try {
-      const response = await fetch(`${API_URL}/api/lookup-company`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgNr: formData.orgNr })
-      });
+      const response = await apiPost('/api/lookup-company', { orgNr: formData.orgNr });
       
       const result = await response.json();
       
@@ -117,15 +112,11 @@ function ProspektGenerator({ user, project, onBack }) {
   const handleQualification = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/qualify-document`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const response = await apiPost('/api/qualify-document', {
           market: formData.market,
           emissionSizeSEK: parseInt(formData.emissionSizeSEK),
           period12Months: formData.period12Months,
           audience: formData.audience
-        })
       });
       
       const result = await response.json();
@@ -712,22 +703,15 @@ function ProspektGenerator({ user, project, onBack }) {
     setLoading(true);
     
     try {
-      const summaryRes = await fetch(`${API_URL}/api/generate-executive-summary`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const summaryRes = await apiPost('/api/generate-executive-summary', {
           company: { name: formData.companyName, industry: formData.industry },
           business: { description: formData.businessDescription },
           market: { description: formData.marketDescription },
           emission: { sizeSEK: parseInt(formData.emissionSizeSEK), purpose: formData.emissionPurpose }
-        })
       });
       const summaryData = await summaryRes.json();
       
-      const businessRes = await fetch(`${API_URL}/api/generate-business-section`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const businessRes = await apiPost('/api/generate-business-section', {
           company: { name: formData.companyName, industry: formData.industry },
           business: {
             description: formData.businessDescription,
@@ -735,14 +719,10 @@ function ProspektGenerator({ user, project, onBack }) {
             businessModel: formData.businessModel,
             strategy: formData.strategy
           }
-        })
       });
       const businessData = await businessRes.json();
       
-      const marketRes = await fetch(`${API_URL}/api/generate-market-section`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const marketRes = await apiPost('/api/generate-market-section', {
           company: { industry: formData.industry },
           market: {
             description: formData.marketDescription,
@@ -750,25 +730,17 @@ function ProspektGenerator({ user, project, onBack }) {
             geography: formData.geography,
             competitors: formData.competitors
           }
-        })
       });
       const marketData = await marketRes.json();
       
-      const riskRes = await fetch(`${API_URL}/api/generate-risk-factors`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const riskRes = await apiPost('/api/generate-risk-factors', {
           company: { name: formData.companyName, industry: formData.industry, market: formData.market },
           business: { description: formData.businessDescription },
           financial: { revenue: formData.revenue, result: formData.result }
-        })
       });
       const riskData = await riskRes.json();
       
-      const offeringRes = await fetch(`${API_URL}/api/generate-offering-terms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const offeringRes = await apiPost('/api/generate-offering-terms', {
           company: { name: formData.companyName, orgNr: formData.orgNr },
           emission: {
             sizeSEK: parseInt(formData.emissionSizeSEK),
@@ -776,15 +748,10 @@ function ProspektGenerator({ user, project, onBack }) {
             subscriptionPeriod: formData.subscriptionPeriod,
             audience: formData.audience
           }
-        })
       });
       const offeringData = await offeringRes.json();
       
-      const teamRes = await fetch(`${API_URL}/api/generate-team-bios`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ team: formData.team })
-      });
+      const teamRes = await apiPost('/api/generate-team-bios', { team: formData.team });
       const teamData = await teamRes.json();
       
       const newContent = {
@@ -873,10 +840,7 @@ function ProspektGenerator({ user, project, onBack }) {
     setLoading(true);
     
     try {
-      const response = await fetch(`${API_URL}/api/generate-pdf`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const response = await apiPost('/api/generate-pdf', {
           company: {
             name: formData.companyName,
             orgNr: formData.orgNr,
@@ -897,7 +861,6 @@ function ProspektGenerator({ user, project, onBack }) {
             year: formData.financialYear
           },
           generated: generatedContent
-        })
       });
       
       const blob = await response.blob();

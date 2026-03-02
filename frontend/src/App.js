@@ -1,27 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import Login from './auth/Login';
 import Dashboard from './components/Dashboard';
 import ProspektGenerator from './components/ProspektGenerator';
 import MarketingModule from './components/MarketingModule';
 import CapitalAdvisor from './components/CapitalAdvisor';
+import { getAuthToken, getUser, clearAuthToken } from './utils/api';
 
 function App() {
   const [user, setUser] = useState(null);
   const [currentModule, setCurrentModule] = useState('dashboard');
   const [activeProject, setActiveProject] = useState(null);
 
-  // Mock login function - in production this would call backend API
-  const handleLogin = (email, password) => {
-    // Demo: Accept any login
-    setUser({
-      email: email,
-      company: 'Demo Företag AB',
-      role: 'admin'
-    });
+  // Restore session on mount
+  useEffect(() => {
+    const token = getAuthToken();
+    const savedUser = getUser();
+    if (token && savedUser) {
+      setUser(savedUser);
+    }
+  }, []);
+
+  // Login receives user object from Login.js (already authenticated)
+  const handleLogin = (userData) => {
+    setUser(userData);
   };
 
   const handleLogout = () => {
+    clearAuthToken();
     setUser(null);
     setCurrentModule('dashboard');
     setActiveProject(null);
