@@ -1,0 +1,172 @@
+╔═══════════════════════════════════════════════════════════════╗
+║   PROSPEKTUS GENERATOR - QUICK START GUIDE                    ║
+╚═══════════════════════════════════════════════════════════════╝
+
+✅ KLART! MVP Option A är färdigbyggd och redo att köra.
+
+═══════════════════════════════════════════════════════════════
+
+🎯 VAD ÄR BYGGT:
+
+✓ Landing page med value proposition
+✓ 4-stegs wizard med progress bar
+✓ AI-generering av verksamhetsbeskrivning (Claude Sonnet 4)
+✓ AI-generering av finansiell översikt
+✓ AI-generering av riskfaktorer (branschspecifika)
+✓ PDF-export med professionell formatering
+✓ Split-screen preview av AI-innehåll
+✓ Time savings calculation
+✓ Brand colors (navy & teal från din pitchdeck)
+
+═══════════════════════════════════════════════════════════════
+
+🚀 STARTA APPLIKATIONEN:
+
+1. BACKEND (Terminal 1):
+   cd prospektus-generator/backend
+   npm install
+   
+   # Skapa .env fil med din Anthropic API key:
+   echo "ANTHROPIC_API_KEY=din-api-key-här" > .env
+   
+   npm start
+   → Körs på http://localhost:3001
+
+2. FRONTEND (Terminal 2):
+   cd prospektus-generator/frontend
+   npm install
+   npm run dev
+   → Körs på http://localhost:3000
+
+3. ÖPPNA I WEBBLÄSARE:
+   http://localhost:3000
+
+═══════════════════════════════════════════════════════════════
+
+🎬 DEMO FLOW (5 minuter):
+
+STEG 1: Bolagsinformation (30 sek)
+   - Företagsnamn: "TechCo AB"
+   - Bransch: "SaaS"
+   - Stadium: "Series A"
+   - Emission: "2000000"
+
+STEG 2: Verksamhetsbeskrivning (2 min) ⭐ WOW-moment
+   - Skriv: "Vi hjälper HR-team automatisera onboarding med AI"
+   - Klicka "Generera med AI"
+   - Se professionell text genereras LIVE!
+
+STEG 3: Finansiell Översikt (1 min)
+   - Revenue 2022: 500000
+   - Revenue 2023: 1200000
+   - Revenue 2024: 2800000
+   - Status: "Ej lönsam än (tillväxtfas)"
+   - Klicka "Generera" → AI skapar BÅDE översikt OCH risker
+
+STEG 4: Granska & Ladda ner (1 min)
+   - Se sammanfattning
+   - Klicka "Ladda ner PDF"
+   - Öppna PDF och visa professional format!
+
+═══════════════════════════════════════════════════════════════
+
+💡 TIPS FÖR INVESTOR DEMO:
+
+FÖRE MÖTET:
+- Testa flödet 2-3 gånger
+- Ha exempeldata i en anteckning att klistra in snabbt
+- Kör LOKALT (stabilare än cloud)
+- Ha backup browser tab öppen
+
+UNDER DEMO:
+- Fokus på Steg 2 (AI-generering) - detta är "aha-momentet"
+- Visa PDF:en öppen i slutet
+- Betona: "Detta tog 15 min, traditionellt 4 veckor"
+
+KEY SOUNDBITES:
+✓ "Från veckor till minuter"
+✓ "€30k besparing per emission"
+✓ "AI gör 80% av jobbet, men human review krävs"
+✓ "Detta är MVP - production har fler features"
+
+═══════════════════════════════════════════════════════════════
+
+📁 PROJEKTSTRUKTUR:
+
+prospektus-generator/
+├── backend/
+│   ├── server.js          ← Express API + Claude integration
+│   ├── package.json       ← Dependencies
+│   └── .env.example       ← API key template
+│
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── LandingPage.jsx         ← Startskärm
+│   │   │   ├── Wizard.jsx              ← Main wizard logic
+│   │   │   ├── StepCompanyInfo.jsx     ← Steg 1
+│   │   │   ├── StepBusinessDescription.jsx  ← Steg 2 + AI
+│   │   │   ├── StepFinancials.jsx      ← Steg 3 + AI
+│   │   │   └── StepReview.jsx          ← Steg 4 + PDF
+│   │   ├── services/
+│   │   │   └── api.js     ← Backend communication
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── index.css          ← Tailwind + custom styles
+│   └── package.json
+│
+└── README.md              ← Full dokumentation
+
+═══════════════════════════════════════════════════════════════
+
+💰 KOSTNAD FÖR DEMO:
+
+Per Demo Run: ~$0.10-0.20 (Claude API)
+20 Demos: ~$2-4 total
+→ Mycket billigt för en MVP demo!
+
+═══════════════════════════════════════════════════════════════
+
+🔐 OBSERVERA:
+
+Detta är en DEMO/PROTOTYPE för att visa konceptet.
+
+Genererade dokument är UTKAST som måste granskas av:
+1. Emissionsinstitut
+2. Juridiska rådgivare
+3. Bolaget själv
+
+AI garanterar INTE regulatorisk compliance.
+
+═══════════════════════════════════════════════════════════════
+
+🐛 TROUBLESHOOTING:
+
+Problem: Backend startar inte
+Fix: Kolla att .env finns med giltig ANTHROPIC_API_KEY
+
+Problem: Frontend hittar inte backend
+Fix: Kontrollera att backend körs på port 3001
+
+Problem: PDF genereras inte
+Fix: Se backend logs för fel
+
+Problem: AI-generering misslyckas
+Fix: Verifiera API key och att du har credits
+
+═══════════════════════════════════════════════════════════════
+
+🎉 FÄRDIGT!
+
+Du har nu en fungerande AI-driven bolagsbeskrivningsgenerator!
+
+NÄSTA STEG:
+1. Starta backend + frontend
+2. Testa själv en gång
+3. Gör en practice-demo
+4. Visa för investerare! 🚀
+
+═══════════════════════════════════════════════════════════════
+
+Frågor? Se README.md för mer detaljer.
+Good luck med investor presentations! 💪

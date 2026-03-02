@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stryktips - Manuell inmatning</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e4e4e4;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #00b4d8, #90e0ef);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ccd6f6;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .info-card {
+            background: rgba(0, 180, 216, 0.1);
+            border: 1px solid rgba(0, 180, 216, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .info-card p {
+            color: #8892b0;
+            line-height: 1.6;
+        }
+
+        .info-card a {
+            color: #00b4d8;
+        }
+
+        .match-form {
+            display: grid;
+            gap: 12px;
+        }
+
+        .match-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 1fr 150px;
+            gap: 12px;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .match-number {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #5a6b8a;
+            text-align: center;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            color: #ccd6f6;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #00b4d8;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        input[type="text"]::placeholder {
+            color: #5a6b8a;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            color: #ccd6f6;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #00b4d8;
+        }
+
+        select option {
+            background: #1a1a2e;
+            color: #ccd6f6;
+        }
+
+        .submit-btn {
+            display: block;
+            width: 100%;
+            padding: 18px 30px;
+            margin-top: 25px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #00b4d8, #0077b6);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 180, 216, 0.3);
+        }
+
+        .quick-fill {
+            margin-bottom: 20px;
+        }
+
+        .quick-fill-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #ccd6f6;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .quick-fill-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        @media (max-width: 768px) {
+            .match-row {
+                grid-template-columns: 35px 1fr;
+                gap: 8px;
+            }
+
+            .match-row input,
+            .match-row select {
+                grid-column: 2;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📝 Manuell inmatning</h1>
+            <a href="/" class="back-btn">← Tillbaka</a>
+        </header>
+
+        <div class="info-card">
+            <p>
+                <strong>Tips:</strong> Gå till 
+                <a href="https://www.svenskaspel.se/stryktips" target="_blank">svenskaspel.se/stryktips</a> 
+                och kopiera lagnamnen från aktuell omgång. Systemet hämtar sedan formdata från Sofascore.
+            </p>
+        </div>
+
+        <div class="quick-fill">
+            <button type="button" class="quick-fill-btn" onclick="fillExample()">
+                📋 Fyll i exempel (Allsvenskan/PL)
+            </button>
+            <button type="button" class="quick-fill-btn" onclick="clearAll()">
+                🗑️ Rensa allt
+            </button>
+        </div>
+
+        <form action="/analyze-manual" method="POST" class="match-form">
+            {% for i in range(1, 14) %}
+            <div class="match-row">
+                <span class="match-number">{{ i }}</span>
+                <input type="text" name="home_{{ i }}" placeholder="Hemmalag" required>
+                <input type="text" name="away_{{ i }}" placeholder="Bortalag" required>
+                <select name="league_{{ i }}">
+                    <option value="Allsvenskan">Allsvenskan</option>
+                    <option value="Premier League">Premier League</option>
+                    <option value="La Liga">La Liga</option>
+                    <option value="Serie A">Serie A</option>
+                    <option value="Bundesliga">Bundesliga</option>
+                    <option value="Ligue 1">Ligue 1</option>
+                    <option value="Championship">Championship</option>
+                    <option value="Superettan">Superettan</option>
+                    <option value="Annan">Annan liga</option>
+                </select>
+            </div>
+            {% endfor %}
+
+            <button type="submit" class="submit-btn">
+                🔍 Analysera matcher
+            </button>
+        </form>
+    </div>
+
+    <script>
+        function fillExample() {
+            const examples = [
+                { home: "AIK", away: "Djurgårdens IF", league: "Allsvenskan" },
+                { home: "Malmö FF", away: "IFK Göteborg", league: "Allsvenskan" },
+                { home: "Arsenal", away: "Chelsea", league: "Premier League" },
+                { home: "Liverpool", away: "Manchester City", league: "Premier League" },
+                { home: "Real Madrid", away: "Barcelona", league: "La Liga" },
+                { home: "Bayern München", away: "Borussia Dortmund", league: "Bundesliga" },
+                { home: "PSG", away: "Lyon", league: "Ligue 1" },
+                { home: "Inter", away: "AC Milan", league: "Serie A" },
+                { home: "Juventus", away: "Roma", league: "Serie A" },
+                { home: "Hammarby", away: "IFK Norrköping", league: "Allsvenskan" },
+                { home: "BK Häcken", away: "Elfsborg", league: "Allsvenskan" },
+                { home: "Tottenham", away: "Manchester United", league: "Premier League" },
+                { home: "Sirius", away: "Kalmar FF", league: "Allsvenskan" },
+            ];
+
+            examples.forEach((match, i) => {
+                const num = i + 1;
+                document.querySelector(`input[name="home_${num}"]`).value = match.home;
+                document.querySelector(`input[name="away_${num}"]`).value = match.away;
+                document.querySelector(`select[name="league_${num}"]`).value = match.league;
+            });
+        }
+
+        function clearAll() {
+            document.querySelectorAll('input[type="text"]').forEach(input => {
+                input.value = '';
+            });
+        }
+    </script>
+</body>
+</html>

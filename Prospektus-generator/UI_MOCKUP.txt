@@ -1,0 +1,259 @@
+═══════════════════════════════════════════════════════════════════════
+  VISUAL MOCKUP - HUR APPLIKATIONEN SER UT
+═══════════════════════════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LANDING PAGE (http://localhost:3000)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│         [Gradient Background: Navy → Teal]                         │
+│                                                                     │
+│                  PROSPEKTUS GENERATOR                              │
+│                                                                     │
+│         AI-driven bolagsbeskrivning på minuter                     │
+│                                                                     │
+│    Från veckor till minuter. Från €30k till €500.                 │
+│    Skapa professionella bolagsbeskrivningar med AI-assistans.     │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │   80% Snabbare   │   €30k Besparing   │   15 min Tid       │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│            [  Skapa Bolagsbeskrivning →  ]                         │
+│                                                                     │
+│              Demo version - Ingen registrering krävs               │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WIZARD - PROGRESS BAR (alla steps)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Prospektus Generator                             ← Tillbaka     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   (1)━━━━━━━(2)━━━━━━━(3)━━━━━━━(4)                             │
+│   Bolagsinformation   Verksamhet    Finansiell    Granska         │
+│                       beskrivning   översikt      & Ladda ner     │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEG 1: BOLAGSINFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│  Bolagsinformation                                                 │
+│  Grundläggande information om bolaget och emissionen               │
+│                                                                     │
+│  Bolagsnamn *                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │ t.ex. TechCo AB                                             │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│  Bransch *                                                         │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │ [SaaS / Mjukvara ▼]                                         │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│  Stadium *                                                         │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │ [Series A ▼]                                                │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│  Emissionsstorlek (€) *                                            │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │ 2000000                                                     │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│  Ange belopp i euro                                                │
+│                                                                     │
+│                                          [  Nästa Steg →  ]        │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 💡 Tips: För en snabb demo, fyll i enkla värden - AI:n kommer    │
+│    generera professionellt innehåll automatiskt                   │
+└─────────────────────────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEG 2: VERKSAMHETSBESKRIVNING (Split-screen!)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌───────────────────────────────┬─────────────────────────────────┐
+│  Verksamhetsbeskrivning       │  AI-Genererad Beskrivning  ✓    │
+│  Beskriv er produkt/tjänst... │                                 │
+│                               │  ┌───────────────────────────┐  │
+│  Produkt/Tjänst Beskrivning * │  │ TechCo AB provides a      │  │
+│  ┌─────────────────────────┐  │  │ cloud-based platform that │  │
+│  │ Vi hjälper HR-team      │  │  │ revolutionizes employee   │  │
+│  │ automatisera onboarding │  │  │ onboarding for mid-market │  │
+│  │ med AI...               │  │  │ enterprises. The company's│  │
+│  │                         │  │  │ proprietary AI engine...  │  │
+│  │                         │  │  │                           │  │
+│  └─────────────────────────┘  │  └───────────────────────────┘  │
+│  Skriv 2-3 meningar om vad ni │                                 │
+│  gör                          │  🔄 Generera om  ✏️ Redigera  │
+│                               │                                 │
+│  [🤖 Generera Professionell   │                                 │
+│      Beskrivning]             │                                 │
+│                               │                                 │
+└───────────────────────────────┴─────────────────────────────────┘
+
+  [ ← Föregående ]                           [ Nästa Steg → ]
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEG 3: FINANSIELL ÖVERSIKT (Genererar 2 sektioner!)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌───────────────────────────────┬─────────────────────────────────┐
+│  Finansiell Översikt          │  Finansiell Översikt       ✓    │
+│  Fyll i historisk data        │  ┌───────────────────────────┐  │
+│                               │  │ Revenue growth 140% YoY...│  │
+│  År        Omsättning (€) *   │  └───────────────────────────┘  │
+│  2022      500000             │                                 │
+│  2023      1200000            │  Riskfaktorer              ✓    │
+│  2024      2800000            │  ┌───────────────────────────┐  │
+│                               │  │ 1. Bolaget befinner sig i │  │
+│  Lönsamhetsstatus *           │  │    ett tidigt skede...    │  │
+│  [Ej lönsam än ▼]             │  │ 2. Marknadskonkurrens... │  │
+│                               │  │ 3. Teknologiberoende...   │  │
+│  [🤖 Generera Finansiell      │  │ 4. Nyckelpersoner...     │  │
+│      Analys]                  │  └───────────────────────────┘  │
+│                               │                                 │
+└───────────────────────────────┴─────────────────────────────────┘
+
+  [ ← Föregående ]                   [ Granska & Ladda ner → ]
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEG 4: GRANSKA & LADDA NER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────────────────────────────────────────┐
+│  ✅  Dokument klart!                                              │
+│                                                                     │
+│  Din bolagsbeskrivning har genererats och är redo att laddas ner. │
+│                                                                     │
+│   ~15 min      │     4 veckor      │      €30k                    │
+│   Tid använd   │   Traditionellt   │    Besparing                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────┬─────────────────────────────────┐
+│  Dokument Innehåll            │  Ladda ner Dokument             │
+│                               │                                 │
+│  1. Bolagsinformation         │  Dokumentet innehåller alla     │
+│  Bolag: TechCo AB             │  sektioner formaterade enligt   │
+│  Bransch: SaaS                │  prospekt-standard.             │
+│  Emission: €2,000,000         │                                 │
+│                               │  [ 📄 Ladda ner PDF ]           │
+│  2. Verksamhetsbeskrivning    │                                 │
+│  [Preview text...]            │  ───────────────────────────    │
+│                               │                                 │
+│  3. Finansiell Översikt       │  ⚠️ Viktigt att veta           │
+│  Revenue: €500k → €2.8M       │  • UTKAST som måste granskas   │
+│                               │  • Juridisk review krävs       │
+│  4. Riskfaktorer              │  • AI garanterar ej compliance │
+│  [Preview risks...]           │                                 │
+│                               │  🚀 Nästa steg                  │
+│                               │  1. Ladda ner PDF              │
+│                               │  2. Skicka till emissionsinst. │
+└───────────────────────────────┴─────────────────────────────────┘
+
+  [ ← Föregående ]                    [ 📄 Ladda ner PDF igen ]
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GENERATED PDF OUTPUT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│                    BOLAGSBESKRIVNING                               │
+│                                                                     │
+│                       TechCo AB                                    │
+│                                                                     │
+│                    Emission: €2,000,000                            │
+│                                                                     │
+│                    2026-02-16                                      │
+│                                                                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. BOLAGSINFORMATION                                              │
+│                                                                     │
+│  Bolagsnamn: TechCo AB                                             │
+│  Bransch: SaaS                                                     │
+│  Stadium: Series A                                                 │
+│  Emissionsstorlek: €2,000,000                                      │
+│                                                                     │
+│  2. VERKSAMHETSBESKRIVNING                                         │
+│                                                                     │
+│  TechCo AB provides a cloud-based platform that revolutionizes     │
+│  employee onboarding for mid-market enterprises. The company's     │
+│  proprietary AI engine automates up to 80% of repetitive HR        │
+│  tasks, significantly reducing administrative workload and         │
+│  improving new hire experience...                                  │
+│                                                                     │
+│  3. FINANSIELL ÖVERSIKT                                            │
+│                                                                     │
+│  [Generated financial commentary with revenue growth analysis]     │
+│                                                                     │
+│  4. RISKFAKTORER                                                   │
+│                                                                     │
+│  1. Bolaget befinner sig i ett tidigt skede...                     │
+│  2. Marknadens konkurrensintensitet...                             │
+│  [etc]                                                             │
+│                                                                     │
+│                                                                     │
+│  TechCo AB - Bolagsbeskrivning | Sida 1 av 4                      │
+└─────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════
+
+DESIGNELEMENT:
+
+✓ Brand Colors: Navy (#1E2761) & Teal (#0891B2) från din pitchdeck
+✓ Clean, professional layout
+✓ Responsive design (fungerar på laptop för demo)
+✓ Loading states med spinner
+✓ Real-time feedback
+✓ Progress indicators
+✓ Professional PDF output
+
+═══════════════════════════════════════════════════════════════════════
+
+ANIMATIONS & INTERACTIONS:
+
+• Smooth transitions mellan steps
+• AI-generering visar spinner + "Genererar med AI..."
+• Split-screen updates live när AI svarar
+• PDF download med instant feedback
+• Hover effects på buttons
+• Disabled states när forms är inkompletta
+
+═══════════════════════════════════════════════════════════════════════
+
+INVESTOR WOW-MOMENTS:
+
+1. AI-generering i real-time (Steg 2)
+   → Se text dyka upp professionellt formaterad
+
+2. Dual-generation (Steg 3)
+   → En click genererar BÅDE finansiell översikt OCH risker
+
+3. Instant PDF
+   → Professional document på sekunder
+
+4. Stats comparison
+   → "15 min vs 4 veckor" visuellt
+
+═══════════════════════════════════════════════════════════════════════

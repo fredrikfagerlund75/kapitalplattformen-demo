@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stryktips - Klistra in matcher</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e4e4e4;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #00b4d8, #90e0ef);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ccd6f6;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .info-card {
+            background: rgba(0, 180, 216, 0.1);
+            border: 1px solid rgba(0, 180, 216, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .info-card h3 {
+            color: #00b4d8;
+            margin-bottom: 15px;
+        }
+
+        .info-card p {
+            color: #8892b0;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .info-card ol {
+            color: #8892b0;
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .info-card a {
+            color: #00b4d8;
+        }
+
+        .info-card code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            color: #ccd6f6;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #00b4d8;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        textarea::placeholder {
+            color: #5a6b8a;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00b4d8, #0077b6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 180, 216, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ccd6f6;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .preview-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 25px;
+            display: none;
+        }
+
+        .preview-card.visible {
+            display: block;
+        }
+
+        .preview-card h3 {
+            color: #ccd6f6;
+            margin-bottom: 15px;
+        }
+
+        .preview-list {
+            list-style: none;
+        }
+
+        .preview-list li {
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.03);
+            margin-bottom: 8px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .match-num {
+            background: rgba(0, 180, 216, 0.2);
+            color: #00b4d8;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .match-teams {
+            flex: 1;
+            color: #ccd6f6;
+        }
+
+        .match-vs {
+            color: #5a6b8a;
+            margin: 0 8px;
+        }
+
+        .status-ok {
+            color: #2ecc71;
+        }
+
+        .status-error {
+            color: #e74c3c;
+        }
+
+        .example-text {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #8892b0;
+            white-space: pre-line;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 Klistra in matcher</h1>
+            <a href="/" class="back-btn">← Tillbaka</a>
+        </header>
+
+        <div class="info-card">
+            <h3>Så här gör du:</h3>
+            <ol>
+                <li>Gå till <a href="https://www.svenskaspel.se/stryktips" target="_blank">svenskaspel.se/stryktips</a></li>
+                <li>Markera matchlistan (lagnamnen)</li>
+                <li>Kopiera (Cmd+C / Ctrl+C)</li>
+                <li>Klistra in i rutan nedan</li>
+            </ol>
+            <p style="margin-top: 15px;"><strong>Exempelformat:</strong></p>
+            <div class="example-text">1. Chelsea - Bournemouth
+2. Brighton - Brentford
+3. Manchester City - Newcastle
+...</div>
+            <p style="margin-top: 10px; font-size: 0.85rem;">
+                Systemet tolkar automatiskt lagnamnen. Fungerar med de flesta format 
+                (kopierat från webben, semikolon-separerat, etc.)
+            </p>
+        </div>
+
+        <form id="paste-form" action="/analyze-paste" method="POST">
+            <textarea 
+                name="paste_text" 
+                id="paste-text"
+                placeholder="Klistra in matchlistan här...
+
+Exempel:
+1. Chelsea - Bournemouth
+2. Brighton - Brentford
+3. Manchester City - Newcastle
+4. Aston Villa - Ipswich
+5. Arsenal - West Ham
+..."
+                oninput="previewMatches()"
+            ></textarea>
+
+            <div class="btn-row">
+                <button type="button" class="btn btn-secondary" onclick="loadExample()">
+                    📋 Ladda exempel
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="clearText()">
+                    🗑️ Rensa
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    🔍 Analysera
+                </button>
+            </div>
+        </form>
+
+        <div class="preview-card" id="preview">
+            <h3>🔍 Tolkade matcher:</h3>
+            <ul class="preview-list" id="preview-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        function parseMatches(text) {
+            const matches = [];
+            const lines = text.split('\n').filter(line => line.trim());
+            
+            for (const line of lines) {
+                // Ta bort nummer-prefix som "1.", "1)", "Match 1:" etc
+                let cleaned = line.replace(/^[\d]+[\.\)\:\s]+/, '').trim();
+                
+                // Försök hitta "lag1 - lag2" eller "lag1 vs lag2"
+                let parts = cleaned.split(/\s+[-–—]\s+|\s+vs\.?\s+/i);
+                
+                if (parts.length >= 2) {
+                    const home = parts[0].trim();
+                    const away = parts[1].trim();
+                    
+                    // Filtrera bort för korta namn (troligen inte lagnamn)
+                    if (home.length > 2 && away.length > 2) {
+                        matches.push({ home, away });
+                    }
+                }
+            }
+            
+            return matches;
+        }
+
+        function previewMatches() {
+            const text = document.getElementById('paste-text').value;
+            const matches = parseMatches(text);
+            const previewCard = document.getElementById('preview');
+            const previewList = document.getElementById('preview-list');
+            
+            if (matches.length > 0) {
+                previewCard.classList.add('visible');
+                previewList.innerHTML = matches.map((m, i) => `
+                    <li>
+                        <span class="match-num">${i + 1}</span>
+                        <span class="match-teams">
+                            ${m.home}<span class="match-vs">vs</span>${m.away}
+                        </span>
+                        <span class="status-ok">✓</span>
+                    </li>
+                `).join('');
+            } else {
+                previewCard.classList.remove('visible');
+            }
+        }
+
+        function loadExample() {
+            const example = `1. Chelsea - Bournemouth
+2. Brighton - Brentford
+3. Manchester City - Newcastle
+4. Aston Villa - Ipswich
+5. Arsenal - West Ham
+6. Liverpool - Southampton
+7. Leeds - Burnley
+8. Middlesbrough - Derby
+9. Norwich - Watford
+10. Birmingham - Millwall
+11. Portsmouth - Oxford
+12. Bradford - Lincoln City
+13. Wrexham - Mansfield`;
+            
+            document.getElementById('paste-text').value = example;
+            previewMatches();
+        }
+
+        function clearText() {
+            document.getElementById('paste-text').value = '';
+            document.getElementById('preview').classList.remove('visible');
+        }
+    </script>
+</body>
+</html>
