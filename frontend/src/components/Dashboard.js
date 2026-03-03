@@ -49,6 +49,14 @@ function Dashboard({ user, onNavigate }) {
       description: 'Lansera och marknadsför din emission med moderna digitala kanaler',
       status: 'active',
       color: 'purple'
+    },
+    {
+      id: 'aktiebok',
+      name: 'Aktiebok',
+      icon: '📊',
+      description: 'Hantera aktieägare, opt-ins och synkronisera till marknadsföringskanaler',
+      status: 'active',
+      color: 'orange'
     }
   ];
 
@@ -164,6 +172,13 @@ function Dashboard({ user, onNavigate }) {
             <span className="action-icon">📚</span>
             <span>Dokumentation</span>
           </button>
+          <button 
+            className="action-card"
+            onClick={() => onNavigate('aktiebok')}
+          >
+            <span className="action-icon">📊</span>
+            <span>Aktiebok</span>
+          </button>
         </div>
       </div>
 
@@ -171,8 +186,8 @@ function Dashboard({ user, onNavigate }) {
       <div className="info-banner">
         <div className="info-banner-icon">ℹ️</div>
         <div className="info-banner-content">
-          <strong>Demo-version</strong>
-          <p>Du använder en demo-version av Kapitalplattformen. Vissa funktioner är begränsade.</p>
+          <strong>Demo-version v2.1</strong>
+          <p>Du använder en demo-version av Kapitalplattformen. Brevo-integration för email-kampanjer är aktiverad.</p>
         </div>
       </div>
     </div>

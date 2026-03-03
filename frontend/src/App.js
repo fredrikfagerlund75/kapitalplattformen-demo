@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import ProspektGenerator from './components/ProspektGenerator';
 import MarketingModule from './components/MarketingModule';
 import CapitalAdvisor from './components/CapitalAdvisor';
+import Aktiebok from './components/Aktiebok';
 import { getAuthToken, getUser, clearAuthToken } from './utils/api';
 
 function App() {
@@ -96,11 +97,18 @@ function App() {
             onBack={() => navigateToModule('dashboard')}
           />
         )}
+
+        {currentModule === 'aktiebok' && (
+          <Aktiebok 
+            user={user}
+            onBack={() => navigateToModule('dashboard')}
+          />
+        )}
       </main>
 
       {/* Footer */}
       <footer className="global-footer">
-        <p>Kapitalplattformen v2.0 • Demo-version</p>
+        <p>Kapitalplattformen v2.1 • Demo-version</p>
       </footer>
     </div>
   );

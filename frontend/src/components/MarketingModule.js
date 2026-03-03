@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './MarketingModule.css';
-import { apiPost } from '../utils/api';
+import { apiPost, apiGet } from '../utils/api';
+import { MOCK_SHAREHOLDERS, MOCK_NEWSLETTER_SUBSCRIBERS } from './Aktiebok';
 
 // Demo fallback data when no IM has been generated yet
 const DEMO_EMISSION_DATA = {
@@ -39,6 +40,19 @@ function MarketingModule({ user, project, onBack }) {
   const [loading, setLoading] = useState(false);
   const [landingPageHtml, setLandingPageHtml] = useState('');
   const blobUrlRef = useRef(null);
+
+  // Brevo / Contacts state
+  const [brevoSyncLoading, setBrevoSyncLoading] = useState(false);
+  const [brevoSyncResult, setBrevoSyncResult] = useState(null);
+  const [brevoListId, setBrevoListId] = useState(null);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [emailDraft, setEmailDraft] = useState(null);
+  const [sendLoading, setSendLoading] = useState(false);
+  const [sendResult, setSendResult] = useState(null);
+  const [brevoCampaigns, setBrevoCampaigns] = useState(null);
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
+  const [selectedCampaignType, setSelectedCampaignType] = useState('Emissions-reminder');
+  const [selectedSegment, setSelectedSegment] = useState('Alla aktieägare (opt-in)');
 
   // Cleanup blob URL on unmount
   useEffect(() => {
@@ -587,6 +601,322 @@ function MarketingModule({ user, project, onBack }) {
     </div>
   );
 
+  // Brevo sync
+  const syncToBrevo = async () => {
+    setBrevoSyncLoading(true);
+    setBrevoSyncResult(null);
+    try {
+      const optInContacts = MOCK_SHAREHOLDERS.filter(s => s.optInEmail);
+      const response = await apiPost('/api/aktiebok/sync-to-brevo', {
+        contacts: optInContacts,
+        listName: 'Aktieägare'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setBrevoSyncResult({ success: true, message: `${data.synced} kontakter synkade till Brevo` });
+        setBrevoListId(data.listId);
+      } else {
+        setBrevoSyncResult({ success: false, message: data.error || 'Synkronisering misslyckades' });
+      }
+    } catch (error) {
+      console.error('Brevo sync error:', error);
+      setBrevoSyncResult({ success: false, message: 'Kunde inte ansluta till servern' });
+    }
+    setBrevoSyncLoading(false);
+  };
+
+  // Generate AI email draft
+  const generateEmailDraft = async () => {
+    setDraftLoading(true);
+    setEmailDraft(null);
+    setSendResult(null);
+    try {
+      const response = await apiPost('/api/marketing/generate-email-draft', {
+        campaignType: selectedCampaignType,
+        segment: selectedSegment,
+        companyName: user?.company || 'Demo Företag AB'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setEmailDraft(data);
+      } else {
+        alert(data.error || 'Kunde inte generera email-draft');
+      }
+    } catch (error) {
+      console.error('Draft generation error:', error);
+      alert('Kunde inte ansluta till servern');
+    }
+    setDraftLoading(false);
+  };
+
+  // Send campaign via Brevo
+  const sendCampaign = async () => {
+    if (!emailDraft) return;
+    setSendLoading(true);
+    setSendResult(null);
+    try {
+      const response = await apiPost('/api/marketing/send-brevo-campaign', {
+        subject: emailDraft.subject,
+        htmlContent: emailDraft.htmlContent,
+        listId: brevoListId
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setSendResult({ success: true, message: `Kampanj skickad till ${data.recipients || 0} mottagare` });
+        loadBrevoCampaigns();
+      } else {
+        setSendResult({ success: false, message: data.error || 'Kunde inte skicka kampanj' });
+      }
+    } catch (error) {
+      console.error('Send campaign error:', error);
+      setSendResult({ success: false, message: 'Kunde inte ansluta till servern' });
+    }
+    setSendLoading(false);
+  };
+
+  // Load Brevo campaign history
+  const loadBrevoCampaigns = async () => {
+    setCampaignsLoading(true);
+    try {
+      const response = await apiGet('/api/marketing/brevo-campaigns');
+      const data = await response.json();
+      if (response.ok) {
+        setBrevoCampaigns(data.campaigns);
+      }
+    } catch (error) {
+      console.error('Load campaigns error:', error);
+    }
+    setCampaignsLoading(false);
+  };
+
+  const optInEmailCount = MOCK_SHAREHOLDERS.filter(s => s.optInEmail).length;
+  const optInSMSCount = MOCK_SHAREHOLDERS.filter(s => s.optInSMS).length;
+
+  const renderContactsTab = () => (
+    <div className="contacts-outreach">
+      <h2>Kontakter & Utskick</h2>
+      <p className="tab-description">Hantera kontakter från Aktiebok och skapa riktade kampanjer per segment.</p>
+
+      {/* Database Status */}
+      <div className="database-status-section">
+        <h3>📊 Aktieägardatabas</h3>
+        <div className="stats-grid-mini">
+          <div className="stat-mini">
+            <strong>Totalt kontakter:</strong> {MOCK_SHAREHOLDERS.length}
+          </div>
+          <div className="stat-mini">
+            <strong>Email opt-in:</strong> {optInEmailCount} ({Math.round((optInEmailCount/MOCK_SHAREHOLDERS.length)*100)}%)
+          </div>
+          <div className="stat-mini">
+            <strong>SMS opt-in:</strong> {optInSMSCount} ({Math.round((optInSMSCount/MOCK_SHAREHOLDERS.length)*100)}%)
+          </div>
+          <div className="stat-mini">
+            <strong>Brevo-status:</strong> {brevoSyncResult?.success ? '✅ Synkad' : '⚠️ Ej synkad'}
+          </div>
+        </div>
+        <button 
+          className="btn-primary" 
+          onClick={syncToBrevo}
+          disabled={brevoSyncLoading}
+        >
+          {brevoSyncLoading ? 'Synkroniserar...' : '🔄 Synkronisera till Brevo'}
+        </button>
+        <p className="sync-note">Synkroniserar aktieägare med opt-in till Brevo för email-kampanjer</p>
+        {brevoSyncResult && (
+          <p className={`sync-result ${brevoSyncResult.success ? 'sync-success' : 'sync-error'}`}>
+            {brevoSyncResult.message}
+          </p>
+        )}
+      </div>
+
+      {/* Segments */}
+      <div className="segments-section">
+        <h3>📋 Segment</h3>
+        <p>Välj ett segment för att skapa riktad kampanj</p>
+        <div className="segment-grid">
+          <div className="segment-card">
+            <div className="segment-icon">👥</div>
+            <h4>Befintliga aktieägare</h4>
+            <div className="segment-count">{optInEmailCount} kontakter (opt-in)</div>
+            <p>Alla aktieägare som har opt-in för email-kommunikation</p>
+            <button className="btn-secondary" onClick={() => setSelectedSegment('Alla aktieägare (opt-in)')}>Skapa kampanj →</button>
+          </div>
+
+          <div className="segment-card">
+            <div className="segment-icon">⭐</div>
+            <h4>Större ägare (&gt;10K aktier)</h4>
+            <div className="segment-count">{MOCK_SHAREHOLDERS.filter(s => s.shares > 10000 && s.optInEmail).length} kontakter</div>
+            <p>Institutionella investerare och större innehåv</p>
+            <button className="btn-secondary" onClick={() => setSelectedSegment('Större ägare (>10K aktier)')}>Skapa kampanj →</button>
+          </div>
+
+          <div className="segment-card">
+            <div className="segment-icon">📰</div>
+            <h4>Nyhetsbrev-prenumeranter</h4>
+            <div className="segment-count">{MOCK_NEWSLETTER_SUBSCRIBERS.length} kontakter</div>
+            <p>Opt-in intressenter utan aktieinnehåv</p>
+            <button className="btn-secondary" onClick={() => setSelectedSegment('Nyhetsbrev-prenumeranter')}>Skapa kampanj →</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Campaign Creator */}
+      <div className="campaign-creator-section">
+        <h3>✉️ Skapa kampanj</h3>
+        <div className="creator-form">
+          <div className="form-row">
+            <div className="form-group">
+              <label>Kampanjtyp</label>
+              <select value={selectedCampaignType} onChange={(e) => setSelectedCampaignType(e.target.value)}>
+                <option>Emissions-reminder</option>
+                <option>Kvartalsupdate</option>
+                <option>VD-brev</option>
+                <option>Stämmokallelse</option>
+                <option>Pressmeddelande</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Målgrupp</label>
+              <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)}>
+                <option>Alla aktieägare (opt-in)</option>
+                <option>Större ägare (&gt;10K aktier)</option>
+                <option>Nyhetsbrev-prenumeranter</option>
+                <option>Retail-investerare</option>
+              </select>
+            </div>
+          </div>
+
+          <button 
+            className="btn-primary btn-large" 
+            onClick={generateEmailDraft}
+            disabled={draftLoading}
+          >
+            {draftLoading ? 'Genererar...' : '🤖 Generera AI-draft'}
+          </button>
+        </div>
+
+        {/* Email Draft Preview */}
+        {emailDraft && (
+          <div className="draft-preview" style={{ marginTop: '2rem' }}>
+            <h4>📧 Förhandsgranskning</h4>
+            <div style={{ background: '#f7fafc', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+              <p><strong>Ämnesrad:</strong> {emailDraft.subject}</p>
+              {emailDraft.previewText && <p><strong>Preview-text:</strong> {emailDraft.previewText}</p>}
+            </div>
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', maxHeight: '400px', overflow: 'auto' }}>
+              <div dangerouslySetInnerHTML={{ __html: emailDraft.htmlContent }} />
+            </div>
+            <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
+              <button 
+                className="btn-primary"
+                onClick={sendCampaign}
+                disabled={sendLoading || !brevoListId}
+              >
+                {sendLoading ? 'Skickar...' : '📨 Skicka kampanj via Brevo'}
+              </button>
+              <button className="btn-secondary" onClick={generateEmailDraft} disabled={draftLoading}>
+                🔄 Generera om
+              </button>
+            </div>
+            {!brevoListId && (
+              <p className="requirement-note" style={{ marginTop: '0.5rem' }}>⚠️ Synkronisera kontakter till Brevo först för att kunna skicka</p>
+            )}
+            {sendResult && (
+              <p className={`sync-result ${sendResult.success ? 'sync-success' : 'sync-error'}`} style={{ marginTop: '0.5rem' }}>
+                {sendResult.message}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Multi-channel Options */}
+      <div className="multichannel-section">
+        <h3>📢 Kanaler</h3>
+        <div className="channel-grid">
+          <div className="channel-card active">
+            <div className="channel-icon">📧</div>
+            <h4>Email</h4>
+            <p>Fullt fungerande via Brevo</p>
+            <div className="channel-status status-active">Aktiverad</div>
+          </div>
+
+          <div className="channel-card disabled">
+            <div className="channel-icon">📱</div>
+            <h4>SMS</h4>
+            <p>Snabba påminnelser till aktieägare</p>
+            <div className="channel-status status-coming-soon">Coming in Phase 2</div>
+          </div>
+
+          <div className="channel-card disabled">
+            <div className="channel-icon">💼</div>
+            <h4>LinkedIn</h4>
+            <p>Outreach till institutionella investerare</p>
+            <div className="channel-status status-coming-soon">Coming in Phase 2</div>
+          </div>
+
+          <div className="channel-card disabled">
+            <div className="channel-icon">💬</div>
+            <h4>WhatsApp</h4>
+            <p>Personlig kommunikation med VIP-ägare</p>
+            <div className="channel-status status-coming-soon">Coming in Phase 2</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Campaigns from Brevo */}
+      <div className="recent-campaigns-section">
+        <h3>📨 Senaste utskick</h3>
+        {!brevoCampaigns && (
+          <button className="btn-secondary" onClick={loadBrevoCampaigns} disabled={campaignsLoading}>
+            {campaignsLoading ? 'Laddar...' : 'Hämta kampanjhistorik från Brevo'}
+          </button>
+        )}
+        {brevoCampaigns && brevoCampaigns.length > 0 ? (
+          <table className="campaigns-table">
+            <thead>
+              <tr>
+                <th>Kampanj</th>
+                <th>Skickad</th>
+                <th>Mottagare</th>
+                <th>Öppningar</th>
+                <th>Klick</th>
+                <th>Kanal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {brevoCampaigns.map((c, i) => (
+                <tr key={i}>
+                  <td><strong>{c.name}</strong></td>
+                  <td>{c.sentDate || '—'}</td>
+                  <td>{c.recipients || 0}</td>
+                  <td>{c.opens || 0}{c.recipients ? ` (${Math.round((c.opens/c.recipients)*100)}%)` : ''}</td>
+                  <td>{c.clicks || 0}{c.recipients ? ` (${Math.round((c.clicks/c.recipients)*100)}%)` : ''}</td>
+                  <td><span className="channel-badge">📧 Email</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : brevoCampaigns ? (
+          <p style={{ color: '#718096', marginTop: '1rem' }}>Inga kampanjer skickade ännu.</p>
+        ) : null}
+      </div>
+
+      {/* Info Box */}
+      <div className="info-box">
+        <strong>💡 Integration med Aktiebok</strong>
+        <p>Kontaktdata hämtas från Aktiebok-modulen. För att uppdatera opt-in status eller lägga till nya kontakter, gå till Aktiebok → Import & Synk.</p>
+        <ul>
+          <li>✅ Email-kampanjer via Brevo (aktivt)</li>
+          <li>⏸️ SMS via Brevo SMS API (fas 2)</li>
+          <li>⏸️ LinkedIn via Expandi/manuell process (fas 2)</li>
+          <li>⏸️ WhatsApp Business API (fas 2)</li>
+        </ul>
+      </div>
+    </div>
+  );
+
   const renderAnalytics = () => (
     <div className="analytics-dashboard">
       <h2>Kampanjanalys</h2>
@@ -656,6 +986,12 @@ function MarketingModule({ user, project, onBack }) {
           Email
         </button>
         <button 
+          className={`tab ${activeTab === 'contacts' ? 'active' : ''}`}
+          onClick={() => setActiveTab('contacts')}
+        >
+          Kontakter & Utskick
+        </button>
+        <button 
           className={`tab ${activeTab === 'analytics' ? 'active' : ''}`}
           onClick={() => setActiveTab('analytics')}
         >
@@ -667,6 +1003,7 @@ function MarketingModule({ user, project, onBack }) {
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'landing' && renderLandingPage()}
         {activeTab === 'email' && renderEmailCampaigns()}
+        {activeTab === 'contacts' && renderContactsTab()}
         {activeTab === 'analytics' && renderAnalytics()}
       </div>
     </div>

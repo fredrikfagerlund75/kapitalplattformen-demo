@@ -48,6 +48,18 @@
   transition: transform 0.3s ease;
 }
 
+.module-card.module-green::before {
+  background: linear-gradient(90deg, #48bb78 0%, #38a169 100%);
+}
+
+.module-card.module-purple::before {
+  background: linear-gradient(90deg, #9f7aea 0%, #805ad5 100%);
+}
+
+.module-card.module-orange::before {
+  background: linear-gradient(90deg, #ed8936 0%, #dd6b20 100%);
+}
+
 .module-card:hover:not(.disabled)::before {
   transform: scaleX(1);
 }

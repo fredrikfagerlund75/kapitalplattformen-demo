@@ -5,6 +5,7 @@ const cors = require('cors');
 const PDFDocument = require('pdfkit');
 const path = require('path');
 const crypto = require('crypto');
+const { BrevoClient } = require('@getbrevo/brevo');
 
 const app = express();
 app.use(cors());
@@ -13,6 +14,18 @@ app.use(express.json());
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+// Brevo API client (v2 SDK — uses BrevoClient with chained resource accessors)
+let brevo = null;
+let brevoConfigured = false;
+
+if (process.env.BREVO_API_KEY) {
+  brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
+  brevoConfigured = true;
+  console.log('Brevo API configured: true');
+} else {
+  console.log('Brevo API configured: false (BREVO_API_KEY not set)');
+}
 
 console.log('API Key configured:', !!process.env.ANTHROPIC_API_KEY);
 
@@ -961,6 +974,228 @@ app.get('/api/marketing/analytics/:projectId', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  BREVO INTEGRATION ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Sync contacts from Aktiebok to Brevo
+app.post('/api/aktiebok/sync-to-brevo', async (req, res) => {
+  try {
+    if (!brevoConfigured) {
+      return res.status(400).json({ error: 'Brevo API-nyckel ej konfigurerad' });
+    }
+
+    const { contacts, listName = 'Aktieägare' } = req.body;
+    if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+      return res.status(400).json({ error: 'Inga kontakter att synkronisera' });
+    }
+
+    // 1. Get or create list
+    let listId;
+    try {
+      const listsResp = await brevo.contacts.getLists({ limit: 50 });
+      const lists = listsResp.data || listsResp;
+      const existing = (lists.lists || []).find(l => l.name === listName);
+      if (existing) {
+        listId = existing.id;
+      } else {
+        const newListResp = await brevo.contacts.createList({ name: listName, folderId: 1 });
+        const newList = newListResp.data || newListResp;
+        listId = newList.id;
+      }
+    } catch (listError) {
+      console.error('Brevo list error:', listError?.body || listError);
+      return res.status(500).json({ error: 'Kunde inte skapa/hitta kontaktlista i Brevo' });
+    }
+
+    // 2. Ensure custom attributes exist (silently ignore if already exist)
+    const attributesToCreate = [
+      { attributeCategory: 'normal', attributeName: 'INVESTOR_TYPE', type: 'text' },
+      { attributeCategory: 'normal', attributeName: 'SHARES', type: 'float' },
+      { attributeCategory: 'normal', attributeName: 'OWNERSHIP_PERCENT', type: 'float' }
+    ];
+    for (const attr of attributesToCreate) {
+      try {
+        await brevo.contacts.createAttribute({
+          attributeCategory: attr.attributeCategory,
+          attributeName: attr.attributeName,
+          type: attr.type
+        });
+      } catch (e) {
+        // Attribute likely already exists — ignore
+      }
+    }
+
+    // 3. Create/update contacts
+    let synced = 0;
+    const errors = [];
+    for (const contact of contacts) {
+      try {
+        const nameParts = (contact.name || '').split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        await brevo.contacts.createContact({
+          email: contact.email,
+          attributes: {
+            FIRSTNAME: firstName,
+            LASTNAME: lastName,
+            SMS: contact.phone || '',
+            INVESTOR_TYPE: contact.investorType || '',
+            SHARES: contact.shares || 0,
+            OWNERSHIP_PERCENT: parseFloat(contact.ownershipPercent) || 0
+          },
+          listIds: [listId],
+          updateEnabled: true
+        });
+        synced++;
+      } catch (contactError) {
+        const errMsg = contactError?.body?.message || contactError?.message || 'Unknown error';
+        errors.push({ email: contact.email, error: errMsg });
+      }
+    }
+
+    console.log(`Brevo sync: ${synced}/${contacts.length} contacts synced to list ${listName} (id: ${listId})`);
+    res.json({ synced, listId, listName, total: contacts.length, errors: errors.length > 0 ? errors : undefined });
+  } catch (error) {
+    console.error('Brevo sync error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generate AI email draft
+app.post('/api/marketing/generate-email-draft', async (req, res) => {
+  try {
+    const { campaignType, segment, companyName } = req.body;
+
+    const prompt = `Du är expert på email-marknadsföring för kapitalanskaffningar och IR-kommunikation.
+
+Skapa ett professionellt email för ${companyName}.
+
+Kampanjtyp: ${campaignType}
+Målgrupp: ${segment}
+
+Svara i exakt detta JSON-format (inget annat):
+{
+  "subject": "Ämnesrad här",
+  "previewText": "Kort preview-text (max 100 tecken)",
+  "htmlContent": "<html>...</html>"
+}
+
+Emailet ska vara:
+- Professionellt och formellt
+- På svenska
+- Innehålla relevant innehåll för kampanjtypen
+- Ha tydlig CTA-knapp
+- Responsiv HTML med inline CSS
+- Använda clean, modern design med gradient-accenter (#667eea till #764ba2)
+- Inkludera footer med "Kapitalplattformen" branding`;
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const responseText = message.content[0].text;
+    // Extract JSON from response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Kunde inte tolka AI-svaret');
+    }
+    const draft = JSON.parse(jsonMatch[0]);
+
+    res.json({
+      subject: draft.subject,
+      previewText: draft.previewText || '',
+      htmlContent: draft.htmlContent
+    });
+  } catch (error) {
+    console.error('Email draft generation error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send campaign via Brevo
+app.post('/api/marketing/send-brevo-campaign', async (req, res) => {
+  try {
+    if (!brevoConfigured) {
+      return res.status(400).json({ error: 'Brevo API-nyckel ej konfigurerad' });
+    }
+
+    const { subject, htmlContent, listId } = req.body;
+    if (!subject || !htmlContent) {
+      return res.status(400).json({ error: 'Ämnesrad och HTML-innehåll krävs' });
+    }
+
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || 'admin@kapitalplattformen.com';
+    const senderName = process.env.BREVO_SENDER_NAME || 'Kapitalplattformen';
+
+    // Create campaign
+    const campaignData = {
+      name: `${subject} - ${new Date().toLocaleDateString('sv-SE')}`,
+      subject: subject,
+      sender: { name: senderName, email: senderEmail },
+      type: 'classic',
+      htmlContent: htmlContent,
+      recipients: listId ? { listIds: [listId] } : undefined
+    };
+
+    const campaignResp = await brevo.emailCampaigns.createEmailCampaign(campaignData);
+    const campaign = campaignResp.data || campaignResp;
+    console.log(`Brevo campaign created: ${campaign.id}`);
+
+    // Send immediately
+    try {
+      await brevo.emailCampaigns.sendEmailCampaignNow({ campaignId: campaign.id });
+      console.log(`Brevo campaign ${campaign.id} sent`);
+    } catch (sendErr) {
+      console.error('Brevo send error (campaign created but not sent):', sendErr?.body || sendErr);
+      return res.json({
+        campaignId: campaign.id,
+        status: 'created_not_sent',
+        message: 'Kampanjen skapades men kunde inte skickas. Kontrollera att avsändaradressen är verifierad i Brevo.',
+        error: sendErr?.body?.message || sendErr?.message
+      });
+    }
+
+    res.json({
+      campaignId: campaign.id,
+      status: 'sent',
+      recipients: listId ? 'alla i listan' : 0
+    });
+  } catch (error) {
+    console.error('Brevo campaign error:', error?.body || error);
+    res.status(500).json({ error: error?.body?.message || error.message });
+  }
+});
+
+// Get recent Brevo campaigns with stats
+app.get('/api/marketing/brevo-campaigns', async (req, res) => {
+  try {
+    if (!brevoConfigured) {
+      return res.json({ campaigns: [] });
+    }
+
+    const resultResp = await brevo.emailCampaigns.getEmailCampaigns({ type: 'classic', limit: 10, sort: 'desc' });
+    const result = resultResp.data || resultResp;
+    const campaigns = (result.campaigns || []).map(c => ({
+      name: c.name || c.subject,
+      subject: c.subject,
+      sentDate: c.sentDate ? new Date(c.sentDate).toLocaleDateString('sv-SE') : null,
+      status: c.status,
+      recipients: c.statistics?.globalStats?.sent || 0,
+      opens: c.statistics?.globalStats?.uniqueOpens || 0,
+      clicks: c.statistics?.globalStats?.uniqueClicks || 0
+    }));
+
+    res.json({ campaigns });
+  } catch (error) {
+    console.error('Brevo campaigns fetch error:', error?.body || error);
+    res.status(500).json({ error: error?.body?.message || error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  PRODUCTION: SERVE REACT BUILD
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -986,6 +1221,7 @@ app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
   console.log('API Key configured:', !!process.env.ANTHROPIC_API_KEY);
   console.log('Demo login configured:', !!process.env.DEMO_EMAIL);
+  console.log('Brevo configured:', brevoConfigured);
   console.log('\n📍 Available endpoints:');
   console.log('  POST /api/auth/login');
   console.log('  POST /api/qualify-document');
@@ -1001,4 +1237,8 @@ app.listen(PORT, () => {
   console.log('  POST /api/marketing/setup-email-campaign');
   console.log('  POST /api/marketing/setup-google-ads');
   console.log('  GET  /api/marketing/analytics/:projectId');
+  console.log('  POST /api/aktiebok/sync-to-brevo');
+  console.log('  POST /api/marketing/generate-email-draft');
+  console.log('  POST /api/marketing/send-brevo-campaign');
+  console.log('  GET  /api/marketing/brevo-campaigns');
 });

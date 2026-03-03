@@ -427,3 +427,295 @@
 .analytics-table tbody tr:hover {
   background: #f7fafc;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CONTACTS & OUTREACH TAB
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.contacts-outreach {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.tab-description {
+  color: #718096;
+  margin-bottom: 2rem;
+}
+
+/* Database Status */
+.database-status-section {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.database-status-section h3 {
+  margin-bottom: 1rem;
+  color: #1a202c;
+}
+
+.stats-grid-mini {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-mini {
+  padding: 1rem;
+  background: #f7fafc;
+  border-radius: 8px;
+}
+
+.stat-mini strong {
+  display: block;
+  color: #2d3748;
+  margin-bottom: 0.25rem;
+}
+
+.sync-note {
+  color: #718096;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.sync-result {
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.sync-success {
+  color: #2d5016;
+  background: #d4fc79;
+}
+
+.sync-error {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+/* Segments */
+.segments-section {
+  margin-bottom: 3rem;
+}
+
+.segments-section h3 {
+  margin-bottom: 0.5rem;
+  color: #1a202c;
+}
+
+.segments-section > p {
+  color: #718096;
+  margin-bottom: 1.5rem;
+}
+
+.segment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.segment-card {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.segment-card:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+}
+
+.segment-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.segment-card h4 {
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+}
+
+.segment-count {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #667eea;
+  margin-bottom: 0.5rem;
+}
+
+.segment-card p {
+  color: #718096;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+/* Campaign Creator */
+.campaign-creator-section {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 3rem;
+}
+
+.campaign-creator-section h3 {
+  margin-bottom: 1.5rem;
+  color: #1a202c;
+}
+
+.creator-form {
+  max-width: 800px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.btn-large {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+}
+
+/* Multi-channel */
+.multichannel-section {
+  margin-bottom: 3rem;
+}
+
+.multichannel-section h3 {
+  margin-bottom: 1.5rem;
+  color: #1a202c;
+}
+
+.channel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.channel-card {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.channel-card.active {
+  border-color: #48bb78;
+  background: #f0fff4;
+}
+
+.channel-card.disabled {
+  opacity: 0.6;
+}
+
+.channel-icon {
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
+}
+
+.channel-card h4 {
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+}
+
+.channel-card p {
+  color: #718096;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.channel-status {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status-coming-soon {
+  background: #fef5e7;
+  color: #7c6c2f;
+}
+
+/* Recent Campaigns */
+.recent-campaigns-section {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.recent-campaigns-section h3 {
+  margin-bottom: 1.5rem;
+  color: #1a202c;
+}
+
+.campaigns-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.campaigns-table thead {
+  background: #f7fafc;
+}
+
+.campaigns-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #2d3748;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.campaigns-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #4a5568;
+}
+
+.campaigns-table tbody tr:hover {
+  background: #f7fafc;
+}
+
+.channel-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: #e0e7ff;
+  color: #4c51bf;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .segment-grid,
+  .channel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .campaigns-table {
+    font-size: 0.85rem;
+  }
+
+  .campaigns-table th,
+  .campaigns-table td {
+    padding: 0.5rem;
+  }
+}
