@@ -1,0 +1,169 @@
+.wizard-progress {
+  margin-bottom: 2rem;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+}
+
+.progress-label {
+  text-align: center;
+  color: #718096;
+  font-size: 0.9rem;
+}
+
+.emission-details-banner {
+  background: #f0fff4;
+  border: 2px solid #48bb78;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.emission-details-banner h3 {
+  color: #2d5016;
+  margin-bottom: 1rem;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.details-grid div {
+  font-size: 0.95rem;
+  color: #2d3748;
+}
+
+.details-grid strong {
+  color: #1a202c;
+  font-weight: 600;
+}
+
+.wizard-step {
+  max-width: 800px;
+  margin: 0 auto;
+  animation: fadeIn 0.3s ease;
+}
+
+.wizard-step h2 {
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+}
+
+.wizard-step > p {
+  color: #718096;
+  margin-bottom: 2rem;
+}
+
+.team-member-card {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.team-member-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.team-member-header h4 {
+  color: #2d3748;
+  margin: 0;
+}
+
+.btn-remove {
+  background: #fee2e2;
+  color: #991b1b;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-remove:hover {
+  background: #fecaca;
+}
+
+.wizard-navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 2px solid #e2e8f0;
+}
+
+.wizard-navigation button {
+  flex: 1;
+  max-width: 200px;
+}
+
+.preview-section {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.preview-section > h3 {
+  color: #1a202c;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.preview-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.preview-card h4 {
+  color: #667eea;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.preview-card p {
+  color: #2d3748;
+  line-height: 1.8;
+  margin-bottom: 0.5rem;
+}
+
+.preview-card pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #2d3748;
+  line-height: 1.8;
+  margin: 0;
+  font-family: inherit;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

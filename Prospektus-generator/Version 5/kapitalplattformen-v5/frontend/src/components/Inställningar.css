@@ -1,0 +1,124 @@
+/* Inställningar Styles */
+
+.settings-content {
+  max-width: 700px;
+}
+
+.settings-card {
+  background: white;
+  border-radius: 12px;
+  padding: 28px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.settings-card h2 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  color: #1a1a2e;
+}
+
+.settings-desc {
+  color: #666;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-row.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+}
+
+.form-group input,
+.form-group select {
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #667eea;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.input-with-button {
+  display: flex;
+  gap: 8px;
+}
+
+.input-with-button input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.input-with-button input:focus {
+  border-color: #667eea;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.input-with-button .btn-secondary {
+  white-space: nowrap;
+  padding: 10px 16px;
+}
+
+.settings-actions {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.settings-info-box {
+  background: #f0f4ff;
+  border: 1px solid #d0d8f0;
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+
+.settings-info-box p {
+  margin: 0;
+  color: #555;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .form-row.two-col {
+    grid-template-columns: 1fr;
+  }
+  .input-with-button {
+    flex-direction: column;
+  }
+}
