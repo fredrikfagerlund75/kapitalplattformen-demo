@@ -5,21 +5,21 @@
 
 .generated-content {
   background: white;
-  border: 2px solid #667eea;
+  border: 2px solid var(--color-primary);
   border-radius: 12px;
   padding: 2rem;
   margin: 2rem 0;
 }
 
 .generated-content h3 {
-  color: #667eea;
+  color: var(--color-primary);
   margin-bottom: 1rem;
 }
 
 .analys-text {
   white-space: pre-wrap;
   line-height: 1.8;
-  color: #2d3748;
+  color: var(--color-text-primary);
 }
 
 .actions-section {
@@ -46,13 +46,483 @@
 
 .info-item {
   padding: 1rem;
-  background: #f7fafc;
+  background: var(--color-bg);
   border-radius: 8px;
 }
 
 .info-item strong {
   display: block;
-  color: #718096;
+  color: var(--color-text-secondary);
   font-size: 0.85rem;
   margin-bottom: 0.25rem;
+}
+
+/* Upload step */
+.upload-step {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.upload-zone {
+  margin: 2rem 0;
+}
+
+.upload-label {
+  display: block;
+  border: 3px dashed #cbd5e0;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--color-bg);
+}
+
+.upload-label:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.upload-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.loading-indicator {
+  text-align: center;
+  padding: 2rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 1rem;
+  border: 4px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.alternative-option {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--color-border);
+}
+
+/* Data review step */
+.data-review-step {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.data-section {
+  background: white;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.quarterly-data {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.quarter-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.calculated-metrics {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  color: white;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-top: 2rem;
+}
+
+.metric-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.metric-label {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.metric-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* Prognoser step */
+.prognoser-step {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.prognos-section {
+  background: white;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+/* Section selector */
+.section-selector {
+  background: var(--color-bg);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.selector-subtitle {
+  color: var(--color-text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.checkbox-card {
+  background: white;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: block;
+  position: relative;
+}
+
+.checkbox-card:hover {
+  border-color: #cbd5e0;
+  transform: translateY(-2px);
+}
+
+.checkbox-card input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+}
+
+.checkbox-card:has(input:checked) {
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
+}
+
+.checkbox-card input[type="checkbox"]:checked ~ .checkbox-content::before {
+  content: '\2713';
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 24px;
+  height: 24px;
+  background: #48bb78;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.checkbox-content {
+  display: flex;
+  gap: 1rem;
+  position: relative;
+}
+
+.checkbox-icon {
+  font-size: 2rem;
+}
+
+.checkbox-label strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.checkbox-label span {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.selected-sections-summary {
+  background: white;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.summary-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.tag {
+  background: #e0e7ff;
+  color: #4c51bf;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.tag-empty {
+  background: #fef5e7;
+  color: #7c6c2f;
+}
+
+/* Börsdata step */
+.borsdata-step {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.ticker-section {
+  background: white;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.stock-data-display {
+  background: white;
+  border: 2px solid #48bb78;
+  border-radius: 12px;
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.stock-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.stock-metric-card {
+  background: var(--color-bg);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.metric-change {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.ai-recommendations {
+  background: var(--color-bg);
+  border-radius: 12px;
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.recommendation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.recommendation-card {
+  background: white;
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.rec-icon {
+  font-size: 2.5rem;
+}
+
+.rec-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0.5rem 0;
+}
+
+.adjust-parameters {
+  margin-top: 2rem;
+}
+
+/* Clickable wizard steps */
+.step.clickable {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.step.clickable:hover {
+  background: var(--color-primary-light);
+  transform: translateY(-1px);
+}
+
+.step.clickable.completed:hover {
+  background: #c6f6d5;
+}
+
+.step.clickable.active:hover {
+  background: var(--color-primary);
+}
+
+/* Drag over state for upload */
+.upload-label.drag-over {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
+}
+
+/* Delete uploaded file button */
+.btn-delete-file {
+  display: block;
+  margin: 1rem auto 0;
+  padding: 0.5rem 1.5rem;
+  background: #fff5f5;
+  color: #e53e3e;
+  border: 2px solid #feb2b2;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-delete-file:hover {
+  background: #fed7d7;
+  border-color: #e53e3e;
+}
+
+/* Upload Progress List */
+.upload-progress-list {
+  width: 100%;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.progress-header {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--color-border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.progress-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.progress-icon {
+  flex-shrink: 0;
+  width: 1.5rem;
+}
+
+.progress-name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-status {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+
+.progress-waiting {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+.progress-waiting .progress-status {
+  color: var(--color-text-muted);
+}
+
+.progress-processing {
+  background: #ebf8ff;
+  color: #2b6cb0;
+}
+
+.progress-processing .progress-status {
+  color: #2b6cb0;
+  font-weight: 600;
+}
+
+@keyframes pulse-processing {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.progress-processing .progress-icon {
+  animation: pulse-processing 1.2s ease-in-out infinite;
+}
+
+.progress-done {
+  background: var(--color-success-bg);
+  color: #276749;
+}
+
+.progress-done .progress-status {
+  color: #276749;
+  font-weight: 600;
+}
+
+.progress-error {
+  background: #fff5f5;
+  color: #c53030;
+}
+
+.progress-error .progress-status {
+  color: #c53030;
+  font-weight: 500;
 }

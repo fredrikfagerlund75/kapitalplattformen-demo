@@ -6,97 +6,102 @@
 
 /* Project Info Card */
 .projekt-info-card {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+  box-shadow: var(--shadow-md);
 }
 
 .projekt-info-card h2 {
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  color: #1a1a2e;
+  margin: 0 0 var(--space-4) 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
 }
 
 .info-grid-2col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .info-grid-2col .info-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .info-grid-2col .info-label {
-  font-size: 12px;
-  color: #888;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .info-grid-2col .info-value {
-  font-size: 15px;
+  font-size: 0.95rem;
   font-weight: 500;
-  color: #1a1a2e;
+  color: var(--color-text-primary);
 }
 
 /* Åtgärder Section */
 .atgarder-section {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .atgarder-section h2 {
-  margin: 0 0 4px 0;
-  font-size: 18px;
-  color: #1a1a2e;
+  margin: 0 0 var(--space-1) 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
 }
 
 .atgarder-desc {
-  color: #666;
-  margin: 0 0 16px 0;
-  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-4) 0;
+  font-size: 0.88rem;
 }
 
 /* Åtgärd Card */
 .atgard-card {
-  background: white;
-  border: 2px solid #e0e0e0;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 12px;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-6);
+  margin-bottom: var(--space-3);
   transition: border-color 0.2s;
 }
 
 .atgard-card.completed {
-  border-color: #4caf50;
-  background: #f9fdf9;
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
 }
 
 .atgard-header {
   display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
 }
 
 .atgard-status {
-  font-size: 24px;
+  font-size: 1.5rem;
   flex-shrink: 0;
 }
 
 .atgard-info h3 {
-  margin: 0 0 4px 0;
-  font-size: 16px;
-  color: #1a1a2e;
+  margin: 0 0 var(--space-1) 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 .atgard-info p {
   margin: 0;
-  font-size: 13px;
-  color: #666;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
@@ -108,10 +113,10 @@
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   cursor: pointer;
-  font-size: 14px;
-  color: #333;
+  font-size: 0.88rem;
+  color: var(--color-text-primary);
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -122,52 +127,55 @@
 
 /* Draft Section */
 .draft-section {
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 
 .draft-section label {
   display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
-  color: #333;
+  margin-bottom: var(--space-2);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 .draft-textarea {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-  font-size: 13px;
+  font-size: 0.85rem;
   line-height: 1.6;
   resize: vertical;
   box-sizing: border-box;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
 }
 
 .draft-textarea:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 .draft-buttons {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 /* Proceed Section */
 .proceed-section {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 2px solid #eee;
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 2px solid var(--color-border);
   text-align: center;
 }
 
 .proceed-hint {
-  font-size: 14px;
-  color: #888;
-  margin-bottom: 12px;
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-3);
 }
 
 /* Tidsplan */
@@ -176,13 +184,16 @@
 }
 
 .projektvy-tidsplan h2 {
-  margin: 0 0 4px 0;
+  margin: 0 0 var(--space-1) 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
 }
 
 .projektvy-tidsplan > p {
-  color: #666;
-  margin: 0 0 24px 0;
-  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-6) 0;
+  font-size: 0.88rem;
 }
 
 .tidsplan-timeline {
@@ -197,15 +208,15 @@
   top: 0;
   bottom: 0;
   width: 2px;
-  background: #e0e0e0;
+  background: var(--color-border);
 }
 
 .tidsplan-item {
   position: relative;
-  padding-bottom: 24px;
+  padding-bottom: var(--space-6);
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .tidsplan-item:last-child {
@@ -220,35 +231,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
-  border: 2px solid #e0e0e0;
-  border-radius: 50%;
-  font-size: 14px;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: 0.88rem;
   z-index: 1;
 }
 
 .tidsplan-item.completed .tidsplan-dot {
-  border-color: #4caf50;
-  background: #f0fdf0;
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
 }
 
 .dot-number {
   font-weight: 600;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .tidsplan-content {
-  padding-top: 6px;
+  padding-top: var(--space-2);
 }
 
 .tidsplan-date {
-  font-size: 13px;
-  color: #888;
-  margin-bottom: 2px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
 }
 
 .tidsplan-milestone {
   font-weight: 500;
-  font-size: 15px;
-  color: #1a1a2e;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
 }

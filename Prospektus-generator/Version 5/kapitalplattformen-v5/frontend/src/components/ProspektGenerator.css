@@ -4,7 +4,7 @@
 
 .progress-bar {
   height: 8px;
-  background: #e2e8f0;
+  background: var(--color-border);
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 0.5rem;
@@ -12,13 +12,13 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
   transition: width 0.3s ease;
 }
 
 .progress-label {
   text-align: center;
-  color: #718096;
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
 }
 
@@ -43,11 +43,11 @@
 
 .details-grid div {
   font-size: 0.95rem;
-  color: #2d3748;
+  color: var(--color-text-primary);
 }
 
 .details-grid strong {
-  color: #1a202c;
+  color: var(--color-text-primary);
   font-weight: 600;
 }
 
@@ -58,18 +58,18 @@
 }
 
 .wizard-step h2 {
-  color: #1a202c;
+  color: var(--color-text-primary);
   margin-bottom: 0.5rem;
 }
 
 .wizard-step > p {
-  color: #718096;
+  color: var(--color-text-secondary);
   margin-bottom: 2rem;
 }
 
 .team-member-card {
   background: white;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--color-border);
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
@@ -83,7 +83,7 @@
 }
 
 .team-member-header h4 {
-  color: #2d3748;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
@@ -109,7 +109,7 @@
   gap: 1rem;
   margin-top: 3rem;
   padding-top: 2rem;
-  border-top: 2px solid #e2e8f0;
+  border-top: 2px solid var(--color-border);
 }
 
 .wizard-navigation button {
@@ -123,27 +123,27 @@
 }
 
 .preview-section > h3 {
-  color: #1a202c;
+  color: var(--color-text-primary);
   margin-bottom: 1.5rem;
   font-size: 1.5rem;
 }
 
 .preview-card {
   background: white;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
 }
 
 .preview-card h4 {
-  color: #667eea;
+  color: var(--color-primary);
   margin-bottom: 1rem;
   font-size: 1.1rem;
 }
 
 .preview-card p {
-  color: #2d3748;
+  color: var(--color-text-primary);
   line-height: 1.8;
   margin-bottom: 0.5rem;
 }
@@ -151,7 +151,7 @@
 .preview-card pre {
   white-space: pre-wrap;
   word-wrap: break-word;
-  color: #2d3748;
+  color: var(--color-text-primary);
   line-height: 1.8;
   margin: 0;
   font-family: inherit;

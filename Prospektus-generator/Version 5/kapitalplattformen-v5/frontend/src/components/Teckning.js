@@ -95,11 +95,29 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
     setLoading(false);
   };
 
+  const handleStatusChange = (newStatus) => {
+    const labels = { completed: 'Slutförd', cancelled: 'Avbruten' };
+    if (window.confirm(`Vill du markera emissionen som "${labels[newStatus]}"?`)) {
+      onUpdateProject(projekt.id, { status: newStatus });
+    }
+  };
+
   return (
     <div className="module-container">
       <div className="module-header">
         <button className="back-button" onClick={onBack}>← Tillbaka</button>
         <h1>✍️ Teckning - {projekt.name}</h1>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+          <select
+            value={projekt.status || 'active'}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.9rem', cursor: 'pointer' }}
+          >
+            <option value="active">Aktiv</option>
+            <option value="completed">✅ Slutförd</option>
+            <option value="cancelled">❌ Avbruten</option>
+          </select>
+        </div>
       </div>
 
       <div className="module-tabs">

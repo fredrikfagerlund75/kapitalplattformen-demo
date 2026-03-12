@@ -3,9 +3,16 @@ import './ProspektGenerator.css';
 import { apiPost } from '../utils/api';
 
 function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdateProject, onNavigate }) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingResearch, setLoadingResearch] = useState(false);
+  const [qualification, setQualification] = useState(null);
+  const [qualificationForm, setQualificationForm] = useState({
+    market: '',
+    emissionSizeSEK: projekt?.emissionsvillkor?.emissionsvolym || '',
+    period12Months: true,
+    audience: ''
+  });
   
   // Simplified wizard - fewer steps since emission details are pre-filled
   const [formData, setFormData] = useState({
@@ -46,6 +53,10 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
   });
 
   const handleResearch = async (researchType) => {
+    if (!formData.bolag.namn) {
+      alert('Fyll i bolagsnamnet (eller org.nr) först, sedan kan AI:n söka information.');
+      return;
+    }
     setLoadingResearch(true);
     try {
       const response = await apiPost('/api/generate-company-research', {
@@ -78,15 +89,19 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
           }
         }));
       } else if (researchType === 'finansiellt') {
-        setFormData(prev => ({
-          ...prev,
-          finansiellt: {
-            omsättning: d.omsattning || prev.finansiellt.omsättning,
-            resultat: d.resultat || prev.finansiellt.resultat,
-            egetKapital: d.egetKapital || prev.finansiellt.egetKapital,
-            år: d.ar ? parseInt(d.ar) : prev.finansiellt.år
-          }
-        }));
+        if (!d.omsattning && !d.resultat && !d.egetKapital) {
+          alert('Kunde inte hitta finansiell data för detta bolag. Fyll i manuellt.');
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            finansiellt: {
+              omsättning: d.omsattning || prev.finansiellt.omsättning,
+              resultat: d.resultat || prev.finansiellt.resultat,
+              egetKapital: d.egetKapital || prev.finansiellt.egetKapital,
+              år: d.ar ? parseInt(d.ar) : prev.finansiellt.år
+            }
+          }));
+        }
       } else if (researchType === 'ledning') {
         if (d.team && d.team.length > 0) {
           setFormData(prev => ({
@@ -97,6 +112,8 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
               bakgrund: t.bakgrund || ''
             }))
           }));
+        } else {
+          alert('Kunde inte hitta ledningsinformation för detta bolag. Fyll i manuellt.');
         }
       }
     } catch (error) {
@@ -104,6 +121,19 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
       alert('Kunde inte hämta data: ' + error.message);
     }
     setLoadingResearch(false);
+  };
+
+  const handleQualification = async () => {
+    setLoading(true);
+    try {
+      const response = await apiPost('/api/qualify-document', qualificationForm);
+      const data = await response.json();
+      setQualification(data);
+    } catch (error) {
+      console.error('Qualification error:', error);
+      alert('Kunde inte avgöra dokumenttyp');
+    }
+    setLoading(false);
   };
 
   if (!projekt) {
@@ -281,9 +311,9 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
       {/* Progress bar */}
       <div className="wizard-progress">
         <div className="progress-bar">
-          <div className="progress-fill" style={{ width: `${(step / 6) * 100}%` }}></div>
+          <div className="progress-fill" style={{ width: `${(step / 7) * 100}%` }}></div>
         </div>
-        <div className="progress-label">Steg {step} av 6 - Förenklad wizard (data från emissionsprojekt används)</div>
+        <div className="progress-label">{step === 0 ? 'Dokumentkvalificering' : `Steg ${step} av 6`}{qualification ? ` — ${qualification.recommendedType === 'PROSPEKT' ? 'Prospekt' : 'Informationsmemorandum'}` : ''}</div>
       </div>
 
       <div className="module-content">
@@ -297,6 +327,106 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
             <div><strong>Volym:</strong> {projekt.emissionsvillkor.emissionsvolym.toLocaleString('sv-SE')} SEK</div>
           </div>
         </div>
+
+        {/* Step 0: Qualification */}
+        {step === 0 && (
+          <div className="wizard-step">
+            <h2>Välkommen till Prospekt/IM Generatorn</h2>
+            <p>Besvara några frågor så avgör vi vilket dokument som behövs för er kapitalanskaffning.</p>
+
+            {!qualification ? (
+              <>
+                <div className="form-group">
+                  <label>Var är bolaget noterat/planerar notering?</label>
+                  <select value={qualificationForm.market} onChange={(e) => setQualificationForm({...qualificationForm, market: e.target.value})}>
+                    <option value="">-- Välj marknadsplats --</option>
+                    <option value="nasdaq_stockholm">Nasdaq Stockholm (reglerad marknad)</option>
+                    <option value="first_north">Nasdaq First North</option>
+                    <option value="spotlight">Spotlight Stock Market</option>
+                    <option value="nordic_sme">Nordic SME</option>
+                    <option value="unlisted">Onoterat / Planerar ej notering</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Total kapitalanskaffning (SEK)</label>
+                  <input type="number" value={qualificationForm.emissionSizeSEK}
+                    onChange={(e) => setQualificationForm({...qualificationForm, emissionSizeSEK: e.target.value})}
+                    placeholder="15000000" />
+                  <small style={{color: '#718096', display: 'block', marginTop: '4px'}}>Ange totalt belopp ni planerar att anskaffa</small>
+                </div>
+
+                <div className="form-group" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                  <input type="checkbox" id="period12m" checked={qualificationForm.period12Months}
+                    onChange={(e) => setQualificationForm({...qualificationForm, period12Months: e.target.checked})} />
+                  <label htmlFor="period12m" style={{margin: 0}}>Detta är den enda emissionen under en 12-månadersperiod</label>
+                </div>
+                <small style={{color: '#718096', display: 'block', marginBottom: '16px'}}>Om ni planerar flera emissioner inom 12 månader summeras dessa för prospektskyldighet</small>
+
+                <div className="form-group">
+                  <label>Vem riktar sig emissionen till?</label>
+                  <select value={qualificationForm.audience} onChange={(e) => setQualificationForm({...qualificationForm, audience: e.target.value})}>
+                    <option value="">-- Välj målgrupp --</option>
+                    <option value="public">Allmänheten / Befintliga aktieägare (≥150 personer)</option>
+                    <option value="qualified">Enbart kvalificerade investerare (&lt;150 st)</option>
+                    <option value="syndicate">Avgränsat syndikat (VC/PE/affärsänglar)</option>
+                  </select>
+                </div>
+
+                <button className="btn-primary" onClick={handleQualification}
+                  disabled={!qualificationForm.market || !qualificationForm.emissionSizeSEK || !qualificationForm.audience || loading}>
+                  {loading ? 'Analyserar...' : 'Analysera →'}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  background: qualification.recommendedType === 'PROSPEKT' ? '#fff5f5' : '#f0fff4',
+                  border: `2px solid ${qualification.recommendedType === 'PROSPEKT' ? '#fc8181' : '#48bb78'}`,
+                  borderRadius: '12px', padding: '1.5rem', marginBottom: '1.5rem'
+                }}>
+                  <h3>{qualification.recommendedType === 'PROSPEKT' ? '📋 Prospekt krävs' : '📄 Informationsmemorandum rekommenderas'}</h3>
+                  <p>{qualification.reasoning}</p>
+                  <p style={{marginTop: '0.5rem', fontSize: '0.9rem', color: '#718096'}}>
+                    <strong>Emissionsstorlek:</strong> ~€{(qualification.emissionSizeEUR || 0).toLocaleString('sv-SE')}
+                  </p>
+                </div>
+
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem'
+                }}>
+                  <div style={{background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.25rem'}}>
+                    <h4>📄 Informationsmemorandum</h4>
+                    <ul style={{marginLeft: '1rem', fontSize: '0.9rem', lineHeight: '1.8'}}>
+                      <li>✓ Snabbare att producera (3-5 dagar)</li>
+                      <li>✓ Lägre kostnad (frivilligt format)</li>
+                      <li>✓ Ingen FI-granskning</li>
+                      <li>✓ Lämpligt för riktade emissioner &lt;€8M</li>
+                    </ul>
+                  </div>
+                  <div style={{background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.25rem'}}>
+                    <h4>📋 Prospekt</h4>
+                    <ul style={{marginLeft: '1rem', fontSize: '0.9rem', lineHeight: '1.8'}}>
+                      <li>✓ FI-godkänt (högre trovärdighet)</li>
+                      <li>✓ Nödvändigt för allmänna erbjudanden ≥€8M</li>
+                      <li>⚠ Striktare formatkrav</li>
+                      <li>⚠ Längre processtid (4-6 veckor)</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div style={{display: 'flex', gap: '8px'}}>
+                  <button className="btn-primary" onClick={() => setStep(1)}>
+                    Fortsätt med {qualification.recommendedType === 'PROSPEKT' ? 'Prospekt' : 'Informationsmemorandum'} →
+                  </button>
+                  <button className="btn-secondary" onClick={() => { setQualification(null); }}>
+                    ← Ändra mina svar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Step 1: Bolagsinformation */}
         {step === 1 && (
@@ -407,11 +537,35 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
             <h2>Steg 3: Finansiell översikt</h2>
             <p>Senaste räkenskapsåret</p>
 
-            <button className="btn-secondary" onClick={() => handleResearch('finansiellt')} disabled={loadingResearch} style={{marginBottom: '16px'}}>
-              {loadingResearch ? 'Söker...' : '🤖 Hämta med AI'}
-            </button>
+            <div style={{display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap'}}>
+              <button className="btn-secondary" onClick={() => handleResearch('finansiellt')} disabled={loadingResearch}>
+                {loadingResearch ? 'Söker...' : '🤖 Hämta med AI'}
+              </button>
+              {projekt?.finansiellData && (
+                <button className="btn-primary" onClick={() => {
+                  const fd = projekt.finansiellData;
+                  const totalOms = Array.isArray(fd.omsättning) ? fd.omsättning.filter(v => v !== null).reduce((a, b) => a + b, 0) : '';
+                  const totalRes = Array.isArray(fd.resultat) ? fd.resultat.filter(v => v !== null).reduce((a, b) => a + b, 0) : '';
+                  setFormData(prev => ({
+                    ...prev,
+                    finansiellt: {
+                      omsättning: totalOms || prev.finansiellt.omsättning,
+                      resultat: totalRes || prev.finansiellt.resultat,
+                      egetKapital: fd.egetKapital || prev.finansiellt.egetKapital,
+                      år: fd.period ? parseInt(fd.period.match(/\d{4}/)?.[0]) || prev.finansiellt.år : prev.finansiellt.år
+                    }
+                  }));
+                  alert('✅ Data importerad från Kapitalrådgivaren!');
+                }}>
+                  📥 Importera från Kapitalrådgivaren
+                </button>
+              )}
+            </div>
             <div className="info-box" style={{marginBottom: '16px', background: '#fff8e1', borderColor: '#ffe082'}}>
               <p>⚠️ AI-hämtad finansiell data bör verifieras mot bolagets årsredovisning eller kvartalsrapporter.</p>
+              {projekt?.finansiellData && (
+                <p style={{marginTop: '8px'}}>💡 Du har finansiell data från Kapitalrådgivaren — klicka "Importera" ovan för att använda den.</p>
+              )}
             </div>
 
             <div className="form-group">
@@ -594,11 +748,15 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
         )}
 
         {/* Navigation buttons */}
-        {step < 6 && (
+        {step >= 1 && step < 6 && (
           <div className="wizard-navigation">
-            {step > 1 && (
+            {step > 1 ? (
               <button className="btn-secondary" onClick={() => setStep(step - 1)}>
                 ← Föregående
+              </button>
+            ) : (
+              <button className="btn-secondary" onClick={() => setStep(0)}>
+                ← Tillbaka till kvalifikation
               </button>
             )}
             {step < 5 && (
@@ -612,7 +770,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
                 onClick={handleGenerateContent}
                 disabled={loading}
               >
-                {loading ? 'Genererar innehåll...' : '🤖 Generera innehåll med AI'}
+                {loading ? 'Genererar utkast...' : '🤖 Generera utkast till Prospekt/IM'}
               </button>
             )}
           </div>

@@ -1,3 +1,62 @@
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  /* Primärfärger — Djup Teal */
+  --color-primary:       #0D7377;
+  --color-primary-dark:  #0A5C60;
+  --color-primary-light: #E6F4F4;
+  --color-primary-glow:  rgba(13, 115, 119, 0.2);
+  --color-secondary:     #14BDBD;
+
+  /* Bakgrund & ytor */
+  --color-bg:      #F6F8F8;
+  --color-surface: #FFFFFF;
+  --color-border:  #DDE6E6;
+
+  /* Text */
+  --color-text-primary:   #0F1F1F;
+  --color-text-secondary: #637070;
+  --color-text-muted:     #96AAAA;
+
+  /* Status */
+  --color-success:    #2DB875;
+  --color-success-bg: #EDFAF3;
+  --color-warning:    #F0B429;
+  --color-warning-bg: #FEF6E4;
+  --color-danger:     #E03636;
+  --color-danger-bg:  #FFF3F3;
+
+  /* Spacing */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-12: 3rem;
+
+  /* Border-radius */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-pill: 9999px;
+  --radius-full: 50%;
+
+  /* Shadows */
+  --shadow-sm:      0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md:      0 2px 8px rgba(0,0,0,0.06);
+  --shadow-lg:      0 8px 24px rgba(0,0,0,0.10);
+  --shadow-primary: 0 4px 12px rgba(13,115,119,0.25);
+  --shadow-xl:      0 20px 60px rgba(0,0,0,0.18);
+
+  /* Transition */
+  --transition-base: all 0.2s ease;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -5,12 +64,15 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
-  background: #f8fafc;
-  color: #1a202c;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
 }
 
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
 .app-container {
   min-height: 100vh;
   display: flex;
@@ -18,104 +80,139 @@ body {
 }
 
 .global-nav {
-  background: white;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 1rem 2rem;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-4) var(--space-8);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .nav-brand h1 {
-  font-size: 1.5rem;
-  color: #1a202c;
-  margin-bottom: 0.25rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-primary);
+  margin-bottom: var(--space-1);
 }
 
 .company-name {
   font-size: 0.9rem;
-  color: #718096;
+  color: var(--color-text-secondary);
 }
 
 .nav-actions {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-3);
   align-items: center;
 }
 
 .active-project-indicator {
-  padding: 0.5rem 1rem;
-  background: #edf2f7;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  color: #2d3748;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-primary-light);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary);
 }
 
 .nav-button, .nav-button-secondary {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 6px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-base);
 }
 
 .nav-button {
-  background: #667eea;
-  color: white;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
 }
 
 .nav-button:hover {
-  background: #5a67d8;
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .nav-button-secondary {
-  background: #e2e8f0;
-  color: #2d3748;
+  background: var(--color-primary-light);
+  border: none;
+  color: var(--color-primary);
 }
 
 .nav-button-secondary:hover {
-  background: #cbd5e0;
+  background: var(--color-primary);
+  color: white;
 }
 
 .main-content {
   flex: 1;
-  padding: 2rem;
+  padding: var(--space-8);
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
 }
 
 .global-footer {
-  background: white;
-  border-top: 1px solid #e2e8f0;
-  padding: 1.5rem;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-6);
   text-align: center;
-  color: #718096;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
+/* ============================================================
+   KNAPPAR
+   ============================================================ */
 .btn-primary, .btn-secondary, .btn-hero {
-  padding: 0.75rem 1.5rem;
+  padding: var(--space-3) var(--space-6);
   border: none;
-  border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-base);
+  font-family: inherit;
 }
 
+/* Primär CTA-knapp */
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
-  box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+  background: var(--color-primary-dark);
+  transform: scale(1.02) translateY(-1px);
+  box-shadow: 0 6px 18px rgba(13, 115, 119, 0.35);
+}
+
+/* Hero-knapp: vit med teal-text — synlig mot teal hero-bakgrund */
+.btn-hero {
+  background: white;
+  color: var(--color-primary);
+  border-radius: var(--radius-pill);
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: var(--space-3) var(--space-8);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-hero:hover:not(:disabled) {
+  background: var(--color-primary-light);
+  transform: scale(1.02) translateY(-1px);
+  box-shadow: var(--shadow-lg);
 }
 
 .btn-primary:disabled {
@@ -124,27 +221,26 @@ body {
 }
 
 .btn-secondary {
-  background: #e2e8f0;
-  color: #2d3748;
+  background: transparent;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #cbd5e0;
-}
-
-.btn-hero {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  font-size: 1.1rem;
-  padding: 1rem 2rem;
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-light);
 }
 
 .btn-large {
-  padding: 1rem 2rem;
+  padding: var(--space-4) var(--space-8);
   font-size: 1.1rem;
 }
 
+/* ============================================================
+   MODULER
+   ============================================================ */
 .module-container {
   animation: fadeIn 0.3s ease-in;
 }
@@ -152,154 +248,182 @@ body {
 .module-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
 }
 
 .module-header h1 {
   font-size: 2rem;
-  color: #1a202c;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
 }
 
 .back-button {
   background: transparent;
   border: none;
-  color: #667eea;
+  color: var(--color-primary);
   font-size: 1rem;
   cursor: pointer;
-  padding: 0.5rem;
-  transition: all 0.2s ease;
+  padding: var(--space-2);
+  transition: var(--transition-base);
 }
 
 .back-button:hover {
-  color: #5a67d8;
+  color: var(--color-primary-dark);
 }
 
+/* ============================================================
+   TABS
+   ============================================================ */
 .module-tabs {
   display: flex;
   gap: 0.5rem;
-  border-bottom: 2px solid #e2e8f0;
-  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: var(--space-8);
 }
 
 .tab {
-  padding: 1rem 1.5rem;
+  padding: var(--space-4) var(--space-6);
   background: transparent;
   border: none;
   border-bottom: 3px solid transparent;
   font-size: 1rem;
   font-weight: 600;
-  color: #718096;
+  color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-base);
+  margin-bottom: -2px;
+  font-family: inherit;
 }
 
 .tab:hover {
-  color: #2d3748;
-  background: #f7fafc;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
 .tab.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 .module-content {
   animation: fadeIn 0.3s ease-in;
 }
 
+/* ============================================================
+   INFO BOX
+   ============================================================ */
 .info-box {
-  background: #edf2f7;
-  border-left: 4px solid #667eea;
-  padding: 1.5rem;
-  border-radius: 8px;
-  margin: 1.5rem 0;
+  background: var(--color-primary-light);
+  border-left: 4px solid var(--color-primary);
+  padding: var(--space-6);
+  border-radius: var(--radius-md);
+  margin: var(--space-6) 0;
 }
 
 .info-box.success {
-  background: #f0fff4;
-  border-left-color: #48bb78;
+  background: var(--color-success-bg);
+  border-left-color: var(--color-success);
 }
 
+/* ============================================================
+   PLACEHOLDER & EMPTY STATE
+   ============================================================ */
 .placeholder-content {
   background: #fef5e7;
   border: 2px dashed #f9e79f;
-  border-radius: 12px;
-  padding: 3rem;
+  border-radius: var(--radius-md);
+  padding: var(--space-12);
   text-align: center;
-  margin: 2rem 0;
+  margin: var(--space-8) 0;
 }
 
 .empty-state {
-  background: #f7fafc;
-  border: 2px dashed #cbd5e0;
-  border-radius: 12px;
-  padding: 3rem;
+  background: var(--color-bg);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-12);
   text-align: center;
-  color: #718096;
+  color: var(--color-text-secondary);
 }
 
+/* ============================================================
+   FORMULÄR
+   ============================================================ */
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
 }
 
 .form-group label {
   display: block;
   font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 0.5rem;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
 }
 
 .form-group input, .form-group select, .form-group textarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
+  padding: var(--space-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
   font-size: 1rem;
+  font-family: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  transition: var(--transition-base);
 }
 
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  gap: var(--space-6);
 }
 
 .button-row {
   display: flex;
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
 }
 
+/* ============================================================
+   WIZARD STEPS
+   ============================================================ */
 .wizard-steps {
   display: flex;
   justify-content: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
 }
 
 .wizard-steps .step {
-  padding: 0.75rem 1.5rem;
-  background: #e2e8f0;
-  border-radius: 8px;
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-border);
+  border-radius: var(--radius-md);
   font-weight: 600;
-  color: #718096;
+  color: var(--color-text-secondary);
 }
 
 .wizard-steps .step.active {
-  background: #667eea;
+  background: var(--color-primary);
   color: white;
 }
 
 .wizard-steps .step.completed {
-  background: #48bb78;
+  background: var(--color-success);
   color: white;
 }
 
+/* ============================================================
+   ANIMATIONER
+   ============================================================ */
 @keyframes fadeIn {
   from {
     opacity: 0;

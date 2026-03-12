@@ -302,7 +302,12 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
               {emailDraft && (
                 <div className="mf-draft-preview">
                   <h4>Utkast:</h4>
-                  <pre style={{ whiteSpace: 'pre-wrap', background: '#f8f9fa', padding: '16px', borderRadius: '8px', fontSize: '14px' }}>{emailDraft}</pre>
+                  <iframe
+                    srcDoc={emailDraft}
+                    title="Email-förhandsgranskning"
+                    sandbox="allow-same-origin"
+                    style={{ width: '100%', height: '500px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff' }}
+                  />
                   <button className="btn-primary" onClick={handleSendBrevoCampaign} disabled={loading} style={{ marginTop: '12px' }}>
                     📤 Skicka via Brevo
                   </button>

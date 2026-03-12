@@ -11,6 +11,8 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
   const [protokollDraft, setProtokollDraft] = useState('');
   const [marPmSaved, setMarPmSaved] = useState(false);
   const [protokollSaved, setProtokollSaved] = useState(false);
+  const [marPmSkipped, setMarPmSkipped] = useState(false);
+  const [protokollSkipped, setProtokollSkipped] = useState(false);
 
   if (!projekt) {
     return (
@@ -69,7 +71,7 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
     setLoadingProtokoll(false);
   };
 
-  const canProceed = insynsloggKvitterad && marPmDraft && protokollDraft;
+  const canProceed = insynsloggKvitterad && (marPmDraft || marPmSkipped) && (protokollDraft || protokollSkipped);
 
   return (
     <div className="module-container">
@@ -158,10 +160,10 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
               </div>
 
               {/* 2. MAR-PM */}
-              <div className={`atgard-card ${marPmDraft ? 'completed' : ''}`}>
+              <div className={`atgard-card ${marPmDraft || marPmSkipped ? 'completed' : ''}`}>
                 <div className="atgard-header">
                   <div className="atgard-status">
-                    {marPmDraft ? '✅' : '📄'}
+                    {marPmDraft ? '✅' : marPmSkipped ? '⏩' : '📄'}
                   </div>
                   <div className="atgard-info">
                     <h3>Ta fram utkast till pressmeddelande (MAR)</h3>
@@ -169,10 +171,27 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                   </div>
                 </div>
                 <div className="atgard-actions">
-                  {!marPmDraft ? (
-                    <button className="btn-primary" onClick={handleGenerateMarPM} disabled={loadingMarPm}>
-                      {loadingMarPm ? 'Genererar...' : '🤖 Generera MAR-PM med AI'}
-                    </button>
+                  {!marPmSkipped && !marPmDraft ? (
+                    <>
+                      <button className="btn-primary" onClick={handleGenerateMarPM} disabled={loadingMarPm}>
+                        {loadingMarPm ? 'Genererar...' : '🤖 Generera MAR-PM med AI'}
+                      </button>
+                      <label className="checkbox-label" style={{marginTop: '0.75rem', color: '#718096'}}>
+                        <input 
+                          type="checkbox" 
+                          checked={marPmSkipped} 
+                          onChange={(e) => setMarPmSkipped(e.target.checked)}
+                        />
+                        Hoppa över — jag hanterar detta separat
+                      </label>
+                    </>
+                  ) : marPmSkipped && !marPmDraft ? (
+                    <div style={{color: '#718096', fontStyle: 'italic'}}>
+                      <p>⏩ Överhoppad</p>
+                      <button className="btn-secondary" onClick={() => setMarPmSkipped(false)} style={{marginTop: '0.5rem'}}>
+                        Ångra — generera ändå
+                      </button>
+                    </div>
                   ) : (
                     <div className="draft-section">
                       <label><strong>Utkast — redigera vid behov:</strong></label>
@@ -196,10 +215,10 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
               </div>
 
               {/* 3. Styrelseprotokoll */}
-              <div className={`atgard-card ${protokollDraft ? 'completed' : ''}`}>
+              <div className={`atgard-card ${protokollDraft || protokollSkipped ? 'completed' : ''}`}>
                 <div className="atgard-header">
                   <div className="atgard-status">
-                    {protokollDraft ? '✅' : '📋'}
+                    {protokollDraft ? '✅' : protokollSkipped ? '⏩' : '📋'}
                   </div>
                   <div className="atgard-info">
                     <h3>Skapa styrelseprotokoll för beslut</h3>
@@ -207,10 +226,27 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                   </div>
                 </div>
                 <div className="atgard-actions">
-                  {!protokollDraft ? (
-                    <button className="btn-primary" onClick={handleGenerateProtokoll} disabled={loadingProtokoll}>
-                      {loadingProtokoll ? 'Genererar...' : '🤖 Generera styrelseprotokoll med AI'}
-                    </button>
+                  {!protokollSkipped && !protokollDraft ? (
+                    <>
+                      <button className="btn-primary" onClick={handleGenerateProtokoll} disabled={loadingProtokoll}>
+                        {loadingProtokoll ? 'Genererar...' : '🤖 Generera styrelseprotokoll med AI'}
+                      </button>
+                      <label className="checkbox-label" style={{marginTop: '0.75rem', color: '#718096'}}>
+                        <input 
+                          type="checkbox" 
+                          checked={protokollSkipped} 
+                          onChange={(e) => setProtokollSkipped(e.target.checked)}
+                        />
+                        Hoppa över — jag hanterar detta separat
+                      </label>
+                    </>
+                  ) : protokollSkipped && !protokollDraft ? (
+                    <div style={{color: '#718096', fontStyle: 'italic'}}>
+                      <p>⏩ Överhoppad</p>
+                      <button className="btn-secondary" onClick={() => setProtokollSkipped(false)} style={{marginTop: '0.5rem'}}>
+                        Ångra — generera ändå
+                      </button>
+                    </div>
                   ) : (
                     <div className="draft-section">
                       <label><strong>Utkast — redigera vid behov:</strong></label>

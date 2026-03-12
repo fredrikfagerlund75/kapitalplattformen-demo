@@ -119,7 +119,7 @@ function App() {
       <nav className="global-nav">
         <div className="nav-brand">
           <h1>💼 Kapitalplattformen v5.0</h1>
-          <span className="company-name">{user.company}</span>
+          <span className="company-name">{companySettings?.companyName || user.company}</span>
         </div>
         <div className="nav-actions">
           {currentView !== 'dashboard' && (
@@ -160,6 +160,7 @@ function App() {
           <Kapitalrådgivaren 
             user={user}
             projekt={aktivtProjekt}
+            companySettings={companySettings}
             onBack={() => navigateTo('dashboard')}
             onCreateProject={createNewProjekt}
             onUpdateProject={updateProjekt}

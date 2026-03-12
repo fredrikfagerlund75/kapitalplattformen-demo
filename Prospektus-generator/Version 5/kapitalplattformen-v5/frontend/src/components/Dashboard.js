@@ -17,7 +17,7 @@ function Dashboard({ user, emissionsprojekt, onNavigate, onCreateProject, onRefr
   };
 
   const getStatusColor = (status) => {
-    return status === 'completed' ? 'green' : status === 'active' ? 'blue' : 'gray';
+    return status === 'completed' ? 'green' : status === 'cancelled' ? 'red' : status === 'active' ? 'blue' : 'gray';
   };
 
   return (
@@ -69,6 +69,7 @@ function Dashboard({ user, emissionsprojekt, onNavigate, onCreateProject, onRefr
                     </div>
                     <span className={`status-badge status-${getStatusColor(projekt.status)}`}>
                       {projekt.status === 'completed' ? 'Slutförd' : 
+                       projekt.status === 'cancelled' ? 'Avbruten' :
                        projekt.status === 'active' ? 'Aktiv' : 'Utkast'}
                     </span>
                   </div>
@@ -96,21 +97,17 @@ function Dashboard({ user, emissionsprojekt, onNavigate, onCreateProject, onRefr
                       <div className="timeline-dot"></div>
                       <span>Kapitalrådgivaren</span>
                     </div>
-                    <div className={`timeline-step ${projekt.prospekt?.fileUrl ? 'completed' : projekt.currentModule === 'prospekt' ? 'active' : ''}`}>
+                    <div className={`timeline-step ${projekt.prospekt?.generatedAt ? 'completed' : (projekt.currentModule === 'prospekt' || projekt.currentModule === 'kapitalrådgivaren') ? 'active' : ''}`}>
                       <div className="timeline-dot"></div>
                       <span>Prospekt/IM</span>
                     </div>
-                    <div className={`timeline-step ${projekt.teckning?.emissionssidaUrl ? 'completed' : projekt.currentModule === 'teckning' ? 'active' : ''}`}>
+                    <div className={`timeline-step ${projekt.status === 'completed' ? 'completed' : projekt.teckning?.emissionssidaUrl ? 'active' : projekt.currentModule === 'teckning' ? 'active' : ''}`}>
                       <div className="timeline-dot"></div>
                       <span>Teckning</span>
                     </div>
                     <div className={`timeline-step ${projekt.marknadsföring?.emailCampaignId ? 'completed' : projekt.currentModule === 'marknadsföring' ? 'active' : ''}`}>
                       <div className="timeline-dot"></div>
                       <span>Marknadsföring</span>
-                    </div>
-                    <div className={`timeline-step ${projekt.status === 'completed' ? 'completed' : projekt.currentModule === 'analytics' ? 'active' : ''}`}>
-                      <div className="timeline-dot"></div>
-                      <span>Analytics</span>
                     </div>
                   </div>
 
@@ -134,21 +131,10 @@ function Dashboard({ user, emissionsprojekt, onNavigate, onCreateProject, onRefr
 
                   {/* Actions */}
                   <div className="projekt-actions">
-                    <button 
-                      className="btn-primary"
-                      onClick={() => {
-                        const view = (projekt.currentModule === 'kapitalrådgivaren') ? 'projektvy' : projekt.currentModule;
-                        onNavigate(view, projekt);
-                      }}
-                    >
-                      Öppna projekt
-                    </button>
-                    <button 
-                      className="btn-secondary"
-                      onClick={() => onNavigate('analytics', projekt)}
-                    >
-                      📊 Analytics
-                    </button>
+                    <button className="btn-action" onClick={() => onNavigate('projektvy', projekt)}>🎯 Kapitalrådgivaren</button>
+                    <button className="btn-action" onClick={() => onNavigate('prospekt', projekt)}>📄 Prospekt/IM</button>
+                    <button className="btn-action" onClick={() => onNavigate('teckning', projekt)}>✍️ Teckning</button>
+                    <button className="btn-action" onClick={() => onNavigate('marknadsföring', projekt)}>📢 Marknadsföring</button>
                   </div>
                 </div>
               );
