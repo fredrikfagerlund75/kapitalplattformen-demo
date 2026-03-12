@@ -3,24 +3,30 @@ const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 const cors = require('cors');
 const PDFDocument = require('pdfkit');
+const { PDFParse } = require('pdf-parse');
 const path = require('path');
 const crypto = require('crypto');
-const { BrevoClient } = require('@getbrevo/brevo');
+const Brevo = require('@getbrevo/brevo');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ limit: '20mb', extended: true }));
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// Brevo API client (v2 SDK — uses BrevoClient with chained resource accessors)
-let brevo = null;
+// Brevo API clients (old-style SDK)
+let brevoContacts = null;
+let brevoEmailCampaigns = null;
 let brevoConfigured = false;
 
 if (process.env.BREVO_API_KEY) {
-  brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
+  brevoContacts = new Brevo.ContactsApi();
+  brevoContacts.setApiKey(Brevo.ContactsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+  brevoEmailCampaigns = new Brevo.EmailCampaignsApi();
+  brevoEmailCampaigns.setApiKey(Brevo.EmailCampaignsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
   brevoConfigured = true;
   console.log('Brevo API configured: true');
 } else {
@@ -29,14 +35,12 @@ if (process.env.BREVO_API_KEY) {
 
 console.log('API Key configured:', !!process.env.ANTHROPIC_API_KEY);
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
 //  AUTHENTICATION
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
 
-// In-memory token store (resets on server restart — fine for demo)
 const validTokens = new Set();
 
-// Login endpoint — validates against env vars
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
   const demoEmail = process.env.DEMO_EMAIL || 'demo@kapital.se';
@@ -48,22 +52,15 @@ app.post('/api/auth/login', (req, res) => {
     console.log(`Login successful for ${email}. Active tokens: ${validTokens.size}`);
     return res.json({
       token,
-      user: {
-        email,
-        company: 'Demo Företag AB',
-        role: 'admin'
-      }
+      user: { email, company: 'Demo F\u00f6retag AB', role: 'admin' }
     });
   }
 
-  return res.status(401).json({ error: 'Felaktigt e-post eller lösenord' });
+  return res.status(401).json({ error: 'Felaktigt e-post eller l\u00f6senord' });
 });
 
-// Auth middleware — protects all /api/* routes except /api/auth/*
 const requireAuth = (req, res, next) => {
-  // Skip auth for login route
   if (req.path.startsWith('/api/auth/')) return next();
-  // Skip auth for non-API routes (static files)
   if (!req.path.startsWith('/api/')) return next();
 
   const authHeader = req.headers.authorization;
@@ -73,7 +70,7 @@ const requireAuth = (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
   if (!validTokens.has(token)) {
-    return res.status(401).json({ error: 'Session har gått ut. Logga in igen.' });
+    return res.status(401).json({ error: 'Session har g\u00e5tt ut. Logga in igen.' });
   }
 
   next();
@@ -81,43 +78,141 @@ const requireAuth = (req, res, next) => {
 
 app.use(requireAuth);
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
+//  IN-MEMORY DATABASE
+// ========================================================================
+
+let emissionsprojekt = [
+  {
+    id: "EP-2025-001",
+    name: "F\u00f6retr\u00e4desemission Q2 2025",
+    status: "completed",
+    currentModule: "analytics",
+    createdAt: "2025-02-15T10:00:00Z",
+    companyName: "Demo F\u00f6retag AB",
+    emissionsvillkor: {
+      typ: "F\u00f6retr\u00e4desemission",
+      teckningskurs: 2.50,
+      antalNyaAktier: 6000000,
+      emissionsvolym: 15000000,
+      teckningsr\u00e4tter: "1:5"
+    },
+    tidsplan: [
+      { datum: "2025-02-20", milestone: "Styrelsebeslut", completed: true },
+      { datum: "2025-03-01", milestone: "Prospekt klart", completed: true },
+      { datum: "2025-03-10", milestone: "Emission \u00f6ppnar", completed: true },
+      { datum: "2025-03-24", milestone: "Emission st\u00e4nger", completed: true },
+      { datum: "2025-03-28", milestone: "Tilldelning", completed: true }
+    ],
+    prospekt: {
+      type: "IM",
+      fileUrl: "/files/IM_EP-2025-001.pdf",
+      generatedAt: "2025-02-28T14:00:00Z",
+      generatedContent: {}
+    },
+    teckning: {
+      emissionssidaUrl: "https://kapital.demo/emission-ep-2025-001",
+      teckningsperiod: { start: "2025-03-10", slut: "2025-03-24" },
+      tilldelningsforslag: { fileUrl: "/files/tilldelning_EP-2025-001.pdf" },
+      registreradBolagsverket: true
+    },
+    marknadsf\u00f6ring: {
+      emailCampaignId: "brevo_12345",
+      googleAdsCampaignId: "gads_67890",
+      fysiskaBrev: { sent: 120, planned: 120 }
+    },
+    analytics: {
+      teckning: { total: 14250000, percent: 95.0, antalTecknare: 847 },
+      emissionssida: { visits: 4521, uniqueVisitors: 2876 },
+      email: { sent: 450, opens: 312, clicks: 127 },
+      ads: { impressions: 65000, clicks: 1240, conversions: 89 }
+    }
+  }
+];
+
+// ========================================================================
+//  EMISSIONSPROJEKT CRUD
+// ========================================================================
+
+app.get('/api/emissionsprojekt', (req, res) => {
+  res.json(emissionsprojekt);
+});
+
+app.get('/api/emissionsprojekt/:id', (req, res) => {
+  const projekt = emissionsprojekt.find(p => p.id === req.params.id);
+  if (!projekt) return res.status(404).json({ error: 'Project not found' });
+  res.json(projekt);
+});
+
+app.post('/api/emissionsprojekt', (req, res) => {
+  const newProjekt = {
+    id: `EP-${new Date().getFullYear()}-${String(emissionsprojekt.length + 1).padStart(3, '0')}`,
+    name: req.body.name,
+    status: 'draft',
+    currentModule: 'kapitalr\u00e5dgivaren',
+    createdAt: new Date().toISOString(),
+    companyName: req.body.companyName || 'Demo F\u00f6retag AB',
+    emissionsvillkor: req.body.emissionsvillkor,
+    finansiellData: req.body.finansiellData || null,
+    tidsplan: req.body.tidsplan || [],
+    prospekt: { generatedContent: {} },
+    teckning: {},
+    marknadsf\u00f6ring: {},
+    analytics: {
+      teckning: { total: 0, percent: 0, antalTecknare: 0 },
+      emissionssida: { visits: 0, uniqueVisitors: 0 },
+      email: { sent: 0, opens: 0, clicks: 0 },
+      ads: { impressions: 0, clicks: 0, conversions: 0 }
+    }
+  };
+  emissionsprojekt.push(newProjekt);
+  res.status(201).json(newProjekt);
+});
+
+app.put('/api/emissionsprojekt/:id', (req, res) => {
+  const index = emissionsprojekt.findIndex(p => p.id === req.params.id);
+  if (index === -1) return res.status(404).json({ error: 'Project not found' });
+  emissionsprojekt[index] = { ...emissionsprojekt[index], ...req.body };
+  res.json(emissionsprojekt[index]);
+});
+
+// ========================================================================
 //  DOCUMENT TYPE QUALIFICATION
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
 
 app.post('/api/qualify-document', async (req, res) => {
   try {
     const { market, emissionSizeSEK, period12Months, audience } = req.body;
     const emissionSizeEUR = emissionSizeSEK / 11.5;
     const isOver8M = period12Months ? emissionSizeEUR >= 8000000 : false;
-    
+
     let docType = 'IM';
     let reasoning = '';
-    
+
     if (market === 'nasdaq_stockholm' || market === 'first_north') {
       if (audience === 'public' && isOver8M) {
         docType = 'PROSPEKT';
-        reasoning = 'Er emission är riktad till allmänheten och överstiger €8M-tröskeln. Ett FI-godkänt prospekt krävs enligt Prospektförordningen (EU) 2017/1129.';
+        reasoning = 'Er emission \u00e4r riktad till allm\u00e4nheten och \u00f6verstiger \u20ac8M-tr\u00f6skeln. Ett FI-godk\u00e4nt prospekt kr\u00e4vs.';
       } else if (audience === 'public' && !isOver8M) {
         docType = 'IM';
-        reasoning = 'Er emission är under €8M-tröskeln. Ett informationsmemorandum räcker juridiskt, men ni kan välja prospekt för ökad trovärdighet.';
+        reasoning = 'Er emission \u00e4r under \u20ac8M-tr\u00f6skeln. Ett informationsmemorandum r\u00e4cker.';
       } else {
         docType = 'IM';
-        reasoning = 'Er emission är riktad till kvalificerade investerare. Ett informationsmemorandum är tillräckligt och mer kostnadseffektivt än ett prospekt.';
+        reasoning = 'Er emission \u00e4r riktad till kvalificerade investerare.';
       }
     } else if (market === 'spotlight' || market === 'nordic_sme') {
       if (audience === 'public' && isOver8M) {
         docType = 'PROSPEKT';
-        reasoning = 'Även på tillväxtmarknader krävs prospekt för allmänna erbjudanden över €8M enligt Prospektförordningen.';
+        reasoning = '\u00c4ven p\u00e5 tillv\u00e4xtmarknader kr\u00e4vs prospekt f\u00f6r allm\u00e4nna erbjudanden \u00f6ver \u20ac8M.';
       } else {
         docType = 'IM';
-        reasoning = 'För bolag på Spotlight/Nordic SME räcker vanligtvis ett informationsmemorandum för emissioner under €8M eller riktade emissioner.';
+        reasoning = 'F\u00f6r bolag p\u00e5 Spotlight/Nordic SME r\u00e4cker vanligtvis ett IM.';
       }
     } else if (market === 'unlisted') {
       docType = 'IM';
-      reasoning = 'Onoterade bolag har ingen prospektskyldighet, men ett strukturerat informationsmemorandum ökar trovärdigheten gentemot investerare.';
+      reasoning = 'Onoterade bolag har ingen prospektskyldighet.';
     }
-    
+
     res.json({
       recommendedType: docType,
       reasoning,
@@ -129,20 +224,20 @@ app.post('/api/qualify-document', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  COMPANY LOOKUP (Swedish Company Data)
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
+//  COMPANY LOOKUP
+// ========================================================================
 
 const DEMO_COMPANIES = {
-  '5568585373': { name: 'Spotify AB', industry: 'Information och kommunikation', location: 'Stockholm, Sverige' },
-  '5569813599': { name: 'Klarna Bank AB', industry: 'Finansiell verksamhet', location: 'Stockholm, Sverige' },
-  '5565475489': { name: 'IKEA AB', industry: 'Handel', location: 'Älmhult, Sverige' },
-  '5567757226': { name: 'Volvo Cars AB', industry: 'Tillverkning av motorfordon', location: 'Göteborg, Sverige' },
-  '5560125791': { name: 'H&M Hennes & Mauritz AB', industry: 'Handel; detaljhandel', location: 'Stockholm, Sverige' },
-  '5562921017': { name: 'Ericsson AB', industry: 'Tillverkning av kommunikationsutrustning', location: 'Stockholm, Sverige' },
-  '5561052216': { name: 'SEB AB', industry: 'Finansiella tjänster', location: 'Stockholm, Sverige' },
-  '5560167650': { name: 'Atlas Copco AB', industry: 'Tillverkning av maskiner', location: 'Nacka, Sverige' },
-  '5565791380': { name: 'Qbrick AB', industry: 'Informationsteknik', location: 'Stockholm, Sverige' },
+  '5568585373': { name: 'Spotify AB', industry: 'Information och kommunikation', location: 'Stockholm, Sverige', website: 'https://www.spotify.com' },
+  '5569813599': { name: 'Klarna Bank AB', industry: 'Finansiell verksamhet', location: 'Stockholm, Sverige', website: 'https://www.klarna.com' },
+  '5565475489': { name: 'IKEA AB', industry: 'Handel', location: '\u00c4lmhult, Sverige', website: 'https://www.ikea.com' },
+  '5567757226': { name: 'Volvo Cars AB', industry: 'Tillverkning av motorfordon', location: 'G\u00f6teborg, Sverige', website: 'https://www.volvocars.com' },
+  '5560125791': { name: 'H&M Hennes & Mauritz AB', industry: 'Handel; detaljhandel', location: 'Stockholm, Sverige', website: 'https://www.hm.com' },
+  '5562921017': { name: 'Ericsson AB', industry: 'Tillverkning av kommunikationsutrustning', location: 'Stockholm, Sverige', website: 'https://www.ericsson.com' },
+  '5561052216': { name: 'SEB AB', industry: 'Finansiella tj\u00e4nster', location: 'Stockholm, Sverige', website: 'https://www.seb.se' },
+  '5560167650': { name: 'Atlas Copco AB', industry: 'Tillverkning av maskiner', location: 'Nacka, Sverige', website: 'https://www.atlascopco.com' },
+  '5565791380': { name: 'Qbrick AB', industry: 'Informationsteknik', location: 'Stockholm, Sverige', website: 'https://www.qbrick.com' },
 };
 
 app.post('/api/lookup-company', async (req, res) => {
@@ -152,88 +247,679 @@ app.post('/api/lookup-company', async (req, res) => {
     const formattedOrgNr = cleanOrgNr.length === 10
       ? `${cleanOrgNr.slice(0, 6)}-${cleanOrgNr.slice(6)}`
       : orgNr;
-    
+
     if (DEMO_COMPANIES[cleanOrgNr]) {
       const demo = DEMO_COMPANIES[cleanOrgNr];
       return res.json({
         found: true,
         source: 'demo',
-        company: {
-          name: demo.name,
-          orgNr: formattedOrgNr,
-          industry: demo.industry,
-          location: demo.location,
-          website: ''
-        }
+        company: { name: demo.name, orgNr: formattedOrgNr, industry: demo.industry, location: demo.location, website: demo.website || '' }
       });
     }
-    
+
+    // Allabolag.se lookup
     try {
-      const response = await fetch(`https://cvrapi.dk/api?search=${cleanOrgNr}&country=se`, {
-        headers: { 'User-Agent': 'Kapitalplattformen/3.0' },
-        timeout: 5000
+      const abResponse = await fetch(`https://www.allabolag.se/${cleanOrgNr}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'sv-SE,sv;q=0.9'
+        },
+        redirect: 'follow'
       });
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.name) {
+      if (abResponse.ok) {
+        const html = await abResponse.text();
+        // Extract company name from <title> tag: "QBNK Company AB - Teknisk information"
+        const titleMatch = html.match(/<title>([^<–\-|]+)/i);
+        const h1Match = html.match(/<h1[^>]*>\s*([^<]+?)\s*<\/h1>/i);
+        const rawName = (h1Match && h1Match[1].trim()) || (titleMatch && titleMatch[1].trim()) || '';
+        const companyName = rawName.replace(/\s*-\s*Allabolag.*$/i, '').trim();
+
+        if (companyName && companyName.length > 1) {
+          // Extract city from postal code pattern "115 26 Stockholm"
+          const cityMatch = html.match(/\d{3}\s?\d{2}\s+([A-Z\u00c5\u00c4\u00d6][a-z\u00e5\u00e4\u00f6A-Z\u00c5\u00c4\u00d6]+)/);
+          const location = cityMatch ? `${cityMatch[1]}, Sverige` : '';
+          // Extract first SNI industry description
+          const industryMatch = html.match(/SNI-bransch[\s\S]{0,200}?<a[^>]*>\d+\s+([^<]+)<\/a>/i);
+          const industry = industryMatch ? industryMatch[1].trim() : '';
+          // Extract website URL (href containing http not belonging to allabolag/google)
+          const websiteMatch = html.match(/href="(https?:\/\/(?!(?:www\.)?allabolag\.se)[^"]+)"[^>]*>[^<]*(?:hemsida|webbplats|website|www)/i)
+            || html.match(/rel="nofollow"[^>]*href="(https?:\/\/(?!(?:www\.)?allabolag\.se)[^"]+)"/i);
+          const website = websiteMatch ? websiteMatch[1].split('?')[0] : '';
+
           return res.json({
             found: true,
-            source: 'cvrapi',
+            source: 'allabolag',
             company: {
-              name: data.name,
+              name: companyName,
               orgNr: formattedOrgNr,
-              industry: data.industrydesc || '',
-              location: data.city ? `${data.city}, Sverige` : '',
-              website: ''
+              industry: industry,
+              location: location,
+              website: website
             }
           });
         }
       }
     } catch (apiError) {
-      console.log('CVR API unavailable, using fallback');
+      console.log('Allabolag lookup failed:', apiError.message);
     }
-    
+
+    // AI fallback: ask Claude to identify the company from org.nr
+    try {
+      const aiResponse = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: `Vad heter det svenska bolaget med organisationsnummer ${formattedOrgNr}? Svara BARA med JSON: {"name":"Bolagsnamn","industry":"Bransch","city":"Stad","website":"https://... eller tom sträng"}. Om du inte vet bolagsnamnet, svara {"name":"","industry":"","city":"","website":""}` }]
+      });
+      const aiText = aiResponse.content[0].text.trim();
+      const aiData = JSON.parse(aiText);
+      if (aiData.name) {
+        return res.json({
+          found: true,
+          source: 'ai',
+          company: {
+            name: aiData.name,
+            orgNr: formattedOrgNr,
+            industry: aiData.industry || '',
+            location: aiData.city ? `${aiData.city}, Sverige` : '',
+            website: aiData.website || ''
+          }
+        });
+      }
+    } catch (aiError) {
+      console.log('AI company lookup failed:', aiError.message);
+    }
+
     res.status(404).json({
-      error: `Kunde inte hitta bolagsuppgifter för ${formattedOrgNr}. Vänligen fyll i uppgifterna manuellt.`,
-      found: false,
-      suggestion: 'Du kan söka på allabolag.se för att hitta bolagsinformation.'
+      error: `Kunde inte hitta bolagsuppgifter f\u00f6r ${formattedOrgNr}.`,
+      found: false
     });
   } catch (error) {
     console.error('Company lookup error:', error);
-    res.status(500).json({
-      error: 'Tjänsten är tillfälligt otillgänglig. Vänligen fyll i uppgifterna manuellt.',
-      found: false
+    res.status(500).json({ error: 'Tj\u00e4nsten \u00e4r tillf\u00e4lligt otillg\u00e4nglig.', found: false });
+  }
+});
+
+// ========================================================================
+//  COMPANY RESEARCH (AI)
+// ========================================================================
+
+app.post('/api/generate-company-research', async (req, res) => {
+  try {
+    const { companyName, orgNr, website, researchType } = req.body;
+    if (!companyName) return res.status(400).json({ error: 'companyName kr\u00e4vs' });
+
+    const prompts = {
+      bolagsinfo: `Du \u00e4r en expert p\u00e5 svenska bolag. S\u00f6k information om bolaget "${companyName}"${orgNr ? ` (org.nr ${orgNr})` : ''}${website ? ` (${website})` : ''}.
+Returnera exakt detta JSON-format:
+{"verksamhetsbeskrivning":"2-3 meningar om vad bolaget g\u00f6r","bransch":"Branschkategori","adress":"Gatuadress om k\u00e4nt, annars tom str\u00e4ng","ort":"Stad, Sverige"}
+Svara BARA med JSON, inget annat.`,
+
+      strategi_marknad: `Du \u00e4r en marknadsanalytiker. Analysera bolaget "${companyName}"${orgNr ? ` (org.nr ${orgNr})` : ''}${website ? ` (${website})` : ''}.
+Returnera exakt detta JSON-format:
+{"affarsmodell":"2-3 meningar om hur bolaget tj\u00e4nar pengar","marknadsbeskrivning":"2-3 meningar om marknaden bolaget verkar p\u00e5","konkurrenter":"2-3 konkurrenter separerade med komma"}
+Svara BARA med JSON, inget annat.`,
+
+      finansiellt: `Du \u00e4r en finansanalytiker. S\u00f6k senast tillg\u00e4ngliga finansiell information om "${companyName}"${orgNr ? ` (org.nr ${orgNr})` : ''}.
+Returnera exakt detta JSON-format:
+{"omsattning":"Oms\u00e4ttning i TSEK (bara siffra, eller tom str\u00e4ng om ok\u00e4nt)","resultat":"Resultat i TSEK (bara siffra, eller tom str\u00e4ng om ok\u00e4nt)","egetKapital":"Eget kapital i TSEK (bara siffra, eller tom str\u00e4ng om ok\u00e4nt)","ar":"R\u00e4kenskaps\u00e5r (t.ex. 2024)","kalla":"K\u00e4lla f\u00f6r informationen"}
+OBS: Om du inte har tillf\u00f6rlitlig data, l\u00e4mna f\u00e4ltet tomt. B\u00e4ttre att l\u00e4mna tomt \u00e4n att gissa.
+Svara BARA med JSON, inget annat.`,
+
+      ledning: `Du \u00e4r en expert p\u00e5 svenska bolag. S\u00f6k information om ledningsgrupp och styrelse f\u00f6r "${companyName}"${orgNr ? ` (org.nr ${orgNr})` : ''}${website ? ` (${website})` : ''}.
+VIKTIGT: Svara BARA med personer du \u00e4r s\u00e4ker p\u00e5 faktiskt arbetar/sitter i styrelsen f\u00f6r EXAKT detta bolag.
+Om du inte kan verifiera personerna, returnera en tom lista: {"team":[]}.
+Blanda INTE ihop med andra bolag med liknande namn.
+
+Returnera exakt detta JSON-format:
+{"team":[{"namn":"F\u00f6rnamn Efternamn","roll":"VD/CFO/Styrelseordf\u00f6rande etc","bakgrund":"1-2 meningar om personens bakgrund"}]}
+Inkludera VD, ev. CFO/CTO, och styrelseordf\u00f6rande om k\u00e4nda. Max 6 personer.
+Svara BARA med JSON, inget annat.`
+    };
+
+    let prompt = prompts[researchType];
+    if (!prompt) return res.status(400).json({ error: `Ogiltig researchType: ${researchType}` });
+
+    // For ledning: try to scrape company website for Styrelse/Ledning pages
+    if (researchType === 'ledning' && website) {
+      let scrapedContent = '';
+      const baseUrl = website.replace(/\/$/, '');
+      const irPaths = [
+        '/investors/styrelse/',
+        '/investors/ledning/',
+        '/about/management/',
+        '/about/board/',
+        '/om-oss/styrelse/',
+        '/om-oss/ledning/',
+        '/corporate-governance/board-of-directors/',
+        '/corporate-governance/management/',
+        '/styrelse/',
+        '/ledning/',
+        '/styrelse-och-ledning/',
+        '/bolagsstyrning/styrelse/',
+        '/bolagsstyrning/ledning/'
+      ];
+
+      for (const irPath of irPaths) {
+        try {
+          const pageRes = await fetch(`${baseUrl}${irPath}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Kapitalplattformen/1.0)' },
+            signal: AbortSignal.timeout(5000)
+          });
+          if (pageRes.ok) {
+            const html = await pageRes.text();
+            const textContent = html
+              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .substring(0, 4000);
+            if (textContent.length > 100) {
+              scrapedContent += `\n\n--- Innehåll från ${baseUrl}${irPath} ---\n${textContent}`;
+            }
+          }
+        } catch (e) {
+          // Ignore fetch errors for individual paths
+        }
+      }
+
+      if (scrapedContent) {
+        prompt = `Du är en expert på svenska bolag. Extrahera information om ledningsgrupp och styrelse för "${companyName}".
+
+Här är text från bolagets egna webbsidor om styrelse och ledning:
+${scrapedContent}
+
+Baserat på ovanstående webbinnehåll, extrahera styrelse och ledning.
+VIKTIGT: Använd BARA information som faktiskt finns i texten ovan. Hitta inte på.
+Om texten inte innehåller tydlig information om personer, returnera {"team":[]}.
+
+Returnera exakt detta JSON-format:
+{"team":[{"namn":"Förnamn Efternamn","roll":"VD/CFO/Styrelseordförande etc","bakgrund":"1-2 meningar om personens bakgrund baserat på texten"}]}
+Inkludera VD, ev. CFO/CTO, och styrelseordförande. Max 6 personer.
+Svara BARA med JSON, inget annat.`;
+        console.log(`Scraped ${scrapedContent.length} chars from ${companyName} website for ledning`);
+      }
+    }
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const text = message.content[0].text;
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Kunde inte tolka AI-svaret');
+    const result = JSON.parse(jsonMatch[0]);
+    res.json({ success: true, researchType, data: result });
+  } catch (error) {
+    console.error('Company research error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+//  STOCK DATA (Yahoo Finance)
+// ========================================================================
+
+app.get('/api/stock-data/:ticker', async (req, res) => {
+  try {
+    const { ticker } = req.params;
+    const fullTicker = ticker.includes('.') ? ticker : `${ticker}.ST`;
+
+    const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${fullTicker}`;
+    const statsUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${fullTicker}?modules=defaultKeyStatistics,price`;
+
+    const [chartResponse, statsResponse] = await Promise.all([
+      fetch(chartUrl),
+      fetch(statsUrl)
+    ]);
+
+    if (!chartResponse.ok || !statsResponse.ok) {
+      throw new Error('Yahoo Finance API error');
+    }
+
+    const chartData = await chartResponse.json();
+    const statsData = await statsResponse.json();
+
+    const quote = chartData.chart.result[0];
+    const stats = statsData.quoteSummary.result[0];
+
+    const stockData = {
+      ticker: fullTicker,
+      price: quote.meta.regularMarketPrice,
+      currency: quote.meta.currency,
+      sharesOutstanding: stats.defaultKeyStatistics.sharesOutstanding.raw,
+      marketCap: stats.price.marketCap.raw,
+      previousClose: quote.meta.previousClose,
+      change: quote.meta.regularMarketPrice - quote.meta.previousClose,
+      changePercent: ((quote.meta.regularMarketPrice - quote.meta.previousClose) / quote.meta.previousClose) * 100,
+      updatedAt: new Date(quote.meta.regularMarketTime * 1000).toISOString(),
+      demo: false
+    };
+
+    res.json(stockData);
+  } catch (error) {
+    console.error('Yahoo Finance error:', error.message);
+
+    // Robust fallback to demo data
+    res.json({
+      ticker: `${req.params.ticker}.ST`,
+      price: 2.84,
+      currency: 'SEK',
+      sharesOutstanding: 25347891,
+      marketCap: 71988011,
+      previousClose: 2.96,
+      change: -0.12,
+      changePercent: -4.05,
+      updatedAt: new Date().toISOString(),
+      demo: true
     });
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
+//  PDF EXTRACTION (TEXT-BASED — cheap, ~3k tokens per report)
+// ========================================================================
+
+app.post('/api/kapitalradgivaren/extract-financial-data-text', async (req, res) => {
+  try {
+    const { fileName, fileData } = req.body;
+
+    if (!fileData) {
+      return res.status(400).json({ error: 'No file data', parseError: true });
+    }
+
+    // Extract text from PDF using pdf-parse v2
+    const pdfBuffer = Buffer.from(fileData, 'base64');
+    let pdfText;
+    try {
+      const parser = new PDFParse({ data: pdfBuffer });
+      const result = await parser.getText();
+      pdfText = result.text;
+      parser.destroy();
+    } catch (pdfErr) {
+      console.error('pdf-parse failed:', pdfErr.message);
+      return res.status(422).json({ error: 'Kunde inte läsa PDF-text', parseError: true });
+    }
+
+    if (!pdfText || pdfText.trim().length < 50) {
+      return res.status(422).json({ error: 'PDF innehöll för lite text', parseError: true, tooShort: true });
+    }
+
+    // Truncate to ~12k chars to stay within token budget
+    const truncatedText = pdfText.slice(0, 12000);
+
+    const prompt = `Du är expert på att läsa svenska kvartalsrapporter och årsredovisningar.
+
+Nedan är text extraherad från EN kvartalsrapport (${fileName}). Identifiera VILKET kvartal rapporten avser.
+
+Extrahera följande information och returnera som JSON:
+
+{
+  "quarter": 2,
+  "year": "2025",
+  "omsättning": [null, 12345, null, null],
+  "resultat": [null, -2000, null, null],
+  "egetKapital": "X",
+  "kassa": "X",
+  "skulder": "X",
+  "kassaflödeRörelse": [null, -1500, null, null],
+  "period": "Q2 2025"
+}
+
+VIKTIGT:
+- "quarter" ska vara en siffra 1-4 som anger VILKET kvartal rapporten avser
+- Sätt BARA det kvartalets siffra i arrayen, alla andra kvartal ska vara null
+- "kassaflödeRörelse" ska vara en array [Q1, Q2, Q3, Q4] precis som omsättning och resultat
+- Hitta INTE PÅ siffror för kvartal som inte finns i dokumentet!
+- Om rapporten innehåller ackumulerade siffror för flera kvartal (t.ex. "jan-jun"), extrahera BARA det specifika kvartalets siffror om möjligt. Om inte, sätt ackumulerat värde på senaste kvartalet.
+- Alla belopp i TSEK (konvertera från MSEK om nödvändigt: 1 MSEK = 1000 TSEK)
+- KASSAFLÖDE — KRITISKT VIKTIGT:
+  * Använd raden "Periodens kassaflöde" eller "Förändring av likvida medel" — detta är den SISTA/NEDERSTA raden i kassaflödesanalysen, den totala summan.
+  * Använd ALDRIG "Kassaflöde från den löpande verksamheten" eller "Kassaflöde från rörelsen" — det är bara en delpost, inte totalen.
+  * Om du inte hittar "Periodens kassaflöde" exakt, leta efter den sista sammanfattande raden i kassaflödesanalysen.
+- Negativt kassaflöde = negativt tal
+- ENDAST JSON, ingen annan text
+
+TEXT FRÅN RAPPORTEN:
+${truncatedText}`;
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    let extractedData;
+    try {
+      const jsonText = message.content[0].text
+        .replace(/```json\n?/g, '')
+        .replace(/```/g, '')
+        .trim();
+      extractedData = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error('Text extraction JSON parse error:', parseError);
+      extractedData = {
+        omsättning: [null, null, null, null],
+        resultat: [null, null, null, null],
+        egetKapital: '',
+        kassa: '',
+        skulder: '',
+        kassaflödeRörelse: [null, null, null, null],
+        period: '(Kunde inte tolka)',
+        parseError: true
+      };
+    }
+
+    console.log(`Text extraction OK: ${fileName} → Q${extractedData.quarter || '?'}`);
+    res.json(extractedData);
+
+  } catch (error) {
+    console.error('Text extraction error:', error.status || '', error.message || error);
+    const status = error.status === 429 ? 429 : 500;
+    res.status(status).json({
+      error: status === 429 ? 'Rate limit' : 'Extraction failed',
+      retryAfter: error.status === 429 ? parseInt(error.headers?.['retry-after'] || '60', 10) : null,
+      parseError: true
+    });
+  }
+});
+
+// ========================================================================
+//  PDF EXTRACTION (DOCUMENT API — dyrare, behålls som fallback)
+// ========================================================================
+
+app.post('/api/kapitalradgivaren/extract-financial-data', async (req, res) => {
+  try {
+    const { fileName, fileData } = req.body;
+
+    // Validate file size (base64 ~20M chars ≈ 15MB file)
+    if (fileData && fileData.length > 20000000) {
+      return res.status(413).json({
+        error: 'PDF för stor (max ~15MB)',
+        parseError: true
+      });
+    }
+
+    const prompt = `Du är expert på att läsa svenska kvartalsrapporter och årsredovisningar.
+
+Denna PDF är EN kvartalsrapport (t.ex. Q2-rapport för 2025). Identifiera VILKET kvartal rapporten avser.
+
+Extrahera följande information och returnera som JSON:
+
+{
+  "quarter": 2,
+  "year": "2025",
+  "omsättning": [null, 12345, null, null],
+  "resultat": [null, -2000, null, null],
+  "egetKapital": "X",
+  "kassa": "X",
+  "skulder": "X",
+  "kassaflödeRörelse": [null, -1500, null, null],
+  "period": "Q2 2025"
+}
+
+VIKTIGT:
+- "quarter" ska vara en siffra 1-4 som anger VILKET kvartal rapporten avser
+- Sätt BARA det kvartalets siffra i arrayen, alla andra kvartal ska vara null
+- "kassaflödeRörelse" ska vara en array [Q1, Q2, Q3, Q4] precis som omsättning och resultat
+- Hitta INTE PÅ siffror för kvartal som inte finns i dokumentet!
+- Om rapporten innehåller ackumulerade siffror för flera kvartal (t.ex. "jan-jun"), extrahera BARA det specifika kvartalets siffror om möjligt. Om inte, sätt ackumulerat värde på senaste kvartalet.
+- Alla belopp i TSEK (konvertera från MSEK om nödvändigt: 1 MSEK = 1000 TSEK)
+- KASSAFLÖDE — KRITISKT VIKTIGT:
+  * Använd raden "Periodens kassaflöde" eller "Förändring av likvida medel" — detta är den SISTA/NEDERSTA raden i kassaflödesanalysen, den totala summan.
+  * Använd ALDRIG "Kassaflöde från den löpande verksamheten" eller "Kassaflöde från rörelsen" — det är bara en delpost, inte totalen.
+  * Om du inte hittar "Periodens kassaflöde" exakt, leta efter den sista sammanfattande raden i kassaflödesanalysen.
+- Negativt kassaflöde = negativt tal
+- ENDAST JSON, ingen annan text`;
+
+    const apiCall = anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2000,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: fileData
+            }
+          },
+          {
+            type: 'text',
+            text: prompt
+          }
+        ]
+      }]
+    });
+
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout: PDF-extraction tog för lång tid (90s)')), 90000)
+    );
+
+    const message = await Promise.race([apiCall, timeout]);
+
+    let extractedData;
+    try {
+      const jsonText = message.content[0].text
+        .replace(/```json\n?/g, '')
+        .replace(/```/g, '')
+        .trim();
+      extractedData = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error('PDF JSON parse error:', parseError);
+      extractedData = {
+        omsättning: [null, null, null, null],
+        resultat: [null, null, null, null],
+        egetKapital: '',
+        kassa: '',
+        skulder: '',
+        kassaflödeRörelse: [null, null, null, null],
+        period: '(Kunde inte tolka PDF)',
+        parseError: true
+      };
+    }
+
+    console.log(`Document API (Haiku) OK: ${fileName} → Q${extractedData.quarter || '?'}`);
+    res.json(extractedData);
+  } catch (error) {
+    console.error('PDF extraction error:', error.status || '', error.message || error);
+    const status = error.status === 429 ? 429 : 500;
+    res.status(status).json({
+      error: status === 429 ? 'Rate limit' : 'PDF extraction failed',
+      retryAfter: error.status === 429 ? parseInt(error.headers?.['retry-after'] || '60', 10) : null,
+      parseError: true
+    });
+  }
+});
+
+// ========================================================================
+//  KAPITALR\u00c5DGIVAREN
+// ========================================================================
+
+app.post('/api/kapitalradgivaren/emissionsanalys', async (req, res) => {
+  try {
+    const { companyData, kapitalbehov, tidhorisont, aktivaSektioner, prognoser, initiativ, åtaganden, milestones, risk } = req.body;
+
+    // Konvertera fr\u00e5n TSEK till MSEK f\u00f6r AI-prompten
+    const kassaMSEK = (parseFloat(companyData.currentCapital) / 1000).toFixed(1);
+    const burnRateTSEK = parseFloat(companyData.burnRate);
+    const burnRateMSEK = (burnRateTSEK / 1000).toFixed(1);
+    const kapitalbehovMSEK = (parseFloat(kapitalbehov) / 1000).toFixed(1);
+
+    // Bygg kompletterande data-sektion baserat p\u00e5 aktiva sektioner fr\u00e5n steg 3
+    let kompletterandeData = '';
+    if (aktivaSektioner) {
+      if (aktivaSektioner.prognoser && prognoser) {
+        const delar = [];
+        if (prognoser.oms\u00e4ttningstillv\u00e4xt) delar.push(`F\u00f6rv\u00e4ntad oms\u00e4ttningstillv\u00e4xt: ${prognoser.oms\u00e4ttningstillv\u00e4xt}%`);
+        if (prognoser.nyaAnst\u00e4llningar) delar.push(`Planerade nyanst\u00e4llningar: ${prognoser.nyaAnst\u00e4llningar} st`);
+        if (prognoser.genomsnittsl\u00f6n) delar.push(`Genomsnittsl\u00f6n: ${prognoser.genomsnittsl\u00f6n} TSEK`);
+        if (prognoser.marknadsf\u00f6ring) delar.push(`Marknadsf\u00f6ringsbudget: ${prognoser.marknadsf\u00f6ring} TSEK`);
+        if (prognoser.rndInvesteringar) delar.push(`R&D-investeringar: ${prognoser.rndInvesteringar} TSEK`);
+        if (delar.length > 0) kompletterandeData += `\nPROGNOSER:\n${delar.join('\n')}\n`;
+      }
+      if (aktivaSektioner.initiativ && initiativ) {
+        const delar = [];
+        if (initiativ.internationalisering) delar.push(`Internationalisering: ${initiativ.internationalisering}`);
+        if (initiativ.f\u00f6rv\u00e4rv) delar.push(`F\u00f6rv\u00e4rv: ${initiativ.f\u00f6rv\u00e4rv}`);
+        if (initiativ.produktlansering) delar.push(`Produktlansering: ${initiativ.produktlansering}`);
+        if (delar.length > 0) kompletterandeData += `\nSTRATEGISKA INITIATIV:\n${delar.join('\n')}\n`;
+      }
+      if (aktivaSektioner.\u00e5taganden && \u00e5taganden) {
+        const delar = [];
+        if (\u00e5taganden.l\u00e5nF\u00f6rfaller) delar.push(`L\u00e5n f\u00f6rfaller: ${\u00e5taganden.l\u00e5nF\u00f6rfaller}`);
+        if (\u00e5taganden.l\u00e5nBelopp) delar.push(`L\u00e5nbelopp: ${\u00e5taganden.l\u00e5nBelopp} TSEK`);
+        if (\u00e5taganden.konvertibler) delar.push(`Konvertibler: ${\u00e5taganden.konvertibler}`);
+        if (delar.length > 0) kompletterandeData += `\nFINANSIELLA \u00c5TAGANDEN:\n${delar.join('\n')}\n`;
+      }
+      if (aktivaSektioner.milestones && milestones) {
+        const delar = [];
+        if (milestones.breakEven) delar.push(`Break-even: ${milestones.breakEven}`);
+        if (milestones.\u00f6nskadRunway) delar.push(`\u00d6nskad runway: ${milestones.\u00f6nskadRunway} m\u00e5nader`);
+        if (delar.length > 0) kompletterandeData += `\nMILESTONES:\n${delar.join('\n')}\n`;
+      }
+      if (aktivaSektioner.risk && risk) {
+        const delar = [];
+        if (risk.kundkoncentration) delar.push(`Kundkoncentration: ${risk.kundkoncentration}%`);
+        if (risk.s\u00e4kerhetsbuffert) delar.push(`S\u00e4kerhetsbuffert: ${risk.s\u00e4kerhetsbuffert}%`);
+        if (delar.length > 0) kompletterandeData += `\nRISKFAKTORER:\n${delar.join('\n')}\n`;
+      }
+    }
+
+    const prompt = `Du \u00e4r expert p\u00e5 kapitalanskaffning f\u00f6r nordiska tillv\u00e4xtbolag.
+
+VIKTIGT: Alla belopp nedan \u00e4r i MSEK (miljoner SEK). Svara ALLTID med belopp i MSEK.
+
+BOLAGSDATA:
+Namn: ${companyData.name}
+Bransch: ${companyData.industry}
+Nuvarande kassa: ${kassaMSEK} MSEK
+Burn rate: ${burnRateMSEK} MSEK/m\u00e5nad (${burnRateTSEK} TSEK/m\u00e5nad)
+Runway: ${companyData.runway} m\u00e5nader
+
+KAPITALBEHOV:
+Behov: ${kapitalbehovMSEK} MSEK
+Tidshorisont: ${tidhorisont}
+Syfte: ${companyData.purpose}
+${kompletterandeData}
+Skapa en emissionsanalys (max 500 ord) som inneh\u00e5ller:
+1. SITUATIONSBESKRIVNING (2-3 meningar)
+2. REKOMMENDERAD EMISSIONSSTRUKTUR
+   - Typ av emission
+   - Rekommenderad emissionsvolym (i MSEK)
+   - F\u00f6rslag p\u00e5 teckningskurs
+   - Teckningsr\u00e4tter (om f\u00f6retr\u00e4desemission)
+3. TIDSPLAN med datum
+4. RISKER OCH \u00d6VERV\u00c4GANDEN (3-4 punkter)
+${kompletterandeData ? '\nVIKTIGT: V\u00e4g in den kompletterande informationen ovan i din analys. Anv\u00e4nd prognoser, strategiska initiativ, \u00e5taganden, milestones och riskfaktorer f\u00f6r att g\u00f6ra analysen mer specifik och relevant.\n' : ''}
+Alla belopp ska anges i MSEK. Skriv professionellt och konkret.`;
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    res.json({ analys: message.content[0].text });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/kapitalradgivaren/mar-pm', async (req, res) => {
+  try {
+    const { type, projektData } = req.body;
+
+    let prompt = '';
+    if (type === 'beslut') {
+      prompt = `Skapa ett MAR-compliant pressmeddelande (max 300 ord) f\u00f6r styrelsebeslut om emission.
+BOLAG: ${projektData.companyName}
+EMISSION: ${projektData.emissionsvillkor.typ}
+VOLYM: ${projektData.emissionsvillkor.emissionsvolym} SEK
+TECKNINGSKURS: ${projektData.emissionsvillkor.teckningskurs} SEK
+TECKNINGSPERIOD: ${projektData.teckning?.teckningsperiod?.start} - ${projektData.teckning?.teckningsperiod?.slut}
+Struktur: 1. Rubrik 2. Ingress 3. Villkor 4. Syfte 5. Kontakt
+VIKTIGT: F\u00f6lj MAR. Inkludera disclaimer. UTKAST.`;
+    } else if (type === 'prospekt') {
+      prompt = `Skapa ett MAR-compliant pressmeddelande (max 300 ord) f\u00f6r offentligg\u00f6rande av prospekt/IM.
+BOLAG: ${projektData.companyName}
+EMISSION: ${projektData.emissionsvillkor.typ}
+VOLYM: ${projektData.emissionsvillkor.emissionsvolym} SEK
+Inkludera disclaimer. UTKAST f\u00f6r juridisk granskning.`;
+    } else if (type === 'utfall') {
+      prompt = `Skapa ett MAR-compliant pressmeddelande (max 300 ord) f\u00f6r emissionsutfall.
+BOLAG: ${projektData.companyName}
+EMISSION: ${projektData.emissionsvillkor.typ}
+Inkludera teckningsresultat och disclaimer. UTKAST.`;
+    }
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1500,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    res.json({ pressmeddelande: message.content[0].text });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/kapitalradgivaren/styrelseprotokoll', async (req, res) => {
+  try {
+    const { type, projektData } = req.body;
+
+    const prompt = `Skapa ett formellt styrelseprotokoll f\u00f6r ${type === 'emissionsbeslut' ? 'emissionsbeslut' : 'tilldelningsbeslut'}.
+BOLAG: ${projektData.companyName}
+DATUM: ${new Date().toLocaleDateString('sv-SE')}
+
+${type === 'emissionsbeslut' ?
+`EMISSION:
+- Typ: ${projektData.emissionsvillkor.typ}
+- Volym: ${projektData.emissionsvillkor.emissionsvolym} SEK
+- Teckningskurs: ${projektData.emissionsvillkor.teckningskurs} SEK
+- Antal nya aktier: ${projektData.emissionsvillkor.antalNyaAktier}` :
+`TILLDELNING:
+- Totalt tecknat: [fr\u00e5n tilldelningsf\u00f6rslag]
+- Antal tecknare: [fr\u00e5n tilldelningsf\u00f6rslag]`}
+
+Komplett protokoll enligt ABL med paragrafer. Professionell ton.`;
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    res.json({ protokoll: message.content[0].text });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
 //  IM GENERATION ENDPOINTS
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
 
 app.post('/api/generate-executive-summary', async (req, res) => {
   try {
     const { company, business, market, emission } = req.body;
-    const prompt = `Du är en expert på att skriva investeringsmemorandum för nordiska tillväxtbolag. 
+    const prompt = `Du \u00e4r expert p\u00e5 investeringsmemorandum f\u00f6r nordiska tillv\u00e4xtbolag.
 
-Skriv en Executive Summary / Investment Thesis (max 400 ord) baserat på följande information:
-
+Skriv en Executive Summary (max 400 ord):
 BOLAG: ${company.name}
 BRANSCH: ${company.industry}
 VERKSAMHET: ${business.description}
 MARKNAD: ${market.description}
-EMISSION: ${emission.sizeSEK} SEK för ${emission.purpose}
+EMISSION: ${emission.sizeSEK} SEK f\u00f6r ${emission.purpose}
 
-Executive Summary ska innehålla:
-1. Kort bolagsbeskrivning (2-3 meningar)
-2. Investment thesis - varför är detta en attraktiv investering? (3-4 meningar)
-3. Nyckeldata om emissionen (belopp, användning)
-4. Strategisk kontext - varför kapitalanskaffning nu?
-
-Skriv professionellt och övertygande. Fokusera på värdeskapande och tillväxtpotential.`;
+Inneh\u00e5ll: 1. Bolagsbeskrivning 2. Investment thesis 3. Nyckeldata 4. Strategisk kontext
+Professionellt och \u00f6vertygande.`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }]
     });
@@ -246,26 +932,20 @@ Skriv professionellt och övertygande. Fokusera på värdeskapande och tillväxt
 app.post('/api/generate-business-section', async (req, res) => {
   try {
     const { company, business } = req.body;
-    const prompt = `Du är en expert på att skriva investeringsmemorandum.
+    const prompt = `Du \u00e4r expert p\u00e5 investeringsmemorandum.
 
-Skriv ett avsnitt "Verksamhet och Strategi" (max 600 ord) baserat på:
-
+Skriv "Verksamhet och Strategi" (max 600 ord):
 BOLAG: ${company.name}
 BRANSCH: ${company.industry}
-VERKSAMHETSBESKRIVNING: ${business.description}
-PRODUKTER/TJÄNSTER: ${business.products || 'Information saknas'}
-AFFÄRSMODELL: ${business.businessModel || 'Information saknas'}
+VERKSAMHET: ${business.description}
+PRODUKTER: ${business.products || 'Information saknas'}
+AFF\u00c4RSMODELL: ${business.businessModel || 'Information saknas'}
 STRATEGI: ${business.strategy || 'Information saknas'}
 
-Strukturera texten i tre delar:
-1. VAD VI GÖR - kärnverksamhet, produkter/tjänster
-2. HUR VI TJÄNAR PENGAR - affärsmodell, intäktsströmmar
-3. VAR VI ÄR PÅ VÄG - strategi, tillväxtplaner
-
-Skriv professionellt men engagerande. Fokusera på konkreta detaljer och differentieringsfaktorer.`;
+Struktur: 1. VAD VI G\u00d6R 2. HUR VI TJ\u00c4NAR PENGAR 3. VAR VI \u00c4R P\u00c5 V\u00c4G`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }]
     });
@@ -278,25 +958,19 @@ Skriv professionellt men engagerande. Fokusera på konkreta detaljer och differe
 app.post('/api/generate-market-section', async (req, res) => {
   try {
     const { market, company } = req.body;
-    const prompt = `Du är en expert på att skriva marknadsanalyser för investeringsmemorandum.
+    const prompt = `Du \u00e4r expert p\u00e5 marknadsanalyser f\u00f6r investeringsmemorandum.
 
-Skriv ett avsnitt "Marknadsöversikt" (max 500 ord) baserat på:
-
+Skriv "Marknads\u00f6versikt" (max 500 ord):
 BRANSCH: ${company.industry}
-MARKNADSBESKRIVNING: ${market.description}
+MARKNAD: ${market.description}
 TAM/SAM: ${market.size || 'Information saknas'}
-GEOGRAFISKA MARKNADER: ${market.geography || 'Information saknas'}
+GEOGRAFI: ${market.geography || 'Information saknas'}
 KONKURRENTER: ${market.competitors || 'Information saknas'}
 
-Strukturera texten i tre delar:
-1. MARKNADEN - storlek, tillväxt, drivkrafter
-2. KONKURRENSSITUATION - huvudaktörer, vår positionering
-3. MÖJLIGHET - varför marknaden är attraktiv nu
-
-Var konkret med siffror om möjligt. Fokusera på tillväxtpotential och konkurrensfördelar.`;
+Struktur: 1. MARKNADEN 2. KONKURRENSSITUATION 3. M\u00d6JLIGHET`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1800,
       messages: [{ role: 'user', content: prompt }]
     });
@@ -309,31 +983,19 @@ Var konkret med siffror om möjligt. Fokusera på tillväxtpotential och konkurr
 app.post('/api/generate-risk-factors', async (req, res) => {
   try {
     const { company, business, financial } = req.body;
-    const prompt = `Du är en expert på riskanalys för investeringsmemorandum.
+    const prompt = `Du \u00e4r expert p\u00e5 riskanalys f\u00f6r investeringsmemorandum.
 
-Generera 5-7 väsentliga riskfaktorer för detta bolag:
-
+Generera 5-7 riskfaktorer:
 BOLAG: ${company.name}
 BRANSCH: ${company.industry}
 VERKSAMHET: ${business.description}
-FINANSIELL STATUS: Omsättning ${financial.revenue || 'ej angiven'}, Resultat ${financial.result || 'ej angivet'}
-NOTERAT: ${company.market}
+FINANSIELL STATUS: Oms\u00e4ttning ${financial.revenue || 'ej angiven'}, Resultat ${financial.result || 'ej angivet'}
 
-Kategorier att täcka:
-1. Verksamhetsrisker (2-3 risker)
-2. Marknads- och konkurrensrisker (1-2 risker)
-3. Finansiella risker (1-2 risker)
-4. Emissionsrelaterade risker (1 risk)
-
-För varje risk:
-- Kort rubrik (5-8 ord)
-- Beskrivning (2-3 meningar)
-- Fokusera på materiella risker som är specifika för detta bolag/bransch
-
-Format som en punktlista med rubrik följt av beskrivning.`;
+Kategorier: Verksamhetsrisker (2-3), Marknadsrisker (1-2), Finansiella (1-2), Emissionsrisker (1).
+Per risk: Rubrik + 2-3 meningar.`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }]
     });
@@ -346,26 +1008,11 @@ Format som en punktlista med rubrik följt av beskrivning.`;
 app.post('/api/generate-team-bios', async (req, res) => {
   try {
     const { team } = req.body;
-    const prompt = `Du är en expert på att skriva professionella biografier för investeringsmemorandum.
-
-Skriv korta biografier (2-3 meningar per person) för följande personer:
-
-${team.map(p => `
-NAMN: ${p.name}
-ROLL: ${p.role}
-BAKGRUND: ${p.background || 'Information saknas'}
-`).join('\n')}
-
-För varje person:
-- Börja med roll och bolag
-- Nämn relevant tidigare erfarenhet (företag, befattningar)
-- Om relevant: utbildning eller unika kompetenser
-- Professionell men koncis ton
-
-Format som en lista med rubrik (NAMN - Roll) följt av biografitext.`;
+    const teamStr = team.map(p => `NAMN: ${p.name || p.namn}\nROLL: ${p.role || p.roll}\nBAKGRUND: ${p.background || p.bakgrund || 'Info saknas'}`).join('\n\n');
+    const prompt = `Skriv korta biografier (2-3 meningar per person) f\u00f6r investeringsmemorandum:\n\n${teamStr}\n\nPer person: Roll + erfarenhet. Professionell ton.`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }]
     });
@@ -378,29 +1025,18 @@ Format som en lista med rubrik (NAMN - Roll) följt av biografitext.`;
 app.post('/api/generate-offering-terms', async (req, res) => {
   try {
     const { company, emission } = req.body;
-    const prompt = `Du är en expert på att skriva teckningserbjudanden för informationsmemorandum.
-
-Skriv ett avsnitt "Villkor för teckningserbjudandet" (max 400 ord) baserat på:
-
+    const prompt = `Skriv "Villkor f\u00f6r teckningserbjudandet" (max 400 ord):
 BOLAG: ${company.name}
-ORGANISATIONSNUMMER: ${company.orgNr || 'Ej angivet'}
-EMISSIONSBELOPP: ${emission.sizeSEK} SEK
-TECKNINGSPERIOD: ${emission.subscriptionPeriod || 'Meddelas separat'}
-MÅLGRUPP: ${emission.audience === 'public' ? 'Allmänheten' : emission.audience === 'qualified' ? 'Kvalificerade investerare' : 'Befintliga aktieägare och utvalda investerare'}
-ANVÄNDNING AV KAPITALET: ${emission.purpose}
+ORG.NR: ${company.orgNr || 'Ej angivet'}
+BELOPP: ${emission.sizeSEK} SEK
+PERIOD: ${emission.subscriptionPeriod || 'Meddelas separat'}
+M\u00c5LGRUPP: ${emission.audience === 'public' ? 'Allm\u00e4nheten' : emission.audience === 'qualified' ? 'Kvalificerade investerare' : 'Befintliga aktie\u00e4gare'}
+SYFTE: ${emission.purpose}
 
-Strukturera texten enligt följande rubriker:
-1. ERBJUDANDET I SAMMANDRAG - kort sammanfattning av emissionen (2-3 meningar)
-2. TECKNINGSPERIOD - när teckning kan ske
-3. TECKNING - hur teckning genomförs (anmälan, minsta teckningspost om relevant)
-4. TILLDELNING - principer för tilldelning vid överteckning
-5. BETALNING - betalningsvillkor och instruktioner
-6. OFFENTLIGGÖRANDE - när utfallet meddelas
-
-Skriv professionellt och tydligt. Använd standardformuleringar för svenska emissioner. Om specifik information saknas, använd typiska formuleringar som "meddelas separat" eller "enligt separat anvisning".`;
+Struktur: 1. SAMMANDRAG 2. TECKNINGSPERIOD 3. TECKNING 4. TILLDELNING 5. BETALNING 6. OFFENTLIGG\u00d6RANDE`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }]
     });
@@ -410,112 +1046,99 @@ Skriv professionellt och tydligt. Använd standardformuleringar för svenska emi
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
 //  PDF GENERATION
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
 
 app.post('/api/generate-pdf', async (req, res) => {
   try {
     const data = req.body;
     const doc = new PDFDocument({ margin: 50 });
-    
+
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${data.company.name.replace(/\s+/g, '_')}_IM.pdf"`);
-    
+    res.setHeader('Content-Disposition', `attachment; filename="${(data.company.name || 'Bolag').replace(/\s+/g, '_')}_IM.pdf"`);
     doc.pipe(res);
-    
+
     // Title page
     doc.fontSize(28).font('Helvetica-Bold').text('INFORMATIONSMEMORANDUM', { align: 'center' });
     doc.moveDown();
     doc.fontSize(24).text(data.company.name, { align: 'center' });
     doc.moveDown(0.5);
-    doc.fontSize(14).font('Helvetica').text(`${data.emission.sizeSEK.toLocaleString('sv-SE')} SEK`, { align: 'center' });
+    doc.fontSize(14).font('Helvetica').text(`${(data.emission.sizeSEK || 0).toLocaleString('sv-SE')} SEK`, { align: 'center' });
     doc.moveDown(0.3);
     doc.fontSize(12).text(new Date().toLocaleDateString('sv-SE'), { align: 'center' });
     doc.moveDown(3);
-    
     doc.fontSize(10).font('Helvetica-Oblique')
-      .text('Detta informationsmemorandum har inte granskats eller godkänts av Finansinspektionen. Informationen i dokumentet är baserad på uppgifter från bolaget och kan innehålla framåtriktade uttalanden som är föremål för osäkerhet.',
-        { align: 'center', width: 400, continued: false });
-    
+      .text('Detta informationsmemorandum har inte granskats eller godk\u00e4nts av Finansinspektionen.', { align: 'center', width: 400 });
     doc.addPage();
-    
-    // Executive Summary
-    doc.fontSize(18).font('Helvetica-Bold').text('EXECUTIVE SUMMARY');
-    doc.moveDown(0.5);
-    doc.fontSize(11).font('Helvetica').text(data.generated.executiveSummary, { align: 'justify' });
-    doc.moveDown(2);
-    
+
+    if (data.generated && data.generated.executiveSummary) {
+      doc.fontSize(18).font('Helvetica-Bold').text('EXECUTIVE SUMMARY');
+      doc.moveDown(0.5);
+      doc.fontSize(11).font('Helvetica').text(data.generated.executiveSummary, { align: 'justify' });
+      doc.moveDown(2);
+    }
+
     doc.fontSize(14).font('Helvetica-Bold').text('EMISSIONSDETALJER');
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
-    doc.text(`Emissionsbelopp: ${data.emission.sizeSEK.toLocaleString('sv-SE')} SEK`);
-    doc.text(`Användning: ${data.emission.purpose}`);
-    doc.text(`Målgrupp: ${data.emission.audience === 'qualified' ? 'Kvalificerade investerare' : 'Allmänheten'}`);
-    doc.text(`Teckningsperiod: ${data.emission.subscriptionPeriod || 'Ej fastställd'}`);
-    
+    doc.text(`Emissionsbelopp: ${(data.emission.sizeSEK || 0).toLocaleString('sv-SE')} SEK`);
+    doc.text(`Anv\u00e4ndning: ${data.emission.purpose || 'Ej angivet'}`);
     doc.addPage();
-    
-    // Business section
-    doc.fontSize(18).font('Helvetica-Bold').text('VERKSAMHET OCH STRATEGI');
-    doc.moveDown(0.5);
-    doc.fontSize(11).font('Helvetica').text(data.generated.businessSection, { align: 'justify' });
-    
-    doc.addPage();
-    
-    // Market section
-    doc.fontSize(18).font('Helvetica-Bold').text('MARKNADSÖVERSIKT');
-    doc.moveDown(0.5);
-    doc.fontSize(11).font('Helvetica').text(data.generated.marketSection, { align: 'justify' });
-    
-    doc.addPage();
-    
-    // Financial information
+
+    if (data.generated && data.generated.business) {
+      doc.fontSize(18).font('Helvetica-Bold').text('VERKSAMHET OCH STRATEGI');
+      doc.moveDown(0.5);
+      doc.fontSize(11).font('Helvetica').text(data.generated.business, { align: 'justify' });
+      doc.addPage();
+    }
+
+    if (data.generated && data.generated.market) {
+      doc.fontSize(18).font('Helvetica-Bold').text('MARKNADS\u00d6VERSIKT');
+      doc.moveDown(0.5);
+      doc.fontSize(11).font('Helvetica').text(data.generated.market, { align: 'justify' });
+      doc.addPage();
+    }
+
     doc.fontSize(18).font('Helvetica-Bold').text('FINANSIELL INFORMATION');
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
-    if (data.financial.revenue) doc.text(`Omsättning (${data.financial.year || 'senaste året'}): ${data.financial.revenue} TSEK`);
-    if (data.financial.result) doc.text(`Resultat: ${data.financial.result} TSEK`);
-    if (data.financial.equity) doc.text(`Eget kapital: ${data.financial.equity} TSEK`);
-    doc.moveDown();
-    doc.fontSize(10).font('Helvetica-Oblique')
-      .text('Fullständig finansiell information finns i bolagets senaste årsredovisning.');
-    
+    if (data.financial) {
+      if (data.financial.revenue) doc.text(`Oms\u00e4ttning: ${data.financial.revenue} TSEK`);
+      if (data.financial.result) doc.text(`Resultat: ${data.financial.result} TSEK`);
+      if (data.financial.equity) doc.text(`Eget kapital: ${data.financial.equity} TSEK`);
+    }
     doc.addPage();
-    
-    // Offering terms
-    if (data.generated.offeringTerms) {
-      doc.fontSize(18).font('Helvetica-Bold').text('VILLKOR FÖR TECKNINGSERBJUDANDET');
+
+    if (data.generated && data.generated.offeringTerms) {
+      doc.fontSize(18).font('Helvetica-Bold').text('VILLKOR F\u00d6R TECKNINGSERBJUDANDET');
       doc.moveDown(0.5);
       doc.fontSize(11).font('Helvetica').text(data.generated.offeringTerms, { align: 'justify' });
       doc.addPage();
     }
-    
-    // Team
-    doc.fontSize(18).font('Helvetica-Bold').text('LEDNING OCH STYRELSE');
-    doc.moveDown(0.5);
-    doc.fontSize(11).font('Helvetica').text(data.generated.teamBios, { align: 'justify' });
-    
-    doc.addPage();
-    
-    // Risk factors
-    doc.fontSize(18).font('Helvetica-Bold').text('RISKFAKTORER');
-    doc.moveDown(0.5);
-    doc.fontSize(11).font('Helvetica').text(data.generated.riskFactors, { align: 'justify' });
-    
-    doc.addPage();
-    
-    // Legal disclaimers
+
+    if (data.generated && data.generated.team) {
+      doc.fontSize(18).font('Helvetica-Bold').text('LEDNING OCH STYRELSE');
+      doc.moveDown(0.5);
+      doc.fontSize(11).font('Helvetica').text(data.generated.team, { align: 'justify' });
+      doc.addPage();
+    }
+
+    if (data.generated && data.generated.risks) {
+      doc.fontSize(18).font('Helvetica-Bold').text('RISKFAKTORER');
+      doc.moveDown(0.5);
+      doc.fontSize(11).font('Helvetica').text(data.generated.risks, { align: 'justify' });
+      doc.addPage();
+    }
+
     doc.fontSize(18).font('Helvetica-Bold').text('JURIDISK INFORMATION');
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
     doc.text(`Bolag: ${data.company.name}`);
     doc.text(`Organisationsnummer: ${data.company.orgNr || 'Ej angivet'}`);
-    doc.text(`Säte: ${data.company.location || 'Ej angivet'}`);
     doc.moveDown();
     doc.fontSize(10).font('Helvetica-Oblique')
-      .text('Detta informationsmemorandum utgör inte ett erbjudande att förvärva värdepapper och är inte ett prospekt enligt Prospektförordningen (EU) 2017/1129. Investeringsbeslut bör fattas efter noggrann analys av bolaget och de risker som är förenade med investeringen.');
-    
+      .text('Detta informationsmemorandum utg\u00f6r inte ett erbjudande att f\u00f6rv\u00e4rva v\u00e4rdepapper.');
     doc.end();
   } catch (error) {
     console.error('PDF generation error:', error);
@@ -523,11 +1146,10 @@ app.post('/api/generate-pdf', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  MARKETING AUTOMATION ENDPOINTS (Fas 1 MVP)
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
+//  MARKETING AUTOMATION
+// ========================================================================
 
-// Generate Redeye-style emission page
 app.post('/api/marketing/generate-landing-page', async (req, res) => {
   try {
     const {
@@ -540,17 +1162,14 @@ app.post('/api/marketing/generate-landing-page', async (req, res) => {
 
     const year = new Date().getFullYear();
     const url = `https://kapital.demo/${(companyName || 'bolag').toLowerCase().replace(/\s+/g, '-')}-emission`;
+    const ceo = (team || []).find(t => (t.role || t.roll || '').toLowerCase().includes('vd') || (t.role || t.roll || '').toLowerCase().includes('ceo'));
+    const chairman = (team || []).find(t => (t.role || t.roll || '').toLowerCase().includes('ordf') || (t.role || t.roll || '').toLowerCase().includes('chairman'));
 
-    // Extract CEO and chairman from team array
-    const ceo = (team || []).find(t => (t.role || '').toLowerCase().includes('vd') || (t.role || '').toLowerCase().includes('ceo'));
-    const chairman = (team || []).find(t => (t.role || '').toLowerCase().includes('ordf') || (t.role || '').toLowerCase().includes('chairman') || (t.role || '').toLowerCase().includes('styrelseordf'));
-
-    // Helper: convert markdown-ish text to HTML paragraphs
     const toHtml = (text) => {
       if (!text) return '<p>Information saknas.</p>';
       return text.split('\n').filter(l => l.trim()).map(l => {
-        if (l.trim().startsWith('•') || l.trim().startsWith('-') || l.trim().startsWith('*')) {
-          return `<li>${l.replace(/^[\s•\-\*]+/, '')}</li>`;
+        if (l.trim().startsWith('\u2022') || l.trim().startsWith('-') || l.trim().startsWith('*')) {
+          return `<li>${l.replace(/^[\s\u2022\-\*]+/, '')}</li>`;
         }
         return `<p>${l}</p>`;
       }).join('\n').replace(/(<li>.*<\/li>\n?)+/g, (match) => `<ul>${match}</ul>`);
@@ -562,483 +1181,240 @@ app.post('/api/marketing/generate-landing-page', async (req, res) => {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${companyName || 'Bolag'} - ${emissionType || 'Emission'} ${year}</title>
-  <meta name="description" content="${companyName || 'Bolag'} genomför en ${emissionType || 'emission'} om ${emissionSize || 'N/A'}. Läs mer och anmäl teckningsintresse.">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Oxygen, sans-serif; background: #f5f6f8; color: #2d3748; line-height: 1.6; }
-    
-    /* Top Banner */
-    .ep-banner { background: linear-gradient(135deg, #1a2332 0%, #2d3e50 100%); color: #fff; padding: 0; }
-    .ep-banner-inner { max-width: 1200px; margin: 0 auto; padding: 2rem 2rem; display: flex; justify-content: space-between; align-items: center; }
-    .ep-banner-left { display: flex; align-items: center; gap: 1.5rem; }
-    .ep-logo-placeholder { width: 64px; height: 64px; background: rgba(255,255,255,0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; color: #7ee8a8; }
-    .ep-banner h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
-    .ep-banner .ep-subtitle { color: #a0b4c5; font-size: 0.95rem; }
-    .ep-status-badge { background: #48bb78; color: #fff; padding: 0.5rem 1.2rem; border-radius: 6px; font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
-    
-    /* Navigation Tabs */
-    .ep-nav { background: #1a2332; border-top: 1px solid rgba(255,255,255,0.1); }
-    .ep-nav-inner { max-width: 1200px; margin: 0 auto; display: flex; gap: 0; }
-    .ep-tab { padding: 1rem 1.5rem; color: #a0b4c5; cursor: pointer; font-size: 0.95rem; font-weight: 500; border-bottom: 3px solid transparent; transition: all 0.2s; text-decoration: none; }
-    .ep-tab:hover { color: #fff; background: rgba(255,255,255,0.05); }
-    .ep-tab.active { color: #fff; border-bottom-color: #48bb78; }
-    
-    /* Main Layout */
-    .ep-layout { max-width: 1200px; margin: 2rem auto; display: grid; grid-template-columns: 1fr 340px; gap: 2rem; padding: 0 2rem; }
-    
-    /* Content Area */
-    .ep-content { min-width: 0; }
-    .ep-section { background: #fff; border-radius: 10px; padding: 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-    .ep-section h2 { font-size: 1.4rem; color: #1a2332; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 2px solid #e2e8f0; }
-    .ep-section h3 { font-size: 1.15rem; color: #2d3748; margin: 1.5rem 0 0.75rem; }
-    .ep-section p { color: #4a5568; margin-bottom: 0.75rem; }
-    .ep-section ul { color: #4a5568; margin: 0.5rem 0 1rem 1.5rem; }
-    .ep-section li { margin-bottom: 0.4rem; }
-    
-    /* Summary Table */
-    .ep-summary-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
-    .ep-summary-table td { padding: 0.65rem 1rem; border-bottom: 1px solid #edf2f7; }
-    .ep-summary-table td:first-child { color: #718096; font-weight: 500; width: 45%; }
-    .ep-summary-table td:last-child { color: #1a2332; font-weight: 600; }
-    .ep-summary-table tr:last-child td { border-bottom: none; }
-    
-    /* Sidebar */
-    .ep-sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
-    .ep-info-box { background: #fff; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-    .ep-info-box h3 { font-size: 1.1rem; color: #1a2332; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #48bb78; }
-    .ep-info-row { display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid #edf2f7; }
-    .ep-info-row:last-child { border-bottom: none; }
-    .ep-info-label { color: #718096; font-size: 0.9rem; }
-    .ep-info-value { color: #1a2332; font-weight: 600; font-size: 0.9rem; text-align: right; max-width: 55%; }
-    
-    .ep-cta-box { background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); border-radius: 10px; padding: 1.5rem; color: #fff; text-align: center; }
-    .ep-cta-box h3 { color: #fff; margin-bottom: 0.5rem; font-size: 1.1rem; border: none; padding: 0; }
-    .ep-cta-box p { color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-bottom: 1rem; }
-    .ep-cta-btn { display: inline-block; background: #fff; color: #38a169; padding: 0.85rem 2rem; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; border: none; width: 100%; text-align: center; transition: transform 0.15s; }
-    .ep-cta-btn:hover { transform: translateY(-1px); }
-    
-    .ep-doc-box { background: #fff; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-    .ep-doc-box h3 { font-size: 1.1rem; color: #1a2332; margin-bottom: 1rem; }
-    .ep-doc-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: #f7fafc; border-radius: 8px; margin-bottom: 0.5rem; color: #2d3748; text-decoration: none; cursor: pointer; transition: background 0.2s; }
-    .ep-doc-link:hover { background: #edf2f7; }
-    .ep-doc-icon { font-size: 1.3rem; }
-    .ep-doc-text { font-size: 0.9rem; font-weight: 500; }
-    
-    /* Team Cards */
-    .ep-team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem; }
-    .ep-team-card { background: #f7fafc; border-radius: 8px; padding: 1.2rem; }
-    .ep-team-card h4 { color: #1a2332; margin-bottom: 0.25rem; }
-    .ep-team-card .ep-role { color: #667eea; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem; }
-    .ep-team-card p { color: #718096; font-size: 0.9rem; }
-    
-    /* Disclaimer */
-    .ep-disclaimer { max-width: 1200px; margin: 0 auto 2rem; padding: 0 2rem; }
-    .ep-disclaimer-inner { background: #fff3cd; border-radius: 10px; padding: 1.5rem; border-left: 4px solid #ffc107; }
-    .ep-disclaimer-inner h4 { color: #856404; margin-bottom: 0.5rem; }
-    .ep-disclaimer-inner p { color: #6c5b10; font-size: 0.85rem; line-height: 1.5; }
-    
-    /* Tab content visibility */
-    .ep-tab-content { display: none; }
-    .ep-tab-content.active { display: block; }
-    
-    /* Responsive */
-    @media (max-width: 900px) {
-      .ep-layout { grid-template-columns: 1fr; }
-      .ep-banner-inner { flex-direction: column; text-align: center; gap: 1rem; }
-      .ep-banner-left { flex-direction: column; }
-      .ep-nav-inner { overflow-x: auto; }
-    }
-
-    /* Footer */
-    .ep-footer { background: #1a2332; color: #a0b4c5; text-align: center; padding: 1.5rem; font-size: 0.85rem; margin-top: 2rem; }
-    .ep-footer a { color: #48bb78; text-decoration: none; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,sans-serif;background:#f5f6f8;color:#2d3748;line-height:1.6}
+    .ep-banner{background:linear-gradient(135deg,#1a2332 0%,#2d3e50 100%);color:#fff}
+    .ep-banner-inner{max-width:1200px;margin:0 auto;padding:2rem;display:flex;justify-content:space-between;align-items:center}
+    .ep-banner-left{display:flex;align-items:center;gap:1.5rem}
+    .ep-logo-placeholder{width:64px;height:64px;background:rgba(255,255,255,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;color:#7ee8a8}
+    .ep-banner h1{font-size:1.6rem;font-weight:700;margin-bottom:.25rem}
+    .ep-banner .ep-subtitle{color:#a0b4c5;font-size:.95rem}
+    .ep-status-badge{background:#48bb78;color:#fff;padding:.5rem 1.2rem;border-radius:6px;font-weight:600;font-size:.9rem}
+    .ep-nav{background:#1a2332;border-top:1px solid rgba(255,255,255,.1)}
+    .ep-nav-inner{max-width:1200px;margin:0 auto;display:flex}
+    .ep-tab{padding:1rem 1.5rem;color:#a0b4c5;cursor:pointer;font-size:.95rem;font-weight:500;border-bottom:3px solid transparent;transition:all .2s;text-decoration:none}
+    .ep-tab:hover{color:#fff;background:rgba(255,255,255,.05)}
+    .ep-tab.active{color:#fff;border-bottom-color:#48bb78}
+    .ep-layout{max-width:1200px;margin:2rem auto;display:grid;grid-template-columns:1fr 340px;gap:2rem;padding:0 2rem}
+    .ep-content{min-width:0}
+    .ep-section{background:#fff;border-radius:10px;padding:2rem;margin-bottom:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    .ep-section h2{font-size:1.4rem;color:#1a2332;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:2px solid #e2e8f0}
+    .ep-section p{color:#4a5568;margin-bottom:.75rem}
+    .ep-section ul{color:#4a5568;margin:.5rem 0 1rem 1.5rem}
+    .ep-section li{margin-bottom:.4rem}
+    .ep-summary-table{width:100%;border-collapse:collapse;margin:1rem 0}
+    .ep-summary-table td{padding:.65rem 1rem;border-bottom:1px solid #edf2f7}
+    .ep-summary-table td:first-child{color:#718096;font-weight:500;width:45%}
+    .ep-summary-table td:last-child{color:#1a2332;font-weight:600}
+    .ep-sidebar{display:flex;flex-direction:column;gap:1.5rem}
+    .ep-info-box{background:#fff;border-radius:10px;padding:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    .ep-info-box h3{font-size:1.1rem;color:#1a2332;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid #48bb78}
+    .ep-info-row{display:flex;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid #edf2f7}
+    .ep-info-row:last-child{border-bottom:none}
+    .ep-info-label{color:#718096;font-size:.9rem}
+    .ep-info-value{color:#1a2332;font-weight:600;font-size:.9rem;text-align:right;max-width:55%}
+    .ep-cta-box{background:linear-gradient(135deg,#48bb78 0%,#38a169 100%);border-radius:10px;padding:1.5rem;color:#fff;text-align:center}
+    .ep-cta-box h3{color:#fff;margin-bottom:.5rem;font-size:1.1rem;border:none;padding:0}
+    .ep-cta-box p{color:rgba(255,255,255,.9);font-size:.9rem;margin-bottom:1rem}
+    .ep-cta-btn{display:inline-block;background:#fff;color:#38a169;padding:.85rem 2rem;border-radius:8px;font-weight:700;font-size:1rem;cursor:pointer;border:none;width:100%}
+    .ep-doc-box{background:#fff;border-radius:10px;padding:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    .ep-doc-box h3{font-size:1.1rem;color:#1a2332;margin-bottom:1rem}
+    .ep-doc-link{display:flex;align-items:center;gap:.75rem;padding:.75rem;background:#f7fafc;border-radius:8px;margin-bottom:.5rem;color:#2d3748;text-decoration:none;cursor:pointer}
+    .ep-doc-link:hover{background:#edf2f7}
+    .ep-team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;margin-top:1rem}
+    .ep-team-card{background:#f7fafc;border-radius:8px;padding:1.2rem}
+    .ep-team-card h4{color:#1a2332;margin-bottom:.25rem}
+    .ep-team-card .ep-role{color:#667eea;font-size:.9rem;font-weight:600;margin-bottom:.5rem}
+    .ep-team-card p{color:#718096;font-size:.9rem}
+    .ep-disclaimer{max-width:1200px;margin:0 auto 2rem;padding:0 2rem}
+    .ep-disclaimer-inner{background:#fff3cd;border-radius:10px;padding:1.5rem;border-left:4px solid #ffc107}
+    .ep-disclaimer-inner h4{color:#856404;margin-bottom:.5rem}
+    .ep-disclaimer-inner p{color:#6c5b10;font-size:.85rem;line-height:1.5}
+    .ep-tab-content{display:none}
+    .ep-tab-content.active{display:block}
+    .ep-footer{background:#1a2332;color:#a0b4c5;text-align:center;padding:1.5rem;font-size:.85rem;margin-top:2rem}
+    .ep-footer a{color:#48bb78;text-decoration:none}
+    @media(max-width:900px){.ep-layout{grid-template-columns:1fr}.ep-banner-inner{flex-direction:column;text-align:center;gap:1rem}.ep-banner-left{flex-direction:column}}
   </style>
 </head>
 <body>
-
-  <!-- Top Banner -->
-  <div class="ep-banner">
-    <div class="ep-banner-inner">
-      <div class="ep-banner-left">
-        <div class="ep-logo-placeholder">${(companyName || 'B')[0]}</div>
-        <div>
-          <h1>${companyName || 'Bolag AB'}</h1>
-          <div class="ep-subtitle">${industry || 'Bransch'} · ${location || 'Sverige'}</div>
-        </div>
-      </div>
-      <div class="ep-status-badge">● Pågående emission</div>
+  <div class="ep-banner"><div class="ep-banner-inner"><div class="ep-banner-left"><div class="ep-logo-placeholder">${(companyName || 'B')[0]}</div><div><h1>${companyName || 'Bolag AB'}</h1><div class="ep-subtitle">${industry || 'Bransch'} &middot; ${location || 'Sverige'}</div></div></div><div class="ep-status-badge">&#9679; P\u00e5g\u00e5ende emission</div></div></div>
+  <div class="ep-nav"><div class="ep-nav-inner"><a class="ep-tab active" onclick="switchTab('transaction')" id="tab-transaction">Om transaktionen</a><a class="ep-tab" onclick="switchTab('company')" id="tab-company">Om bolaget</a><a class="ep-tab" onclick="switchTab('risks')" id="tab-risks">Risker</a></div></div>
+  <div class="ep-layout"><div class="ep-content">
+    <div class="ep-tab-content active" id="content-transaction">
+      <div class="ep-section"><h2>Bakgrund och motiv</h2>${toHtml(emissionPurpose || executiveSummary || 'Information publiceras inom kort.')}</div>
+      <div class="ep-section"><h2>Sammanfattning</h2><table class="ep-summary-table"><tr><td>Emissionstyp</td><td>${emissionType || 'F\u00f6retr\u00e4desemission'}</td></tr><tr><td>Emissionsbelopp</td><td>${emissionSize || 'Ej fastst\u00e4llt'}</td></tr><tr><td>Teckningskurs</td><td>${subscriptionPrice || pricePerUnit || 'Ej fastst\u00e4llt'}</td></tr><tr><td>Antal nya aktier</td><td>${numberOfShares || 'Ej fastst\u00e4llt'}</td></tr><tr><td>Teckningsperiod</td><td>${subscriptionPeriod || 'Ej fastst\u00e4llt'}</td></tr></table></div>
+      ${executiveSummary ? '<div class="ep-section"><h2>Executive Summary</h2>' + toHtml(executiveSummary) + '</div>' : ''}
+      ${offeringTerms ? '<div class="ep-section"><h2>Villkor</h2>' + toHtml(offeringTerms) + '</div>' : ''}
     </div>
-  </div>
-
-  <!-- Navigation Tabs -->
-  <div class="ep-nav">
-    <div class="ep-nav-inner">
-      <a class="ep-tab active" onclick="switchTab('transaction')" id="tab-transaction">Om transaktionen</a>
-      <a class="ep-tab" onclick="switchTab('company')" id="tab-company">Om bolaget</a>
-      <a class="ep-tab" onclick="switchTab('risks')" id="tab-risks">Risker</a>
+    <div class="ep-tab-content" id="content-company">
+      ${businessSection ? '<div class="ep-section"><h2>Verksamhetsbeskrivning</h2>' + toHtml(businessSection) + '</div>' : ''}
+      ${marketSection ? '<div class="ep-section"><h2>Marknad</h2>' + toHtml(marketSection) + '</div>' : ''}
+      <div class="ep-section"><h2>Finansiell \u00f6versikt</h2><table class="ep-summary-table"><tr><td>Oms\u00e4ttning</td><td>${revenue ? revenue + ' SEK' : 'Ej angivet'}</td></tr><tr><td>Resultat</td><td>${financialResult ? financialResult + ' SEK' : 'Ej angivet'}</td></tr><tr><td>Eget kapital</td><td>${equity ? equity + ' SEK' : 'Ej angivet'}</td></tr></table></div>
+      ${(team && team.length > 0) ? '<div class="ep-section"><h2>Styrelse och ledning</h2><div class="ep-team-grid">' + team.filter(t => t.name || t.namn).map(t => '<div class="ep-team-card"><h4>' + (t.name || t.namn) + '</h4><div class="ep-role">' + (t.role || t.roll || 'Ledningsgrupp') + '</div><p>' + (t.background || t.bakgrund || '') + '</p></div>').join('') + '</div></div>' : ''}
     </div>
+    <div class="ep-tab-content" id="content-risks"><div class="ep-section"><h2>Riskfaktorer</h2>${toHtml(riskFactors || 'Riskfaktorer publiceras inom kort.')}</div></div>
   </div>
-
-  <!-- Main Layout -->
-  <div class="ep-layout">
-
-    <!-- Content Column -->
-    <div class="ep-content">
-
-      <!-- TAB: Om transaktionen -->
-      <div class="ep-tab-content active" id="content-transaction">
-        <div class="ep-section">
-          <h2>Bakgrund och motiv</h2>
-          ${toHtml(emissionPurpose || executiveSummary || 'Information om bakgrund och motiv publiceras inom kort.')}
-        </div>
-
-        <div class="ep-section">
-          <h2>Sammanfattning av ${emissionType || 'Emission'}</h2>
-          <table class="ep-summary-table">
-            <tr><td>Emissionstyp</td><td>${emissionType || 'Företrädesemission'}</td></tr>
-            <tr><td>Emissionsbelopp</td><td>${emissionSize || 'Ej fastställt'}</td></tr>
-            <tr><td>Teckningskurs</td><td>${subscriptionPrice || pricePerUnit || 'Ej fastställt'}</td></tr>
-            <tr><td>Antal nya aktier</td><td>${numberOfShares || 'Ej fastställt'}</td></tr>
-            <tr><td>Teckningsperiod</td><td>${subscriptionPeriod || 'Ej fastställt'}</td></tr>
-            <tr><td>Marknadsplats</td><td>${location || 'Sverige'}</td></tr>
-          </table>
-        </div>
-
-        ${executiveSummary ? `
-        <div class="ep-section">
-          <h2>Sammanfattning (Executive Summary)</h2>
-          ${toHtml(executiveSummary)}
-        </div>` : ''}
-
-        ${offeringTerms ? `
-        <div class="ep-section">
-          <h2>Erbjudandets villkor</h2>
-          ${toHtml(offeringTerms)}
-        </div>` : ''}
-      </div>
-
-      <!-- TAB: Om bolaget -->
-      <div class="ep-tab-content" id="content-company">
-        ${businessSection ? `
-        <div class="ep-section">
-          <h2>Verksamhetsbeskrivning</h2>
-          ${toHtml(businessSection)}
-        </div>` : ''}
-
-        ${marketSection ? `
-        <div class="ep-section">
-          <h2>Marknad</h2>
-          ${toHtml(marketSection)}
-        </div>` : ''}
-
-        <div class="ep-section">
-          <h2>Finansiell översikt</h2>
-          <table class="ep-summary-table">
-            <tr><td>Omsättning</td><td>${revenue ? revenue + ' SEK' : 'Ej angivet'}</td></tr>
-            <tr><td>Resultat</td><td>${financialResult ? financialResult + ' SEK' : 'Ej angivet'}</td></tr>
-            <tr><td>Eget kapital</td><td>${equity ? equity + ' SEK' : 'Ej angivet'}</td></tr>
-          </table>
-        </div>
-
-        ${(team && team.length > 0) ? `
-        <div class="ep-section">
-          <h2>Styrelse och ledning</h2>
-          <div class="ep-team-grid">
-            ${team.filter(t => t.name).map(t => `
-            <div class="ep-team-card">
-              <h4>${t.name}</h4>
-              <div class="ep-role">${t.role || 'Ledningsgrupp'}</div>
-              <p>${t.background || ''}</p>
-            </div>`).join('')}
-          </div>
-        </div>` : ''}
-      </div>
-
-      <!-- TAB: Risker -->
-      <div class="ep-tab-content" id="content-risks">
-        <div class="ep-section">
-          <h2>Riskfaktorer</h2>
-          ${toHtml(riskFactors || 'Riskfaktorer publiceras inom kort. Investeringar i aktier är alltid förenade med risk. Historisk avkastning är ingen garanti för framtida avkastning.')}
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Sidebar -->
-    <div class="ep-sidebar">
-
-      <div class="ep-cta-box">
-        <h3>Teckna aktier</h3>
-        <p>Anmäl ditt intresse för att delta i emissionen</p>
-        <button class="ep-cta-btn" onclick="alert('Demo: Teckningsfunktion ej aktiv.')">Anmäl teckningsintresse →</button>
-      </div>
-
-      <div class="ep-info-box">
-        <h3>Information</h3>
-        <div class="ep-info-row"><span class="ep-info-label">Emittent</span><span class="ep-info-value">${companyName || 'Bolag AB'}</span></div>
-        <div class="ep-info-row"><span class="ep-info-label">Org.nummer</span><span class="ep-info-value">${orgNr || 'Ej angivet'}</span></div>
-        ${ceo ? `<div class="ep-info-row"><span class="ep-info-label">VD</span><span class="ep-info-value">${ceo.name}</span></div>` : ''}
-        ${chairman ? `<div class="ep-info-row"><span class="ep-info-label">Styrelseordförande</span><span class="ep-info-value">${chairman.name}</span></div>` : ''}
-        <div class="ep-info-row"><span class="ep-info-label">Teckningsperiod</span><span class="ep-info-value">${subscriptionPeriod || 'Ej fastställt'}</span></div>
-        <div class="ep-info-row"><span class="ep-info-label">Emissionsbelopp</span><span class="ep-info-value">${emissionSize || 'Ej fastställt'}</span></div>
-        <div class="ep-info-row"><span class="ep-info-label">Teckningskurs</span><span class="ep-info-value">${subscriptionPrice || pricePerUnit || 'Ej fastställt'}</span></div>
-        ${website ? `<div class="ep-info-row"><span class="ep-info-label">Hemsida</span><span class="ep-info-value"><a href="${website}" style="color:#667eea">${website}</a></span></div>` : ''}
-      </div>
-
-      <div class="ep-doc-box">
-        <h3>Dokument</h3>
-        <a class="ep-doc-link" onclick="alert('Demo: PDF-nedladdning ej aktiv.')">
-          <span class="ep-doc-icon">📄</span>
-          <span class="ep-doc-text">Informationsmemorandum (PDF)</span>
-        </a>
-        <a class="ep-doc-link" onclick="alert('Demo: PDF-nedladdning ej aktiv.')">
-          <span class="ep-doc-icon">📊</span>
-          <span class="ep-doc-text">Bolagsbeskrivning</span>
-        </a>
-        <a class="ep-doc-link" onclick="alert('Demo: PDF-nedladdning ej aktiv.')">
-          <span class="ep-doc-icon">⚖️</span>
-          <span class="ep-doc-text">Anmälningssedel</span>
-        </a>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Disclaimer -->
-  <div class="ep-disclaimer">
-    <div class="ep-disclaimer-inner">
-      <h4>⚠️ Viktig information</h4>
-      <p>
-        Detta material utgör inte ett erbjudande i den mening som avses i lagen (1991:980) om handel med finansiella instrument 
-        eller ett erbjudande om förvärv av värdepapper enligt Europaparlamentets och rådets förordning (EU) 2017/1129 
-        ("Prospektförordningen"). Informationen på denna sida utgör marknadsföringsmaterial och har inte granskats av 
-        Finansinspektionen. Investerare bör noga läsa det fullständiga informationsmemorandumet innan ett investeringsbeslut fattas. 
-        En investering i aktier är alltid förenad med risk. Historisk avkastning är ingen garanti för framtida avkastning. 
-        De medel som investeras kan både öka och minska i värde och det är inte säkert att en investerare får tillbaka hela 
-        eller delar av det investerade kapitalet.
-      </p>
-    </div>
-  </div>
-
-  <!-- Footer -->
-  <div class="ep-footer">
-    <p>Genererad av <a href="#">Kapitalplattformen</a> · ${companyName || 'Bolag AB'} © ${year}</p>
-  </div>
-
-  <script>
-    function switchTab(tab) {
-      document.querySelectorAll('.ep-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.ep-tab-content').forEach(c => c.classList.remove('active'));
-      document.getElementById('tab-' + tab).classList.add('active');
-      document.getElementById('content-' + tab).classList.add('active');
-    }
-  </script>
+  <div class="ep-sidebar">
+    <div class="ep-cta-box"><h3>Teckna aktier</h3><p>Anm\u00e4l ditt intresse</p><button class="ep-cta-btn" onclick="alert('Demo: Teckningsfunktion ej aktiv.')">Anm\u00e4l intresse &rarr;</button></div>
+    <div class="ep-info-box"><h3>Information</h3><div class="ep-info-row"><span class="ep-info-label">Emittent</span><span class="ep-info-value">${companyName || 'Bolag AB'}</span></div><div class="ep-info-row"><span class="ep-info-label">Org.nr</span><span class="ep-info-value">${orgNr || 'Ej angivet'}</span></div>${ceo ? '<div class="ep-info-row"><span class="ep-info-label">VD</span><span class="ep-info-value">' + (ceo.name || ceo.namn) + '</span></div>' : ''}${chairman ? '<div class="ep-info-row"><span class="ep-info-label">Ordf\u00f6rande</span><span class="ep-info-value">' + (chairman.name || chairman.namn) + '</span></div>' : ''}<div class="ep-info-row"><span class="ep-info-label">Belopp</span><span class="ep-info-value">${emissionSize || 'Ej fastst\u00e4llt'}</span></div></div>
+    <div class="ep-doc-box"><h3>Dokument</h3><a class="ep-doc-link" onclick="alert('Demo')"><span>&#128196;</span><span>IM (PDF)</span></a><a class="ep-doc-link" onclick="alert('Demo')"><span>&#128200;</span><span>Bolagsbeskrivning</span></a></div>
+  </div></div>
+  <div class="ep-disclaimer"><div class="ep-disclaimer-inner"><h4>&#9888;&#65039; Viktig information</h4><p>Detta material utg\u00f6r inte ett erbjudande i den mening som avses i lagen (1991:980) om handel med finansiella instrument.</p></div></div>
+  <div class="ep-footer"><p>Genererad av <a href="#">Kapitalplattformen</a> &middot; ${companyName || 'Bolag AB'} &copy; ${year}</p></div>
+  <script>function switchTab(tab){document.querySelectorAll('.ep-tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.ep-tab-content').forEach(c=>c.classList.remove('active'));document.getElementById('tab-'+tab).classList.add('active');document.getElementById('content-'+tab).classList.add('active');}</script>
 </body>
 </html>`;
 
-    res.json({
-      url,
-      seoScore: Math.floor(Math.random() * 10) + 90,
-      status: 'published',
-      landingPageHtml
-    });
+    res.json({ url, seoScore: Math.floor(Math.random() * 10) + 90, status: 'published', landingPageHtml });
   } catch (error) {
-    console.error('Landing page generation error:', error);
+    console.error('Landing page error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Setup email campaign
 app.post('/api/marketing/setup-email-campaign', async (req, res) => {
   try {
     const { projectId, companyName } = req.body;
-    
-    // In production, this would:
-    // 1. Create email templates in Mailchimp/HubSpot
-    // 2. Schedule drip sequence based on emission dates
-    // 3. Setup tracking pixels
-    // 4. Return campaign ID
-    
-    const prompt = `Du är expert på email-marketing för kapitalanskaffningar.
-
-Skapa tre korta email-ämnesrader för en emission från ${companyName}:
-
-1. Pre-launch email (3 dagar före): ska skapa anticipation
-2. Opening email (dag 1): ska kommunicera att emissionen öppnat
-3. Last call email (2 dagar kvar): ska skapa urgency
-
-Svara med endast tre ämnesrader, en per rad.`;
+    const prompt = `Du \u00e4r expert p\u00e5 email-marketing f\u00f6r kapitalanskaffningar.
+Skapa tre korta email-\u00e4mnesrader f\u00f6r en emission fr\u00e5n ${companyName}:
+1. Pre-launch (3 dagar f\u00f6re)
+2. Opening (dag 1)
+3. Last call (2 dagar kvar)
+Svara med endast tre \u00e4mnesrader, en per rad.`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 500,
       messages: [{ role: 'user', content: prompt }]
     });
-
-    const subjectLines = message.content[0].text.split('\n').filter(line => line.trim());
-    
+    const subjectLines = message.content[0].text.split('\n').filter(l => l.trim());
     res.json({
       campaignId: `camp_${Date.now()}`,
       status: 'scheduled',
       emails: [
-        {
-          type: 'pre-launch',
-          subject: subjectLines[0] || `${companyName} - Emission öppnar snart`,
-          scheduledDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          type: 'opening',
-          subject: subjectLines[1] || `${companyName} - Emissionen är öppen!`,
-          scheduledDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          type: 'last-call',
-          subject: subjectLines[2] || `${companyName} - Sista chansen att teckna`,
-          scheduledDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString()
-        }
+        { type: 'pre-launch', subject: subjectLines[0] || `${companyName} - Emission \u00f6ppnar snart`, scheduledDate: new Date(Date.now() + 3*24*60*60*1000).toISOString() },
+        { type: 'opening', subject: subjectLines[1] || `${companyName} - Emissionen \u00e4r \u00f6ppen!`, scheduledDate: new Date(Date.now() + 6*24*60*60*1000).toISOString() },
+        { type: 'last-call', subject: subjectLines[2] || `${companyName} - Sista chansen`, scheduledDate: new Date(Date.now() + 12*24*60*60*1000).toISOString() }
       ]
     });
   } catch (error) {
-    console.error('Email campaign setup error:', error);
+    console.error('Email campaign error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Setup Google Ads campaign
 app.post('/api/marketing/setup-google-ads', async (req, res) => {
   try {
     const { projectId, companyName, budget } = req.body;
-    
-    // In production, this would:
-    // 1. Create Google Ads campaign via API
-    // 2. Setup keyword targeting
-    // 3. Create ad copy variations
-    // 4. Setup conversion tracking
-    // 5. Return campaign ID and preview URL
-    
-    const prompt = `Du är expert på Google Ads för finansiella tjänster.
-
-För ${companyName} som genomför en emission:
-
-Generera 5 relevanta keywords för Google Search Ads (både exakta och breda).
-Svara med endast keywords, en per rad.`;
+    const prompt = `Du \u00e4r expert p\u00e5 Google Ads f\u00f6r finansiella tj\u00e4nster.
+F\u00f6r ${companyName} som genomf\u00f6r en emission:
+Generera 5 relevanta keywords. Svara med keywords, en per rad.`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 300,
       messages: [{ role: 'user', content: prompt }]
     });
-
-    const keywords = message.content[0].text.split('\n').filter(line => line.trim()).slice(0, 5);
-    
+    const keywords = message.content[0].text.split('\n').filter(l => l.trim()).slice(0, 5);
     res.json({
       campaignId: `gads_${Date.now()}`,
       status: 'active',
       budget,
       keywords,
-      estimatedReach: Math.floor((budget / 10) * 100), // Rough estimate: 10 SEK CPM
+      estimatedReach: Math.floor((budget / 10) * 100),
       dashboardUrl: 'https://ads.google.com/demo'
     });
   } catch (error) {
-    console.error('Google Ads setup error:', error);
+    console.error('Google Ads error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get campaign analytics (demo endpoint)
 app.get('/api/marketing/analytics/:projectId', async (req, res) => {
   try {
-    // Demo analytics data
     res.json({
-      landingPage: {
-        visits: Math.floor(Math.random() * 5000) + 10000,
-        uniqueVisitors: Math.floor(Math.random() * 3000) + 7000,
-        bounceRate: (Math.random() * 20 + 30).toFixed(1) + '%',
-        avgTimeOnPage: Math.floor(Math.random() * 120 + 60) + 's'
-      },
-      emailCampaign: {
-        sent: Math.floor(Math.random() * 1000) + 2000,
-        opens: Math.floor(Math.random() * 500) + 800,
-        clicks: Math.floor(Math.random() * 200) + 200
-      },
-      googleAds: {
-        impressions: Math.floor(Math.random() * 20000) + 30000,
-        clicks: Math.floor(Math.random() * 800) + 1000,
-        conversions: Math.floor(Math.random() * 50) + 70,
-        cpl: Math.floor(Math.random() * 200) + 200
-      }
+      landingPage: { visits: Math.floor(Math.random()*5000)+10000, uniqueVisitors: Math.floor(Math.random()*3000)+7000, bounceRate: (Math.random()*20+30).toFixed(1)+'%', avgTimeOnPage: Math.floor(Math.random()*120+60)+'s' },
+      emailCampaign: { sent: Math.floor(Math.random()*1000)+2000, opens: Math.floor(Math.random()*500)+800, clicks: Math.floor(Math.random()*200)+200 },
+      googleAds: { impressions: Math.floor(Math.random()*20000)+30000, clicks: Math.floor(Math.random()*800)+1000, conversions: Math.floor(Math.random()*50)+70, cpl: Math.floor(Math.random()*200)+200 }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  BREVO INTEGRATION ENDPOINTS
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
+//  ANALYTICS - Update teckning
+// ========================================================================
 
-// Sync contacts from Aktiebok to Brevo
+app.post('/api/analytics/update-teckning', (req, res) => {
+  try {
+    const { projektId, teckningData } = req.body;
+    const projekt = emissionsprojekt.find(p => p.id === projektId);
+    if (!projekt) return res.status(404).json({ error: 'Project not found' });
+
+    projekt.analytics.teckning = {
+      total: teckningData.total,
+      percent: (teckningData.total / projekt.emissionsvillkor.emissionsvolym) * 100,
+      antalTecknare: teckningData.antalTecknare,
+      updatedAt: new Date().toISOString()
+    };
+    res.json({ success: true, analytics: projekt.analytics });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+//  BREVO INTEGRATION
+// ========================================================================
+
 app.post('/api/aktiebok/sync-to-brevo', async (req, res) => {
   try {
-    if (!brevoConfigured) {
-      return res.status(400).json({ error: 'Brevo API-nyckel ej konfigurerad' });
-    }
+    if (!brevoConfigured) return res.status(400).json({ error: 'Brevo API-nyckel ej konfigurerad' });
 
-    const { contacts, listName = 'Aktieägare' } = req.body;
+    const { contacts, listName = 'Aktie\u00e4gare' } = req.body;
     if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
       return res.status(400).json({ error: 'Inga kontakter att synkronisera' });
     }
 
-    // 1. Get or create list
     let listId;
     try {
-      const listsResp = await brevo.contacts.getLists({ limit: 50 });
+      const listsResp = await brevoContacts.getLists(50);
       const lists = listsResp.data || listsResp;
       const existing = (lists.lists || []).find(l => l.name === listName);
       if (existing) {
         listId = existing.id;
       } else {
-        const newListResp = await brevo.contacts.createList({ name: listName, folderId: 1 });
+        const newListResp = await brevoContacts.createList({ name: listName, folderId: 1 });
         const newList = newListResp.data || newListResp;
         listId = newList.id;
       }
     } catch (listError) {
       console.error('Brevo list error:', listError?.body || listError);
-      return res.status(500).json({ error: 'Kunde inte skapa/hitta kontaktlista i Brevo' });
+      return res.status(500).json({ error: 'Kunde inte skapa/hitta kontaktlista' });
     }
 
-    // 2. Ensure custom attributes exist (silently ignore if already exist)
     const attributesToCreate = [
       { attributeCategory: 'normal', attributeName: 'INVESTOR_TYPE', type: 'text' },
       { attributeCategory: 'normal', attributeName: 'SHARES', type: 'float' },
       { attributeCategory: 'normal', attributeName: 'OWNERSHIP_PERCENT', type: 'float' }
     ];
     for (const attr of attributesToCreate) {
-      try {
-        await brevo.contacts.createAttribute({
-          attributeCategory: attr.attributeCategory,
-          attributeName: attr.attributeName,
-          type: attr.type
-        });
-      } catch (e) {
-        // Attribute likely already exists — ignore
-      }
+      try { await brevoContacts.createAttribute(attr.attributeCategory, attr.attributeName, { type: attr.type }); } catch (e) { /* exists */ }
     }
 
-    // 3. Create/update contacts
     let synced = 0;
     const errors = [];
     for (const contact of contacts) {
       try {
         const nameParts = (contact.name || '').split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-
-        await brevo.contacts.createContact({
+        await brevoContacts.createContact({
           email: contact.email,
           attributes: {
-            FIRSTNAME: firstName,
-            LASTNAME: lastName,
+            FIRSTNAME: nameParts[0] || '',
+            LASTNAME: nameParts.slice(1).join(' ') || '',
             SMS: contact.phone || '',
             INVESTOR_TYPE: contact.investorType || '',
             SHARES: contact.shares || 0,
@@ -1049,12 +1425,11 @@ app.post('/api/aktiebok/sync-to-brevo', async (req, res) => {
         });
         synced++;
       } catch (contactError) {
-        const errMsg = contactError?.body?.message || contactError?.message || 'Unknown error';
-        errors.push({ email: contact.email, error: errMsg });
+        errors.push({ email: contact.email, error: contactError?.body?.message || contactError?.message || 'Unknown' });
       }
     }
 
-    console.log(`Brevo sync: ${synced}/${contacts.length} contacts synced to list ${listName} (id: ${listId})`);
+    console.log(`Brevo sync: ${synced}/${contacts.length} contacts synced`);
     res.json({ synced, listId, listName, total: contacts.length, errors: errors.length > 0 ? errors : undefined });
   } catch (error) {
     console.error('Brevo sync error:', error);
@@ -1062,121 +1437,73 @@ app.post('/api/aktiebok/sync-to-brevo', async (req, res) => {
   }
 });
 
-// Generate AI email draft
 app.post('/api/marketing/generate-email-draft', async (req, res) => {
   try {
-    const { campaignType, segment, companyName } = req.body;
+    const { emailType, emissionType, emissionSize, companyName, campaignType, segment } = req.body;
+    const type = emailType || campaignType || 'pre-launch';
+    const audience = emissionSize || segment || '';
+    const prompt = `Du \u00e4r expert p\u00e5 email-marknadsf\u00f6ring f\u00f6r kapitalanskaffningar.
+Skapa ett professionellt email f\u00f6r ${companyName}.
+Emissionstyp: ${emissionType || 'Emission'}
+Kampanjtyp: ${type}
+Emissionsbelopp: ${audience}
 
-    const prompt = `Du är expert på email-marknadsföring för kapitalanskaffningar och IR-kommunikation.
+Svara i exakt detta JSON-format:
+{"subject":"\u00c4mnesrad","previewText":"Preview (max 100 tecken)","htmlContent":"<html>...</html>"}
 
-Skapa ett professionellt email för ${companyName}.
-
-Kampanjtyp: ${campaignType}
-Målgrupp: ${segment}
-
-Svara i exakt detta JSON-format (inget annat):
-{
-  "subject": "Ämnesrad här",
-  "previewText": "Kort preview-text (max 100 tecken)",
-  "htmlContent": "<html>...</html>"
-}
-
-Emailet ska vara:
-- Professionellt och formellt
-- På svenska
-- Innehålla relevant innehåll för kampanjtypen
-- Ha tydlig CTA-knapp
-- Responsiv HTML med inline CSS
-- Använda clean, modern design med gradient-accenter (#667eea till #764ba2)
-- Inkludera footer med "Kapitalplattformen" branding`;
+Professionellt, p\u00e5 svenska, med CTA-knapp och responsiv HTML.`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }]
     });
 
-    const responseText = message.content[0].text;
-    // Extract JSON from response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Kunde inte tolka AI-svaret');
-    }
+    const jsonMatch = message.content[0].text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Kunde inte tolka AI-svaret');
     const draft = JSON.parse(jsonMatch[0]);
-
-    res.json({
-      subject: draft.subject,
-      previewText: draft.previewText || '',
-      htmlContent: draft.htmlContent
-    });
+    res.json({ subject: draft.subject, previewText: draft.previewText || '', htmlContent: draft.htmlContent });
   } catch (error) {
-    console.error('Email draft generation error:', error);
+    console.error('Email draft error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Send campaign via Brevo
 app.post('/api/marketing/send-brevo-campaign', async (req, res) => {
   try {
-    if (!brevoConfigured) {
-      return res.status(400).json({ error: 'Brevo API-nyckel ej konfigurerad' });
-    }
-
+    if (!brevoConfigured) return res.status(400).json({ error: 'Brevo API-nyckel ej konfigurerad' });
     const { subject, htmlContent, listId } = req.body;
-    if (!subject || !htmlContent) {
-      return res.status(400).json({ error: 'Ämnesrad och HTML-innehåll krävs' });
-    }
+    if (!subject || !htmlContent) return res.status(400).json({ error: '\u00c4mnesrad och HTML kr\u00e4vs' });
 
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || 'admin@kapitalplattformen.com';
-    const senderName = process.env.BREVO_SENDER_NAME || 'Kapitalplattformen';
-
-    // Create campaign
     const campaignData = {
       name: `${subject} - ${new Date().toLocaleDateString('sv-SE')}`,
-      subject: subject,
-      sender: { name: senderName, email: senderEmail },
+      subject,
+      sender: { name: process.env.BREVO_SENDER_NAME || 'Kapitalplattformen', email: process.env.BREVO_SENDER_EMAIL || 'admin@kapitalplattformen.com' },
       type: 'classic',
-      htmlContent: htmlContent,
+      htmlContent,
       recipients: listId ? { listIds: [listId] } : undefined
     };
 
-    const campaignResp = await brevo.emailCampaigns.createEmailCampaign(campaignData);
+    const campaignResp = await brevoEmailCampaigns.createEmailCampaign(campaignData);
     const campaign = campaignResp.data || campaignResp;
-    console.log(`Brevo campaign created: ${campaign.id}`);
 
-    // Send immediately
     try {
-      await brevo.emailCampaigns.sendEmailCampaignNow({ campaignId: campaign.id });
-      console.log(`Brevo campaign ${campaign.id} sent`);
+      await brevoEmailCampaigns.sendEmailCampaignNow(campaign.id);
     } catch (sendErr) {
-      console.error('Brevo send error (campaign created but not sent):', sendErr?.body || sendErr);
-      return res.json({
-        campaignId: campaign.id,
-        status: 'created_not_sent',
-        message: 'Kampanjen skapades men kunde inte skickas. Kontrollera att avsändaradressen är verifierad i Brevo.',
-        error: sendErr?.body?.message || sendErr?.message
-      });
+      return res.json({ campaignId: campaign.id, status: 'created_not_sent', message: 'Skapad men ej skickad.', error: sendErr?.body?.message || sendErr?.message });
     }
 
-    res.json({
-      campaignId: campaign.id,
-      status: 'sent',
-      recipients: listId ? 'alla i listan' : 0
-    });
+    res.json({ campaignId: campaign.id, status: 'sent', recipients: listId ? 'alla i listan' : 0 });
   } catch (error) {
     console.error('Brevo campaign error:', error?.body || error);
     res.status(500).json({ error: error?.body?.message || error.message });
   }
 });
 
-// Get recent Brevo campaigns with stats
 app.get('/api/marketing/brevo-campaigns', async (req, res) => {
   try {
-    if (!brevoConfigured) {
-      return res.json({ campaigns: [] });
-    }
-
-    const resultResp = await brevo.emailCampaigns.getEmailCampaigns({ type: 'classic', limit: 10, sort: 'desc' });
+    if (!brevoConfigured) return res.json({ campaigns: [] });
+    const resultResp = await brevoEmailCampaigns.getEmailCampaigns('classic', undefined, undefined, undefined, undefined, 10, undefined, 'desc');
     const result = resultResp.data || resultResp;
     const campaigns = (result.campaigns || []).map(c => ({
       name: c.name || c.subject,
@@ -1187,23 +1514,20 @@ app.get('/api/marketing/brevo-campaigns', async (req, res) => {
       opens: c.statistics?.globalStats?.uniqueOpens || 0,
       clicks: c.statistics?.globalStats?.uniqueClicks || 0
     }));
-
     res.json({ campaigns });
   } catch (error) {
-    console.error('Brevo campaigns fetch error:', error?.body || error);
+    console.error('Brevo campaigns error:', error?.body || error);
     res.status(500).json({ error: error?.body?.message || error.message });
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
 //  PRODUCTION: SERVE REACT BUILD
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
 
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, '..', 'frontend', 'build');
   app.use(express.static(buildPath));
-  
-  // Catch-all: serve React app for any non-API route
   app.get('*', (req, res) => {
     if (!req.path.startsWith('/api/')) {
       res.sendFile(path.join(buildPath, 'index.html'));
@@ -1212,33 +1536,13 @@ if (process.env.NODE_ENV === 'production') {
   console.log('Production mode: serving React build from', buildPath);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
 //  SERVER START
-// ═══════════════════════════════════════════════════════════════════════════
+// ========================================================================
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
-  console.log('API Key configured:', !!process.env.ANTHROPIC_API_KEY);
-  console.log('Demo login configured:', !!process.env.DEMO_EMAIL);
-  console.log('Brevo configured:', brevoConfigured);
-  console.log('\n📍 Available endpoints:');
-  console.log('  POST /api/auth/login');
-  console.log('  POST /api/qualify-document');
-  console.log('  POST /api/lookup-company');
-  console.log('  POST /api/generate-executive-summary');
-  console.log('  POST /api/generate-business-section');
-  console.log('  POST /api/generate-market-section');
-  console.log('  POST /api/generate-risk-factors');
-  console.log('  POST /api/generate-team-bios');
-  console.log('  POST /api/generate-offering-terms');
-  console.log('  POST /api/generate-pdf');
-  console.log('  POST /api/marketing/generate-landing-page');
-  console.log('  POST /api/marketing/setup-email-campaign');
-  console.log('  POST /api/marketing/setup-google-ads');
-  console.log('  GET  /api/marketing/analytics/:projectId');
-  console.log('  POST /api/aktiebok/sync-to-brevo');
-  console.log('  POST /api/marketing/generate-email-draft');
-  console.log('  POST /api/marketing/send-brevo-campaign');
-  console.log('  GET  /api/marketing/brevo-campaigns');
+  console.log(`Kapitalplattformen v5.0 - Running on port ${PORT}`);
+  console.log(`API Key: ${!!process.env.ANTHROPIC_API_KEY} | Brevo: ${brevoConfigured} | Demo login: ${!!process.env.DEMO_EMAIL}`);
+  console.log('Endpoints: auth/login, emissionsprojekt, qualify-document, lookup-company, kapitalradgivaren/*, generate-*, marketing/*, aktiebok/sync-to-brevo, analytics/update-teckning');
 });

@@ -121,17 +121,38 @@ const MOCK_NEWSLETTER_SUBSCRIBERS = [
   }
 ];
 
-// Export for use by MarketingModule
-export { MOCK_SHAREHOLDERS, MOCK_NEWSLETTER_SUBSCRIBERS };
-
 function Aktiebok({ user, onBack }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedShareholder, setSelectedShareholder] = useState(null);
   const [filterType, setFilterType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [syncLoading, setSyncLoading] = useState(false);
-  const [syncResult, setSyncResult] = useState(null);
-  const [lastSyncTime, setLastSyncTime] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState(null);
+
+  const handleSyncToBrevo = async () => {
+    setSyncing(true);
+    try {
+      const contacts = MOCK_SHAREHOLDERS.filter(s => s.optInEmail).map(s => ({
+        email: s.email,
+        firstName: s.name.split(' ')[0],
+        lastName: s.name.split(' ').slice(1).join(' '),
+        attributes: {
+          SHARES: s.shares,
+          INVESTOR_TYPE: s.investorType,
+          OPT_IN_SMS: s.optInSMS
+        }
+      }));
+
+      const response = await apiPost('/api/aktiebok/sync-to-brevo', { contacts });
+      const data = await response.json();
+      setLastSync(new Date().toLocaleString('sv-SE'));
+      alert(`Synkronisering klar! ${data.synced || contacts.length} kontakter synkade till Brevo.`);
+    } catch (error) {
+      console.error('Brevo sync error:', error);
+      alert('Kunde inte synkronisera till Brevo');
+    }
+    setSyncing(false);
+  };
 
   // Calculate totals
   const totalShares = 1000000; // Total utestående aktier
@@ -153,30 +174,6 @@ function Aktiebok({ user, onBack }) {
     acc[sh.investorType] = (acc[sh.investorType] || 0) + 1;
     return acc;
   }, {});
-
-  // Sync to Brevo
-  const syncToBrevo = async () => {
-    setSyncLoading(true);
-    setSyncResult(null);
-    try {
-      const optInContacts = MOCK_SHAREHOLDERS.filter(s => s.optInEmail);
-      const response = await apiPost('/api/aktiebok/sync-to-brevo', {
-        contacts: optInContacts,
-        listName: 'Aktieägare'
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setSyncResult({ success: true, message: `${data.synced} kontakter synkade till Brevo (lista: ${data.listName})` });
-        setLastSyncTime(new Date().toLocaleString('sv-SE'));
-      } else {
-        setSyncResult({ success: false, message: data.error || 'Synkronisering misslyckades' });
-      }
-    } catch (error) {
-      console.error('Brevo sync error:', error);
-      setSyncResult({ success: false, message: 'Kunde inte ansluta till servern' });
-    }
-    setSyncLoading(false);
-  };
 
   const renderOverview = () => (
     <div className="aktiebok-overview">
@@ -377,19 +374,10 @@ function Aktiebok({ user, onBack }) {
           <div className="import-icon">🔄</div>
           <h3>Synkronisera till Brevo</h3>
           <p>Exportera kontakter till Brevo för email-kampanjer.</p>
-          <button 
-            className="btn-primary" 
-            onClick={syncToBrevo}
-            disabled={syncLoading}
-          >
-            {syncLoading ? 'Synkroniserar...' : 'Synkronisera nu'}
+          <button className="btn-primary" onClick={handleSyncToBrevo} disabled={syncing}>
+            {syncing ? 'Synkroniserar...' : 'Synkronisera nu'}
           </button>
-          <p className="import-note">Senaste synk: {lastSyncTime || 'Aldrig'}</p>
-          {syncResult && (
-            <p className={`sync-result ${syncResult.success ? 'sync-success' : 'sync-error'}`}>
-              {syncResult.message}
-            </p>
-          )}
+          <p className="import-note">Senaste synk: {lastSync || 'Aldrig'}</p>
         </div>
       </div>
 

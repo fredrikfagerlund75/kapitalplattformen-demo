@@ -1,51 +1,61 @@
-// Centralized API utility with auth token management
+// Smart BASE_URL detection for development vs production
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    const port = window.location.port;
+    // CRA dev server on port 3000 → API on port 3001
+    if (port === '3000') {
+      return 'http://localhost:3001';
+    }
+    // In production, same origin
+    return '';
+  }
+  return '';
+};
 
-// In production (same origin), API_URL is empty. In dev (CRA on port 3000), proxy to backend on 3001.
-const API_URL = window.location.port === '3000' ? 'http://localhost:3001' : '';
+const BASE_URL = getBaseUrl();
 
-// Token management using sessionStorage (cleared when tab closes)
+// Token management via sessionStorage
 export const setAuthToken = (token) => {
-  sessionStorage.setItem('kapital_auth_token', token);
+  sessionStorage.setItem('auth_token', token);
 };
 
 export const getAuthToken = () => {
-  return sessionStorage.getItem('kapital_auth_token');
+  return sessionStorage.getItem('auth_token');
 };
 
 export const clearAuthToken = () => {
-  sessionStorage.removeItem('kapital_auth_token');
-  sessionStorage.removeItem('kapital_user');
+  sessionStorage.removeItem('auth_token');
+  sessionStorage.removeItem('user');
 };
 
 export const setUser = (user) => {
-  sessionStorage.setItem('kapital_user', JSON.stringify(user));
+  sessionStorage.setItem('user', JSON.stringify(user));
 };
 
 export const getUser = () => {
   try {
-    const u = sessionStorage.getItem('kapital_user');
-    return u ? JSON.parse(u) : null;
+    const user = sessionStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
   } catch {
     return null;
   }
 };
 
-// Build auth headers
+// Auth headers helper
 export const getAuthHeaders = () => {
   const token = getAuthToken();
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
 };
 
-// POST with auth
-export const apiPost = async (endpoint, body) => {
-  const response = await fetch(`${API_URL}${endpoint}`, {
+// POST request with auth
+export const apiPost = async (endpoint, data) => {
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify(body),
+    body: JSON.stringify(data)
   });
 
   if (response.status === 401) {
@@ -57,11 +67,11 @@ export const apiPost = async (endpoint, body) => {
   return response;
 };
 
-// GET with auth
+// GET request with auth
 export const apiGet = async (endpoint) => {
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
     method: 'GET',
-    headers: getAuthHeaders(),
+    headers: getAuthHeaders()
   });
 
   if (response.status === 401) {
@@ -73,4 +83,19 @@ export const apiGet = async (endpoint) => {
   return response;
 };
 
-export { API_URL };
+// PUT request with auth
+export const apiPut = async (endpoint, data) => {
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+
+  if (response.status === 401) {
+    clearAuthToken();
+    window.location.reload();
+    throw new Error('Session expired');
+  }
+
+  return response;
+};

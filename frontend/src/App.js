@@ -2,16 +2,29 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import Login from './auth/Login';
 import Dashboard from './components/Dashboard';
+import Kapitalrådgivaren from './components/Kapitalrådgivaren';
+import ProjektVy from './components/ProjektVy';
 import ProspektGenerator from './components/ProspektGenerator';
-import MarketingModule from './components/MarketingModule';
-import CapitalAdvisor from './components/CapitalAdvisor';
+import Teckning from './components/Teckning';
+import Marknadsföring from './components/Marknadsföring';
+import Analytics from './components/Analytics';
 import Aktiebok from './components/Aktiebok';
-import { getAuthToken, getUser, clearAuthToken } from './utils/api';
+import Inställningar from './components/Inställningar';
+import { apiGet, apiPost, apiPut, getAuthToken, getUser, clearAuthToken } from './utils/api';
 
 function App() {
   const [user, setUser] = useState(null);
-  const [currentModule, setCurrentModule] = useState('dashboard');
-  const [activeProject, setActiveProject] = useState(null);
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [emissionsprojekt, setEmissionsprojekt] = useState([]);
+  const [aktivtProjekt, setAktivtProjekt] = useState(null);
+  // loading state available for future use
+  const [loading, setLoading] = useState(false); // eslint-disable-line no-unused-vars
+  const [companySettings, setCompanySettings] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('companySettings');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
 
   // Restore session on mount
   useEffect(() => {
@@ -22,21 +35,78 @@ function App() {
     }
   }, []);
 
-  // Login receives user object from Login.js (already authenticated)
-  const handleLogin = (userData) => {
-    setUser(userData);
+  // Load emission projects when user is set
+  useEffect(() => {
+    if (user) {
+      loadEmissionsprojekt();
+    }
+  }, [user]);
+
+  const loadEmissionsprojekt = async () => {
+    try {
+      const response = await apiGet('/api/emissionsprojekt');
+      if (response.ok) {
+        const data = await response.json();
+        setEmissionsprojekt(data);
+      }
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+    }
+  };
+
+  const handleLogin = (userObj) => {
+    setUser(userObj);
   };
 
   const handleLogout = () => {
     clearAuthToken();
     setUser(null);
-    setCurrentModule('dashboard');
-    setActiveProject(null);
+    setCurrentView('dashboard');
+    setAktivtProjekt(null);
+    setEmissionsprojekt([]);
+    setCompanySettings(null);
+    sessionStorage.removeItem('companySettings');
   };
 
-  const navigateToModule = (module, project = null) => {
-    setCurrentModule(module);
-    if (project) setActiveProject(project);
+  const navigateTo = (view, projekt = null) => {
+    setCurrentView(view);
+    if (projekt) setAktivtProjekt(projekt);
+  };
+
+  const createNewProjekt = async (projektData) => {
+    setLoading(true);
+    try {
+      const response = await apiPost('/api/emissionsprojekt', projektData);
+      const newProjekt = await response.json();
+      setEmissionsprojekt([...emissionsprojekt, newProjekt]);
+      setAktivtProjekt(newProjekt);
+      setLoading(false);
+      return newProjekt;
+    } catch (error) {
+      console.error('Failed to create project:', error);
+      setLoading(false);
+      throw error;
+    }
+  };
+
+  const updateProjekt = async (projektId, updates) => {
+    try {
+      const response = await apiPut(`/api/emissionsprojekt/${projektId}`, updates);
+      const updatedProjekt = await response.json();
+      
+      setEmissionsprojekt(emissionsprojekt.map(p => 
+        p.id === projektId ? updatedProjekt : p
+      ));
+      
+      if (aktivtProjekt?.id === projektId) {
+        setAktivtProjekt(updatedProjekt);
+      }
+      
+      return updatedProjekt;
+    } catch (error) {
+      console.error('Failed to update project:', error);
+      throw error;
+    }
   };
 
   if (!user) {
@@ -48,18 +118,26 @@ function App() {
       {/* Global Navigation Bar */}
       <nav className="global-nav">
         <div className="nav-brand">
-          <h1>💼 Kapitalplattformen</h1>
-          <span className="company-name">{user.company}</span>
+          <h1>💼 Kapitalplattformen v5.0</h1>
+          <span className="company-name">{companySettings?.companyName || user.company}</span>
         </div>
         <div className="nav-actions">
-          {currentModule !== 'dashboard' && (
+          {currentView !== 'dashboard' && (
             <button 
               className="nav-button"
-              onClick={() => navigateToModule('dashboard')}
+              onClick={() => navigateTo('dashboard')}
             >
               ← Tillbaka till Dashboard
             </button>
           )}
+          {aktivtProjekt && currentView !== 'dashboard' && (
+            <span className="active-project-indicator">
+              📊 {aktivtProjekt.name}
+            </span>
+          )}
+          <button className="nav-button" onClick={() => navigateTo('inställningar')}>
+            ⚙️ Inställningar
+          </button>
           <button className="nav-button-secondary" onClick={handleLogout}>
             Logga ut
           </button>
@@ -68,47 +146,100 @@ function App() {
 
       {/* Main Content Area */}
       <main className="main-content">
-        {currentModule === 'dashboard' && (
+        {currentView === 'dashboard' && (
           <Dashboard 
             user={user}
-            onNavigate={navigateToModule}
+            emissionsprojekt={emissionsprojekt}
+            onNavigate={navigateTo}
+            onCreateProject={createNewProjekt}
+            onRefresh={loadEmissionsprojekt}
           />
         )}
         
-        {currentModule === 'prospekt' && (
+        {currentView === 'kapitalrådgivaren' && (
+          <Kapitalrådgivaren 
+            user={user}
+            projekt={aktivtProjekt}
+            companySettings={companySettings}
+            onBack={() => navigateTo('dashboard')}
+            onCreateProject={createNewProjekt}
+            onUpdateProject={updateProjekt}
+            onNavigate={navigateTo}
+          />
+        )}
+        
+        {currentView === 'projektvy' && (
+          <ProjektVy 
+            user={user}
+            projekt={aktivtProjekt}
+            onBack={() => navigateTo('dashboard')}
+            onUpdateProject={updateProjekt}
+            onNavigate={navigateTo}
+          />
+        )}
+        
+        {currentView === 'prospekt' && (
           <ProspektGenerator 
             user={user}
-            project={activeProject}
-            onBack={() => navigateToModule('dashboard')}
+            projekt={aktivtProjekt}
+            companySettings={companySettings}
+            onBack={() => navigateTo('dashboard')}
+            onUpdateProject={updateProjekt}
+            onNavigate={navigateTo}
           />
         )}
         
-        {currentModule === 'marketing' && (
-          <MarketingModule 
+        {currentView === 'teckning' && (
+          <Teckning 
             user={user}
-            project={activeProject}
-            onBack={() => navigateToModule('dashboard')}
+            projekt={aktivtProjekt}
+            onBack={() => navigateTo('dashboard')}
+            onUpdateProject={updateProjekt}
+            onNavigate={navigateTo}
           />
         )}
         
-        {currentModule === 'advisor' && (
-          <CapitalAdvisor 
+        {currentView === 'marknadsföring' && (
+          <Marknadsföring 
             user={user}
-            onBack={() => navigateToModule('dashboard')}
+            projekt={aktivtProjekt}
+            onBack={() => navigateTo('dashboard')}
+            onUpdateProject={updateProjekt}
+          />
+        )}
+        
+        {currentView === 'analytics' && (
+          <Analytics 
+            user={user}
+            projekt={aktivtProjekt}
+            onBack={() => navigateTo('dashboard')}
+            onUpdateProject={updateProjekt}
+          />
+        )}
+        
+        {currentView === 'aktiebok' && (
+          <Aktiebok 
+            user={user}
+            onBack={() => navigateTo('dashboard')}
           />
         )}
 
-        {currentModule === 'aktiebok' && (
-          <Aktiebok 
+        {currentView === 'inställningar' && (
+          <Inställningar
             user={user}
-            onBack={() => navigateToModule('dashboard')}
+            companySettings={companySettings}
+            onSave={(settings) => {
+              setCompanySettings(settings);
+              sessionStorage.setItem('companySettings', JSON.stringify(settings));
+            }}
+            onBack={() => navigateTo('dashboard')}
           />
         )}
       </main>
 
       {/* Footer */}
       <footer className="global-footer">
-        <p>Kapitalplattformen v2.1 • Demo-version</p>
+        <p>Kapitalplattformen v5.0 • Emissionsprojekt-driven arkitektur</p>
       </footer>
     </div>
   );

@@ -1,0 +1,232 @@
+/* Marknadsföring Module Styles */
+
+.mf-section {
+  padding: 0;
+}
+
+.mf-section h2 {
+  font-size: 1.5rem;
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+}
+
+.mf-section > p {
+  color: #718096;
+  margin-bottom: 1.5rem;
+}
+
+/* Cards */
+.mf-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.mf-card h3 {
+  font-size: 1.15rem;
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+}
+
+.mf-card > p {
+  color: #718096;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+/* Badges */
+.mf-badge {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.mf-badge-success {
+  background: #c6f6d5;
+  color: #276749;
+}
+
+.mf-badge-info {
+  background: #bee3f8;
+  color: #2a4365;
+}
+
+/* Landing page */
+.mf-landing-result {
+  margin-top: 1.5rem;
+}
+
+.mf-landing-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.mf-url {
+  color: #4299e1;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.mf-iframe-container {
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.mf-actions-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Email */
+.mf-email-result {
+  margin-top: 1rem;
+}
+
+.mf-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.75rem;
+}
+
+.mf-table th {
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  background: #f7fafc;
+  color: #4a5568;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.mf-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid #edf2f7;
+  font-size: 0.9rem;
+  color: #2d3748;
+}
+
+.mf-tag {
+  display: inline-block;
+  background: #edf2f7;
+  color: #4a5568;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.mf-draft-preview {
+  margin-top: 1rem;
+}
+
+.mf-draft-preview h4 {
+  margin-bottom: 0.5rem;
+  color: #2d3748;
+}
+
+/* Google Ads */
+.mf-ads-result {
+  margin-top: 1rem;
+}
+
+.mf-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.mf-stat {
+  text-align: center;
+  padding: 1rem;
+  background: #f7fafc;
+  border-radius: 8px;
+}
+
+.mf-stat-value {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 0.25rem;
+}
+
+.mf-stat-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mf-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.mf-keyword-tag {
+  display: inline-block;
+  background: #ebf4ff;
+  color: #3182ce;
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Analytics */
+.mf-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.mf-analytics-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.mf-analytics-card h3 {
+  font-size: 1.1rem;
+  color: #1a202c;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.mf-loading {
+  text-align: center;
+  padding: 3rem;
+  color: #718096;
+  font-size: 1.1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .mf-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .mf-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mf-actions-row {
+    flex-direction: column;
+  }
+
+  .mf-landing-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

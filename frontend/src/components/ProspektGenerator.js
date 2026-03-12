@@ -2,946 +2,305 @@ import React, { useState } from 'react';
 import './ProspektGenerator.css';
 import { apiPost } from '../utils/api';
 
-function ProspektGenerator({ user, project, onBack }) {
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  STATE MANAGEMENT
-  // ═══════════════════════════════════════════════════════════════════════════
-  
+function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdateProject, onNavigate }) {
   const [step, setStep] = useState(0);
-  const [docType, setDocType] = useState(null);
-  const [qualification, setQualification] = useState(null);
   const [loading, setLoading] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    // Step 0: Qualification
+  const [loadingResearch, setLoadingResearch] = useState(false);
+  const [qualification, setQualification] = useState(null);
+  const [qualificationForm, setQualificationForm] = useState({
     market: '',
-    emissionSizeSEK: '',
+    emissionSizeSEK: projekt?.emissionsvillkor?.emissionsvolym || '',
     period12Months: true,
-    audience: '',
-    
-    // Step 1: Company Basics
-    companyName: project?.name || '',
-    orgNr: '',
-    industry: '',
-    location: '',
-    website: '',
-    
-    // Step 2: Emission Details
-    emissionPurpose: '',
-    subscriptionPeriod: '',
-    
-    // Step 3: Business Description
-    businessDescription: '',
-    products: '',
-    businessModel: '',
-    strategy: '',
-    
-    // Step 4: Market Analysis
-    marketDescription: '',
-    marketSize: '',
-    geography: '',
-    competitors: '',
-    
-    // Step 5: Financial Snapshot
-    revenue: '',
-    result: '',
-    equity: '',
-    financialYear: new Date().getFullYear() - 1,
-    
-    // Step 6: Team
-    team: [
-      { name: '', role: '', background: '' }
-    ]
+    audience: ''
   });
   
+  // Simplified wizard - fewer steps since emission details are pre-filled
+  const [formData, setFormData] = useState({
+    // Step 1: Bolagsinformation (basic info)
+    bolag: {
+      namn: companySettings?.companyName || user.company,
+      organisationsnummer: companySettings?.orgNr || '',
+      säte: companySettings?.city || '',
+      bransch: companySettings?.industry || '',
+      verksamhetsbeskrivning: ''
+    },
+    // Step 2: Strategi & Marknad (simplified)
+    strategi: {
+      affärsmodell: '',
+      marknadsbeskrivning: '',
+      konkurrenter: ''
+    },
+    // Step 3: Finansiell översikt (simplified)
+    finansiellt: {
+      omsättning: '',
+      resultat: '',
+      egetKapital: '',
+      år: new Date().getFullYear() - 1
+    },
+    // Step 4: Team (simplified)
+    team: [
+      { namn: '', roll: '', bakgrund: '' }
+    ],
+    // Step 5: Användning av emissionslikvid (already in projekt but can elaborate)
+    användning: ''
+  });
+
   const [generatedContent, setGeneratedContent] = useState({
-    executiveSummary: '',
-    businessSection: '',
-    marketSection: '',
-    offeringTerms: '',
-    riskFactors: '',
+    verksamhet: '',
+    marknad: '',
+    riskfaktorer: '',
     teamBios: ''
   });
 
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupError, setLookupError] = useState('');
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  COMPANY LOOKUP
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  const handleCompanyLookup = async () => {
-    if (!formData.orgNr || formData.orgNr.length < 10) {
-      setLookupError('Ange ett giltigt organisationsnummer (t.ex. 556123-4567)');
+  const handleResearch = async (researchType) => {
+    if (!formData.bolag.namn) {
+      alert('Fyll i bolagsnamnet (eller org.nr) först, sedan kan AI:n söka information.');
       return;
     }
-    
-    setLookupLoading(true);
-    setLookupError('');
-    
+    setLoadingResearch(true);
     try {
-      const response = await apiPost('/api/lookup-company', { orgNr: formData.orgNr });
-      
+      const response = await apiPost('/api/generate-company-research', {
+        companyName: formData.bolag.namn,
+        orgNr: formData.bolag.organisationsnummer || companySettings?.orgNr || '',
+        website: companySettings?.website || '',
+        researchType
+      });
       const result = await response.json();
-      
-      if (result.found && result.company) {
+      if (!result.success) throw new Error(result.error || 'Kunde inte hämta data');
+      const d = result.data;
+
+      if (researchType === 'bolagsinfo') {
         setFormData(prev => ({
           ...prev,
-          companyName: result.company.name || prev.companyName,
-          orgNr: result.company.orgNr || prev.orgNr,
-          industry: result.company.industry || prev.industry,
-          location: result.company.location || prev.location,
-          website: result.company.website || prev.website
+          bolag: {
+            ...prev.bolag,
+            verksamhetsbeskrivning: d.verksamhetsbeskrivning || prev.bolag.verksamhetsbeskrivning,
+            bransch: d.bransch || prev.bolag.bransch,
+            säte: d.ort || prev.bolag.säte
+          }
         }));
-        setLookupError('');
-      } else {
-        setLookupError(result.error || 'Inget bolag hittades');
+      } else if (researchType === 'strategi_marknad') {
+        setFormData(prev => ({
+          ...prev,
+          strategi: {
+            affärsmodell: d.affarsmodell || prev.strategi.affärsmodell,
+            marknadsbeskrivning: d.marknadsbeskrivning || prev.strategi.marknadsbeskrivning,
+            konkurrenter: d.konkurrenter || prev.strategi.konkurrenter
+          }
+        }));
+      } else if (researchType === 'finansiellt') {
+        if (!d.omsattning && !d.resultat && !d.egetKapital) {
+          alert('Kunde inte hitta finansiell data för detta bolag. Fyll i manuellt.');
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            finansiellt: {
+              omsättning: d.omsattning || prev.finansiellt.omsättning,
+              resultat: d.resultat || prev.finansiellt.resultat,
+              egetKapital: d.egetKapital || prev.finansiellt.egetKapital,
+              år: d.ar ? parseInt(d.ar) : prev.finansiellt.år
+            }
+          }));
+        }
+      } else if (researchType === 'ledning') {
+        if (d.team && d.team.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            team: d.team.map(t => ({
+              namn: t.namn || '',
+              roll: t.roll || '',
+              bakgrund: t.bakgrund || ''
+            }))
+          }));
+        } else {
+          alert('Kunde inte hitta ledningsinformation för detta bolag. Fyll i manuellt.');
+        }
       }
     } catch (error) {
-      console.error('Lookup error:', error);
-      setLookupError('Kunde inte hämta bolagsuppgifter. Försök igen.');
-    } finally {
-      setLookupLoading(false);
+      console.error('Research error:', error);
+      alert('Kunde inte hämta data: ' + error.message);
     }
+    setLoadingResearch(false);
   };
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  STEP 0: DOCUMENT TYPE QUALIFICATION
-  // ═══════════════════════════════════════════════════════════════════════════
-  
   const handleQualification = async () => {
     setLoading(true);
     try {
-      const response = await apiPost('/api/qualify-document', {
-          market: formData.market,
-          emissionSizeSEK: parseInt(formData.emissionSizeSEK),
-          period12Months: formData.period12Months,
-          audience: formData.audience
-      });
-      
-      const result = await response.json();
-      setQualification(result);
-      setDocType(result.recommendedType);
-      setLoading(false);
+      const response = await apiPost('/api/qualify-document', qualificationForm);
+      const data = await response.json();
+      setQualification(data);
     } catch (error) {
       console.error('Qualification error:', error);
-      setLoading(false);
-      alert('Ett fel uppstod vid kvalificeringen. Vänligen försök igen.');
+      alert('Kunde inte avgöra dokumenttyp');
     }
+    setLoading(false);
   };
-  
-  const renderQualificationStep = () => (
-    <div className="pg-step-container">
-      <h2>Välkommen till Prospekt/IM Generator</h2>
-      <p className="pg-step-intro">Besvara några frågor så hjälper vi dig att avgöra vilket dokument du behöver för din kapitalanskaffning.</p>
-      
-      <div className="pg-form-group">
-        <label>Var är bolaget noterat/planerar notering?</label>
-        <select 
-          value={formData.market} 
-          onChange={(e) => setFormData({...formData, market: e.target.value})}
-          required
-        >
-          <option value="">-- Välj marknadsplats --</option>
-          <option value="nasdaq_stockholm">Nasdaq Stockholm (reglerad marknad)</option>
-          <option value="first_north">Nasdaq First North</option>
-          <option value="spotlight">Spotlight Stock Market</option>
-          <option value="nordic_sme">Nordic SME</option>
-          <option value="unlisted">Onoterat / Planerar ej notering</option>
-        </select>
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Total kapitalanskaffning (SEK)</label>
-        <input 
-          type="number" 
-          value={formData.emissionSizeSEK}
-          onChange={(e) => setFormData({...formData, emissionSizeSEK: e.target.value})}
-          placeholder="15000000"
-          required
-        />
-        <small>Ange totalt belopp ni planerar att anskaffa</small>
-      </div>
-      
-      <div className="pg-form-group pg-checkbox-group">
-        <label>
-          <input 
-            type="checkbox"
-            checked={formData.period12Months}
-            onChange={(e) => setFormData({...formData, period12Months: e.target.checked})}
-          />
-          Detta är den enda emissionen under en 12-månadersperiod
-        </label>
-        <small>Om ni planerar flera emissioner inom 12 månader summeras dessa för prospektskyldighet</small>
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Vem riktar sig emissionen till?</label>
-        <select 
-          value={formData.audience} 
-          onChange={(e) => setFormData({...formData, audience: e.target.value})}
-          required
-        >
-          <option value="">-- Välj målgrupp --</option>
-          <option value="public">Allmänheten / Befintliga aktieägare (≥150 personer)</option>
-          <option value="qualified">Enbart kvalificerade investerare (&lt;150 st)</option>
-          <option value="syndicate">Avgränsat syndikat (VC/PE/affärsänglar)</option>
-        </select>
-      </div>
-      
-      <button 
-        className="btn-primary"
-        onClick={handleQualification}
-        disabled={!formData.market || !formData.emissionSizeSEK || !formData.audience || loading}
-      >
-        {loading ? 'Analyserar...' : 'Fortsätt'}
-      </button>
-    </div>
-  );
-  
-  const renderQualificationResult = () => (
-    <div className="pg-qualification-result">
-      <h2>Rekommendation</h2>
-      <div className={`pg-recommendation-card ${docType === 'PROSPEKT' ? 'prospekt' : 'im'}`}>
-        <h3>{docType === 'PROSPEKT' ? '📋 Prospekt krävs' : '📄 Informationsmemorandum rekommenderas'}</h3>
-        <p>{qualification.reasoning}</p>
-        
-        <div className="pg-emission-summary">
-          <strong>Emissionsstorlek:</strong> ~€{qualification.emissionSizeEUR.toLocaleString('sv-SE')}
+
+  if (!projekt) {
+    return (
+      <div className="module-container">
+        <div className="module-header">
+          <button className="back-button" onClick={onBack}>← Tillbaka</button>
+          <h1>📄 Prospekt/IM Generator</h1>
+        </div>
+        <div className="empty-state">
+          <p>Välj ett emissionsprojekt från Dashboard för att skapa Prospekt/IM</p>
         </div>
       </div>
-      
-      <div className="pg-document-comparison">
-        <h4>Vad är skillnaden?</h4>
-        <div className="pg-comparison-grid">
-          <div className="pg-comparison-col">
-            <h5>📄 Informationsmemorandum</h5>
-            <ul>
-              <li>✓ Snabbare att producera (3-5 dagar)</li>
-              <li>✓ Lägre kostnad (frivilligt format)</li>
-              <li>✓ Ingen FI-granskning</li>
-              <li>✓ Lämpligt för riktade emissioner &lt;€8M</li>
-            </ul>
-          </div>
-          <div className="pg-comparison-col">
-            <h5>📋 Prospekt</h5>
-            <ul>
-              <li>✓ FI-godkänt (högre trovärdighet)</li>
-              <li>✓ Nödvändigt för allmänna erbjudanden ≥€8M</li>
-              <li>⚠ Striktare formatkrav</li>
-              <li>⚠ Längre processtid (4-6 veckor)</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-      
-      <div className="pg-action-buttons">
-        {docType === 'IM' && (
-          <button className="btn-primary" onClick={() => setStep(1)}>
-            Fortsätt med Informationsmemorandum
-          </button>
-        )}
-        {docType === 'PROSPEKT' && (
-          <div className="pg-prospekt-notice">
-            <p><strong>OBS:</strong> Prospektflödet är inte fullt utvecklat i denna demo.</p>
-            <button className="btn-secondary" onClick={() => { setDocType('IM'); }}>
-              Skapa IM istället (demo)
-            </button>
-          </div>
-        )}
-        {docType === 'IM' && (
-          <button className="btn-secondary" onClick={() => { setDocType('PROSPEKT'); }}>
-            Jag vill ändå göra ett prospekt
-          </button>
-        )}
-      </div>
-      
-      <button className="pg-btn-link" onClick={() => { setStep(0); setQualification(null); setDocType(null); }}>
-        ← Ändra mina svar
-      </button>
-    </div>
-  );
+    );
+  }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  STEP 1: COMPANY BASICS
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  const renderStep1 = () => (
-    <div className="pg-step-container">
-      <div className="pg-progress-bar">
-        <div className="pg-progress-fill" style={{width: '14%'}}></div>
-      </div>
-      <h2>Steg 1 av 7: Företagsinformation</h2>
-      
-      <div className="pg-lookup-section">
-        <div className="pg-form-group">
-          <label>Organisationsnummer</label>
-          <div className="pg-input-with-button">
-            <input 
-              type="text"
-              value={formData.orgNr}
-              onChange={(e) => {
-                setFormData({...formData, orgNr: e.target.value});
-                setLookupError('');
-              }}
-              placeholder="556123-4567"
-            />
-            <button 
-              className="pg-btn-lookup"
-              onClick={handleCompanyLookup}
-              disabled={lookupLoading || !formData.orgNr}
-            >
-              {lookupLoading ? '⏳ Söker...' : '🔍 Hämta uppgifter'}
-            </button>
-          </div>
-          {lookupError && <span className="pg-error-text">{lookupError}</span>}
-          <span className="pg-help-text">Ange organisationsnummer för att automatiskt hämta bolagsuppgifter från Bolagsverket</span>
-        </div>
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Företagsnamn *</label>
-        <input 
-          type="text"
-          value={formData.companyName}
-          onChange={(e) => setFormData({...formData, companyName: e.target.value})}
-          placeholder="Innovativ Tech AB"
-          required
-        />
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Bransch *</label>
-        <input 
-          type="text"
-          value={formData.industry}
-          onChange={(e) => setFormData({...formData, industry: e.target.value})}
-          placeholder="Teknologi / SaaS / Medicinteknik / etc."
-          required
-        />
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Säte</label>
-        <input 
-          type="text"
-          value={formData.location}
-          onChange={(e) => setFormData({...formData, location: e.target.value})}
-          placeholder="Stockholm, Sverige"
-        />
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Webbplats</label>
-        <input 
-          type="url"
-          value={formData.website}
-          onChange={(e) => setFormData({...formData, website: e.target.value})}
-          placeholder="https://www.exempel.se"
-        />
-      </div>
-      
-      <div className="pg-button-group">
-        <button className="btn-secondary" onClick={() => setStep(0)}>← Tillbaka</button>
-        <button 
-          className="btn-primary" 
-          onClick={() => setStep(2)}
-          disabled={!formData.companyName || !formData.industry}
-        >
-          Nästa →
-        </button>
-      </div>
-    </div>
-  );
+  const handleGenerateContent = async () => {
+    setLoading(true);
+    try {
+      const company = {
+        name: formData.bolag.namn,
+        industry: formData.bolag.bransch
+      };
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  STEP 2: EMISSION DETAILS
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  const renderStep2 = () => (
-    <div className="pg-step-container">
-      <div className="pg-progress-bar">
-        <div className="pg-progress-fill" style={{width: '28%'}}></div>
-      </div>
-      <h2>Steg 2 av 7: Emissionsdetaljer</h2>
+      // Generate business section
+      const verksamhetResponse = await apiPost('/api/generate-business-section', {
+        company,
+        business: {
+          description: formData.bolag.verksamhetsbeskrivning,
+          businessModel: formData.strategi.affärsmodell
+        }
+      });
       
-      <div className="pg-info-card">
-        <strong>Emissionsstorlek:</strong> {parseInt(formData.emissionSizeSEK).toLocaleString('sv-SE')} SEK
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Användning av kapitalet *</label>
-        <textarea 
-          value={formData.emissionPurpose}
-          onChange={(e) => setFormData({...formData, emissionPurpose: e.target.value})}
-          placeholder="Beskriv kortfattat hur ni planerar att använda det anskaffade kapitalet. Exempel: Produktutveckling, marknadsföring, internationell expansion, rörelsekapital."
-          rows="4"
-          required
-        />
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Planerad teckningsperiod</label>
-        <input 
-          type="text"
-          value={formData.subscriptionPeriod}
-          onChange={(e) => setFormData({...formData, subscriptionPeriod: e.target.value})}
-          placeholder="2026-03-15 till 2026-03-29"
-        />
-        <small>Ange ungefärligt datumintervall om det är bestämt</small>
-      </div>
-      
-      <div className="pg-button-group">
-        <button className="btn-secondary" onClick={() => setStep(1)}>← Tillbaka</button>
-        <button 
-          className="btn-primary" 
-          onClick={() => setStep(3)}
-          disabled={!formData.emissionPurpose}
-        >
-          Nästa →
-        </button>
-      </div>
-    </div>
-  );
+      // Generate market section
+      const marknadResponse = await apiPost('/api/generate-market-section', {
+        company,
+        market: {
+          description: formData.strategi.marknadsbeskrivning,
+          competitors: formData.strategi.konkurrenter
+        }
+      });
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  STEP 3: BUSINESS DESCRIPTION
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  const renderStep3 = () => (
-    <div className="pg-step-container">
-      <div className="pg-progress-bar">
-        <div className="pg-progress-fill" style={{width: '42%'}}></div>
-      </div>
-      <h2>Steg 3 av 7: Verksamhetsbeskrivning</h2>
-      <p className="pg-step-intro">Denna information används för att generera sektionerna "Verksamhet och Strategi" samt "Executive Summary".</p>
-      
-      <div className="pg-form-group">
-        <label>Vad gör företaget? *</label>
-        <textarea 
-          value={formData.businessDescription}
-          onChange={(e) => setFormData({...formData, businessDescription: e.target.value})}
-          placeholder="Beskriv er kärnverksamhet: Vad erbjuder ni? Vilket problem löser ni? För vilka kunder?"
-          rows="5"
-          required
-        />
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Produkter / Tjänster</label>
-        <textarea 
-          value={formData.products}
-          onChange={(e) => setFormData({...formData, products: e.target.value})}
-          placeholder="Beskriv era huvudsakliga produkter eller tjänster. Vad är unikt med er lösning?"
-          rows="4"
-        />
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Affärsmodell</label>
-        <textarea 
-          value={formData.businessModel}
-          onChange={(e) => setFormData({...formData, businessModel: e.target.value})}
-          placeholder="Hur tjänar ni pengar? (t.ex. SaaS-prenumeration, transaktion, licensiering, produktförsäljning)"
-          rows="3"
-        />
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Strategi och vision</label>
-        <textarea 
-          value={formData.strategy}
-          onChange={(e) => setFormData({...formData, strategy: e.target.value})}
-          placeholder="Beskriv er strategi för de kommande 2-3 åren. Vad är era viktigaste mål?"
-          rows="4"
-        />
-      </div>
-      
-      <div className="pg-button-group">
-        <button className="btn-secondary" onClick={() => setStep(2)}>← Tillbaka</button>
-        <button 
-          className="btn-primary" 
-          onClick={() => setStep(4)}
-          disabled={!formData.businessDescription}
-        >
-          Nästa →
-        </button>
-      </div>
-    </div>
-  );
+      // Generate risk factors
+      const riskResponse = await apiPost('/api/generate-risk-factors', {
+        company,
+        business: { description: formData.bolag.verksamhetsbeskrivning },
+        financial: {
+          revenue: formData.finansiellt.omsättning,
+          result: formData.finansiellt.resultat
+        }
+      });
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  STEP 4: MARKET ANALYSIS
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  const renderStep4 = () => (
-    <div className="pg-step-container">
-      <div className="pg-progress-bar">
-        <div className="pg-progress-fill" style={{width: '56%'}}></div>
-      </div>
-      <h2>Steg 4 av 7: Marknadsanalys</h2>
-      <p className="pg-step-intro">Information om er marknad och konkurrenssituation.</p>
-      
-      <div className="pg-form-group">
-        <label>Marknadsbeskrivning *</label>
-        <textarea 
-          value={formData.marketDescription}
-          onChange={(e) => setFormData({...formData, marketDescription: e.target.value})}
-          placeholder="Beskriv den marknad ni verkar på. Vilka är de viktigaste drivkrafterna? Vilka trender ser ni?"
-          rows="5"
-          required
-        />
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Marknadsstorlek (TAM/SAM)</label>
-        <input 
-          type="text"
-          value={formData.marketSize}
-          onChange={(e) => setFormData({...formData, marketSize: e.target.value})}
-          placeholder="Exempel: Global marknad 50 Mdr USD, Nordisk marknad 2 Mdr SEK"
-        />
-        <small>Ange uppskattad marknadsstorlek om ni har data</small>
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Geografiska marknader</label>
-        <input 
-          type="text"
-          value={formData.geography}
-          onChange={(e) => setFormData({...formData, geography: e.target.value})}
-          placeholder="Norden, Europa, Nordamerika..."
-        />
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Huvudkonkurrenter</label>
-        <textarea 
-          value={formData.competitors}
-          onChange={(e) => setFormData({...formData, competitors: e.target.value})}
-          placeholder="Lista era viktigaste konkurrenter och beskriv kortfattat er konkurrensfördel."
-          rows="4"
-        />
-      </div>
-      
-      <div className="pg-button-group">
-        <button className="btn-secondary" onClick={() => setStep(3)}>← Tillbaka</button>
-        <button 
-          className="btn-primary" 
-          onClick={() => setStep(5)}
-          disabled={!formData.marketDescription}
-        >
-          Nästa →
-        </button>
-      </div>
-    </div>
-  );
+      // Generate team bios
+      const teamResponse = await apiPost('/api/generate-team-bios', {
+        team: formData.team
+      });
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  STEP 5: FINANCIAL SNAPSHOT
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  const renderStep5 = () => (
-    <div className="pg-step-container">
-      <div className="pg-progress-bar">
-        <div className="pg-progress-fill" style={{width: '70%'}}></div>
-      </div>
-      <h2>Steg 5 av 7: Finansiell översikt</h2>
-      <p className="pg-step-intro">Ange nyckeltal från senaste räkenskapsåret. Detta kommer att visas i dokumentet tillsammans med en hänvisning till fullständig årsredovisning.</p>
-      
-      <div className="pg-form-group">
-        <label>Räkenskapsår</label>
-        <input 
-          type="number"
-          value={formData.financialYear}
-          onChange={(e) => setFormData({...formData, financialYear: parseInt(e.target.value)})}
-          min="2020"
-          max={new Date().getFullYear()}
-        />
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Omsättning (TSEK)</label>
-        <input 
-          type="number"
-          value={formData.revenue}
-          onChange={(e) => setFormData({...formData, revenue: e.target.value})}
-          placeholder="15000"
-        />
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Resultat (TSEK)</label>
-        <input 
-          type="number"
-          value={formData.result}
-          onChange={(e) => setFormData({...formData, result: e.target.value})}
-          placeholder="-3500"
-        />
-        <small>Ange negativt värde om förlust</small>
-      </div>
-      
-      <div className="pg-form-group">
-        <label>Eget kapital (TSEK)</label>
-        <input 
-          type="number"
-          value={formData.equity}
-          onChange={(e) => setFormData({...formData, equity: e.target.value})}
-          placeholder="25000"
-        />
-      </div>
-      
-      <div className="pg-info-card">
-        <strong>OBS:</strong> För ett fullständigt informationsmemorandum bör fullständiga finansiella rapporter (årsredovisning och eventuell delårsrapport) bifogas som bilaga.
-      </div>
-      
-      <div className="pg-button-group">
-        <button className="btn-secondary" onClick={() => setStep(4)}>← Tillbaka</button>
-        <button 
-          className="btn-primary" 
-          onClick={() => setStep(6)}
-        >
-          Nästa →
-        </button>
-      </div>
-    </div>
-  );
+      const verksamhet = await verksamhetResponse.json();
+      const marknad = await marknadResponse.json();
+      const risk = await riskResponse.json();
+      const team = await teamResponse.json();
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  STEP 6: TEAM
-  // ═══════════════════════════════════════════════════════════════════════════
-  
+      const newContent = {
+        verksamhet: verksamhet.business || '',
+        marknad: marknad.market || '',
+        riskfaktorer: risk.risks || '',
+        teamBios: team.bios || ''
+      };
+
+      setGeneratedContent(newContent);
+
+      // Save generated content to projekt
+      await onUpdateProject(projekt.id, { generatedContent: newContent });
+
+      setStep(6); // Go to preview step
+    } catch (error) {
+      console.error('Generation failed:', error);
+      alert('Kunde inte generera innehåll. Kontrollera att servern är igång.');
+    }
+    setLoading(false);
+  };
+
+  const handleGeneratePDF = async () => {
+    setLoading(true);
+    try {
+      const pdfPayload = {
+        company: {
+          name: formData.bolag.namn,
+          orgNr: formData.bolag.organisationsnummer,
+          industry: formData.bolag.bransch
+        },
+        emission: {
+          sizeSEK: projekt.emissionsvillkor.emissionsvolym,
+          type: projekt.emissionsvillkor.typ,
+          pricePerShare: projekt.emissionsvillkor.teckningskurs,
+          numberOfShares: projekt.emissionsvillkor.antalNyaAktier
+        },
+        generated: {
+          business: generatedContent.verksamhet,
+          market: generatedContent.marknad,
+          risks: generatedContent.riskfaktorer,
+          team: generatedContent.teamBios
+        },
+        financial: {
+          revenue: formData.finansiellt.omsättning,
+          result: formData.finansiellt.resultat,
+          equity: formData.finansiellt.egetKapital,
+          year: formData.finansiellt.år
+        },
+        usage: formData.användning
+      };
+
+      const response = await apiPost('/api/generate-pdf', pdfPayload);
+
+      if (!response.ok) {
+        throw new Error('PDF-generering misslyckades');
+      }
+
+      // Download PDF as blob
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${formData.bolag.namn.replace(/\s+/g, '_')}_IM.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      // Update projekt with prospekt info
+      await onUpdateProject(projekt.id, {
+        prospekt: {
+          type: 'IM',
+          generatedAt: new Date().toISOString()
+        },
+        currentModule: 'teckning'
+      });
+      
+      alert('PDF genererad och nedladdad! Går vidare till Teckning...');
+      onNavigate('teckning', projekt);
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      alert('Kunde inte generera PDF: ' + error.message);
+    }
+    setLoading(false);
+  };
+
   const addTeamMember = () => {
     setFormData({
       ...formData,
-      team: [...formData.team, { name: '', role: '', background: '' }]
+      team: [...formData.team, { namn: '', roll: '', bakgrund: '' }]
     });
   };
-  
+
+  const removeTeamMember = (index) => {
+    setFormData({
+      ...formData,
+      team: formData.team.filter((_, i) => i !== index)
+    });
+  };
+
   const updateTeamMember = (index, field, value) => {
     const newTeam = [...formData.team];
     newTeam[index][field] = value;
-    setFormData({...formData, team: newTeam});
+    setFormData({ ...formData, team: newTeam });
   };
-  
-  const removeTeamMember = (index) => {
-    const newTeam = formData.team.filter((_, i) => i !== index);
-    setFormData({...formData, team: newTeam});
-  };
-  
-  const renderStep6 = () => (
-    <div className="pg-step-container">
-      <div className="pg-progress-bar">
-        <div className="pg-progress-fill" style={{width: '84%'}}></div>
-      </div>
-      <h2>Steg 6 av 7: Ledning och styrelse</h2>
-      <p className="pg-step-intro">Lägg till nyckelpersoner i ledningen och styrelsen. AI kommer att generera professionella biografier baserat på er input.</p>
-      
-      {formData.team.map((person, index) => (
-        <div key={index} className="pg-team-member-card">
-          <div className="pg-team-member-header">
-            <h4>Person {index + 1}</h4>
-            {formData.team.length > 1 && (
-              <button className="pg-btn-remove" onClick={() => removeTeamMember(index)}>Ta bort</button>
-            )}
-          </div>
-          
-          <div className="pg-form-group">
-            <label>Namn *</label>
-            <input 
-              type="text"
-              value={person.name}
-              onChange={(e) => updateTeamMember(index, 'name', e.target.value)}
-              placeholder="Anna Andersson"
-              required
-            />
-          </div>
-          
-          <div className="pg-form-group">
-            <label>Roll *</label>
-            <input 
-              type="text"
-              value={person.role}
-              onChange={(e) => updateTeamMember(index, 'role', e.target.value)}
-              placeholder="VD / Styrelseordförande / CFO / etc."
-              required
-            />
-          </div>
-          
-          <div className="pg-form-group">
-            <label>Bakgrund och erfarenhet</label>
-            <textarea 
-              value={person.background}
-              onChange={(e) => updateTeamMember(index, 'background', e.target.value)}
-              placeholder="Beskriv relevant erfarenhet, tidigare befattningar, utbildning..."
-              rows="3"
-            />
-          </div>
-        </div>
-      ))}
-      
-      <button className="btn-secondary" onClick={addTeamMember}>+ Lägg till person</button>
-      
-      <div className="pg-button-group" style={{marginTop: '2rem'}}>
-        <button className="btn-secondary" onClick={() => setStep(5)}>← Tillbaka</button>
-        <button 
-          className="btn-primary" 
-          onClick={() => setStep(7)}
-          disabled={!formData.team.every(p => p.name && p.role)}
-        >
-          Nästa →
-        </button>
-      </div>
-    </div>
-  );
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  STEP 7: REVIEW AND GENERATE
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  const generateAllContent = async () => {
-    setLoading(true);
-    
-    try {
-      const summaryRes = await apiPost('/api/generate-executive-summary', {
-          company: { name: formData.companyName, industry: formData.industry },
-          business: { description: formData.businessDescription },
-          market: { description: formData.marketDescription },
-          emission: { sizeSEK: parseInt(formData.emissionSizeSEK), purpose: formData.emissionPurpose }
-      });
-      const summaryData = await summaryRes.json();
-      
-      const businessRes = await apiPost('/api/generate-business-section', {
-          company: { name: formData.companyName, industry: formData.industry },
-          business: {
-            description: formData.businessDescription,
-            products: formData.products,
-            businessModel: formData.businessModel,
-            strategy: formData.strategy
-          }
-      });
-      const businessData = await businessRes.json();
-      
-      const marketRes = await apiPost('/api/generate-market-section', {
-          company: { industry: formData.industry },
-          market: {
-            description: formData.marketDescription,
-            size: formData.marketSize,
-            geography: formData.geography,
-            competitors: formData.competitors
-          }
-      });
-      const marketData = await marketRes.json();
-      
-      const riskRes = await apiPost('/api/generate-risk-factors', {
-          company: { name: formData.companyName, industry: formData.industry, market: formData.market },
-          business: { description: formData.businessDescription },
-          financial: { revenue: formData.revenue, result: formData.result }
-      });
-      const riskData = await riskRes.json();
-      
-      const offeringRes = await apiPost('/api/generate-offering-terms', {
-          company: { name: formData.companyName, orgNr: formData.orgNr },
-          emission: {
-            sizeSEK: parseInt(formData.emissionSizeSEK),
-            purpose: formData.emissionPurpose,
-            subscriptionPeriod: formData.subscriptionPeriod,
-            audience: formData.audience
-          }
-      });
-      const offeringData = await offeringRes.json();
-      
-      const teamRes = await apiPost('/api/generate-team-bios', { team: formData.team });
-      const teamData = await teamRes.json();
-      
-      const newContent = {
-        executiveSummary: summaryData.summary,
-        businessSection: businessData.business,
-        marketSection: marketData.market,
-        offeringTerms: offeringData.offeringTerms,
-        riskFactors: riskData.risks,
-        teamBios: teamData.bios
-      };
-      setGeneratedContent(newContent);
-      
-      // Persist IM data to localStorage so MarketingModule can use it
-      try {
-        localStorage.setItem('kapital_im_data', JSON.stringify({
-          formData,
-          generatedContent: newContent,
-          savedAt: new Date().toISOString()
-        }));
-      } catch (e) {
-        console.warn('Could not save IM data to localStorage', e);
-      }
-      
-      setLoading(false);
-      setStep(8);
-      
-    } catch (error) {
-      console.error('Generation error:', error);
-      setLoading(false);
-      alert('Ett fel uppstod vid genereringen. Vänligen försök igen.');
-    }
-  };
-  
-  const renderStep7 = () => (
-    <div className="pg-step-container">
-      <div className="pg-progress-bar">
-        <div className="pg-progress-fill" style={{width: '100%'}}></div>
-      </div>
-      <h2>Steg 7 av 7: Granska och generera</h2>
-      <p className="pg-step-intro">Kontrollera att all information är korrekt innan vi genererar ditt informationsmemorandum.</p>
-      
-      <div className="pg-review-section">
-        <h3>Företagsinformation</h3>
-        <div className="pg-review-item"><strong>Företag:</strong> {formData.companyName}</div>
-        <div className="pg-review-item"><strong>Bransch:</strong> {formData.industry}</div>
-        <div className="pg-review-item"><strong>Säte:</strong> {formData.location || 'Ej angivet'}</div>
-      </div>
-      
-      <div className="pg-review-section">
-        <h3>Emission</h3>
-        <div className="pg-review-item"><strong>Belopp:</strong> {parseInt(formData.emissionSizeSEK).toLocaleString('sv-SE')} SEK</div>
-        <div className="pg-review-item"><strong>Användning:</strong> {formData.emissionPurpose}</div>
-      </div>
-      
-      <div className="pg-review-section">
-        <h3>Team</h3>
-        {formData.team.map((person, i) => (
-          <div key={i} className="pg-review-item">
-            <strong>{person.name}</strong> - {person.role}
-          </div>
-        ))}
-      </div>
-      
-      <div className="pg-info-card">
-        <strong>Nästa steg:</strong> När du klickar på "Generera dokument" kommer AI att skapa alla sektioner i ditt informationsmemorandum. Detta tar vanligtvis 30-60 sekunder.
-      </div>
-      
-      <div className="pg-button-group">
-        <button className="btn-secondary" onClick={() => setStep(6)}>← Tillbaka</button>
-        <button 
-          className="btn-primary pg-btn-large" 
-          onClick={generateAllContent}
-          disabled={loading}
-        >
-          {loading ? 'Genererar dokument...' : '🚀 Generera informationsmemorandum'}
-        </button>
-      </div>
-    </div>
-  );
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  STEP 8: PREVIEW AND DOWNLOAD
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  const downloadPDF = async () => {
-    setLoading(true);
-    
-    try {
-      const response = await apiPost('/api/generate-pdf', {
-          company: {
-            name: formData.companyName,
-            orgNr: formData.orgNr,
-            industry: formData.industry,
-            location: formData.location,
-            market: formData.market
-          },
-          emission: {
-            sizeSEK: parseInt(formData.emissionSizeSEK),
-            purpose: formData.emissionPurpose,
-            subscriptionPeriod: formData.subscriptionPeriod,
-            audience: formData.audience
-          },
-          financial: {
-            revenue: formData.revenue,
-            result: formData.result,
-            equity: formData.equity,
-            year: formData.financialYear
-          },
-          generated: generatedContent
-      });
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${formData.companyName.replace(/\s+/g, '_')}_IM.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      
-      setLoading(false);
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      setLoading(false);
-      alert('Ett fel uppstod vid PDF-genereringen.');
-    }
-  };
-  
-  const renderStep8 = () => (
-    <div className="pg-step-container pg-preview-step">
-      <h2>✅ Ditt informationsmemorandum är klart!</h2>
-      <p className="pg-step-intro">Granska innehållet nedan. Du kan ladda ner dokumentet som PDF när du är nöjd.</p>
-      
-      <div className="pg-preview-section">
-        <h3>Executive Summary</h3>
-        <div className="pg-preview-content">{generatedContent.executiveSummary}</div>
-      </div>
-      
-      <div className="pg-preview-section">
-        <h3>Verksamhet och Strategi</h3>
-        <div className="pg-preview-content">{generatedContent.businessSection}</div>
-      </div>
-      
-      <div className="pg-preview-section">
-        <h3>Marknadsöversikt</h3>
-        <div className="pg-preview-content">{generatedContent.marketSection}</div>
-      </div>
-      
-      <div className="pg-preview-section">
-        <h3>Villkor för teckningserbjudandet</h3>
-        <div className="pg-preview-content">{generatedContent.offeringTerms}</div>
-      </div>
-      
-      <div className="pg-preview-section">
-        <h3>Riskfaktorer</h3>
-        <div className="pg-preview-content">{generatedContent.riskFactors}</div>
-      </div>
-      
-      <div className="pg-preview-section">
-        <h3>Ledning och Styrelse</h3>
-        <div className="pg-preview-content">{generatedContent.teamBios}</div>
-      </div>
-      
-      <div className="pg-action-buttons">
-        <button 
-          className="btn-primary pg-btn-large" 
-          onClick={downloadPDF}
-          disabled={loading}
-        >
-          {loading ? 'Genererar PDF...' : '📥 Ladda ner PDF'}
-        </button>
-        <button className="btn-secondary" onClick={() => setStep(7)}>← Redigera information</button>
-      </div>
-      
-      <div className="pg-info-card" style={{marginTop: '2rem'}}>
-        <strong>Nästa steg:</strong>
-        <ul style={{marginTop: '0.5rem', paddingLeft: '1.5rem'}}>
-          <li>Granska dokumentet noggrant</li>
-          <li>Bifoga fullständiga finansiella rapporter (årsredovisning, delårsrapport)</li>
-          <li>Låt juridisk rådgivare granska innehållet</li>
-          <li>Distribuera till potentiella investerare</li>
-        </ul>
-      </div>
-    </div>
-  );
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  MAIN RENDER
-  // ═══════════════════════════════════════════════════════════════════════════
-  
   return (
     <div className="module-container">
       <div className="module-header">
@@ -949,17 +308,473 @@ function ProspektGenerator({ user, project, onBack }) {
         <h1>📄 Prospekt/IM Generator</h1>
       </div>
 
-      <div className="pg-wizard-content">
-        {step === 0 && !qualification && renderQualificationStep()}
-        {step === 0 && qualification && renderQualificationResult()}
-        {step === 1 && renderStep1()}
-        {step === 2 && renderStep2()}
-        {step === 3 && renderStep3()}
-        {step === 4 && renderStep4()}
-        {step === 5 && renderStep5()}
-        {step === 6 && renderStep6()}
-        {step === 7 && renderStep7()}
-        {step === 8 && renderStep8()}
+      {/* Progress bar */}
+      <div className="wizard-progress">
+        <div className="progress-bar">
+          <div className="progress-fill" style={{ width: `${(step / 7) * 100}%` }}></div>
+        </div>
+        <div className="progress-label">{step === 0 ? 'Dokumentkvalificering' : `Steg ${step} av 6`}{qualification ? ` — ${qualification.recommendedType === 'PROSPEKT' ? 'Prospekt' : 'Informationsmemorandum'}` : ''}</div>
+      </div>
+
+      <div className="module-content">
+        {/* Show emission details at top */}
+        <div className="emission-details-banner">
+          <h3>✅ Emissionsvillkor (från projektet)</h3>
+          <div className="details-grid">
+            <div><strong>Typ:</strong> {projekt.emissionsvillkor.typ}</div>
+            <div><strong>Teckningskurs:</strong> {projekt.emissionsvillkor.teckningskurs} SEK</div>
+            <div><strong>Antal aktier:</strong> {projekt.emissionsvillkor.antalNyaAktier.toLocaleString('sv-SE')}</div>
+            <div><strong>Volym:</strong> {projekt.emissionsvillkor.emissionsvolym.toLocaleString('sv-SE')} SEK</div>
+          </div>
+        </div>
+
+        {/* Step 0: Qualification */}
+        {step === 0 && (
+          <div className="wizard-step">
+            <h2>Välkommen till Prospekt/IM Generatorn</h2>
+            <p>Besvara några frågor så avgör vi vilket dokument som behövs för er kapitalanskaffning.</p>
+
+            {!qualification ? (
+              <>
+                <div className="form-group">
+                  <label>Var är bolaget noterat/planerar notering?</label>
+                  <select value={qualificationForm.market} onChange={(e) => setQualificationForm({...qualificationForm, market: e.target.value})}>
+                    <option value="">-- Välj marknadsplats --</option>
+                    <option value="nasdaq_stockholm">Nasdaq Stockholm (reglerad marknad)</option>
+                    <option value="first_north">Nasdaq First North</option>
+                    <option value="spotlight">Spotlight Stock Market</option>
+                    <option value="nordic_sme">Nordic SME</option>
+                    <option value="unlisted">Onoterat / Planerar ej notering</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Total kapitalanskaffning (SEK)</label>
+                  <input type="number" value={qualificationForm.emissionSizeSEK}
+                    onChange={(e) => setQualificationForm({...qualificationForm, emissionSizeSEK: e.target.value})}
+                    placeholder="15000000" />
+                  <small style={{color: '#718096', display: 'block', marginTop: '4px'}}>Ange totalt belopp ni planerar att anskaffa</small>
+                </div>
+
+                <div className="form-group" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                  <input type="checkbox" id="period12m" checked={qualificationForm.period12Months}
+                    onChange={(e) => setQualificationForm({...qualificationForm, period12Months: e.target.checked})} />
+                  <label htmlFor="period12m" style={{margin: 0}}>Detta är den enda emissionen under en 12-månadersperiod</label>
+                </div>
+                <small style={{color: '#718096', display: 'block', marginBottom: '16px'}}>Om ni planerar flera emissioner inom 12 månader summeras dessa för prospektskyldighet</small>
+
+                <div className="form-group">
+                  <label>Vem riktar sig emissionen till?</label>
+                  <select value={qualificationForm.audience} onChange={(e) => setQualificationForm({...qualificationForm, audience: e.target.value})}>
+                    <option value="">-- Välj målgrupp --</option>
+                    <option value="public">Allmänheten / Befintliga aktieägare (≥150 personer)</option>
+                    <option value="qualified">Enbart kvalificerade investerare (&lt;150 st)</option>
+                    <option value="syndicate">Avgränsat syndikat (VC/PE/affärsänglar)</option>
+                  </select>
+                </div>
+
+                <button className="btn-primary" onClick={handleQualification}
+                  disabled={!qualificationForm.market || !qualificationForm.emissionSizeSEK || !qualificationForm.audience || loading}>
+                  {loading ? 'Analyserar...' : 'Analysera →'}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  background: qualification.recommendedType === 'PROSPEKT' ? '#fff5f5' : '#f0fff4',
+                  border: `2px solid ${qualification.recommendedType === 'PROSPEKT' ? '#fc8181' : '#48bb78'}`,
+                  borderRadius: '12px', padding: '1.5rem', marginBottom: '1.5rem'
+                }}>
+                  <h3>{qualification.recommendedType === 'PROSPEKT' ? '📋 Prospekt krävs' : '📄 Informationsmemorandum rekommenderas'}</h3>
+                  <p>{qualification.reasoning}</p>
+                  <p style={{marginTop: '0.5rem', fontSize: '0.9rem', color: '#718096'}}>
+                    <strong>Emissionsstorlek:</strong> ~€{(qualification.emissionSizeEUR || 0).toLocaleString('sv-SE')}
+                  </p>
+                </div>
+
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem'
+                }}>
+                  <div style={{background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.25rem'}}>
+                    <h4>📄 Informationsmemorandum</h4>
+                    <ul style={{marginLeft: '1rem', fontSize: '0.9rem', lineHeight: '1.8'}}>
+                      <li>✓ Snabbare att producera (3-5 dagar)</li>
+                      <li>✓ Lägre kostnad (frivilligt format)</li>
+                      <li>✓ Ingen FI-granskning</li>
+                      <li>✓ Lämpligt för riktade emissioner &lt;€8M</li>
+                    </ul>
+                  </div>
+                  <div style={{background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.25rem'}}>
+                    <h4>📋 Prospekt</h4>
+                    <ul style={{marginLeft: '1rem', fontSize: '0.9rem', lineHeight: '1.8'}}>
+                      <li>✓ FI-godkänt (högre trovärdighet)</li>
+                      <li>✓ Nödvändigt för allmänna erbjudanden ≥€8M</li>
+                      <li>⚠ Striktare formatkrav</li>
+                      <li>⚠ Längre processtid (4-6 veckor)</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div style={{display: 'flex', gap: '8px'}}>
+                  <button className="btn-primary" onClick={() => setStep(1)}>
+                    Fortsätt med {qualification.recommendedType === 'PROSPEKT' ? 'Prospekt' : 'Informationsmemorandum'} →
+                  </button>
+                  <button className="btn-secondary" onClick={() => { setQualification(null); }}>
+                    ← Ändra mina svar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Step 1: Bolagsinformation */}
+        {step === 1 && (
+          <div className="wizard-step">
+            <h2>Steg 1: Bolagsinformation</h2>
+            <p>Grundläggande information om bolaget</p>
+
+            <button className="btn-secondary" onClick={() => handleResearch('bolagsinfo')} disabled={loadingResearch} style={{marginBottom: '16px'}}>
+              {loadingResearch ? 'Söker...' : '🤖 Fyll i med AI'}
+            </button>
+
+            <div className="form-group">
+              <label>Bolagsnamn</label>
+              <input 
+                type="text"
+                value={formData.bolag.namn}
+                onChange={(e) => setFormData({...formData, bolag: {...formData.bolag, namn: e.target.value}})}
+              />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Organisationsnummer</label>
+                <input 
+                  type="text"
+                  value={formData.bolag.organisationsnummer}
+                  onChange={(e) => setFormData({...formData, bolag: {...formData.bolag, organisationsnummer: e.target.value}})}
+                  placeholder="XXXXXX-XXXX"
+                />
+              </div>
+              <div className="form-group">
+                <label>Säte</label>
+                <input 
+                  type="text"
+                  value={formData.bolag.säte}
+                  onChange={(e) => setFormData({...formData, bolag: {...formData.bolag, säte: e.target.value}})}
+                  placeholder="T.ex. Stockholm"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Bransch</label>
+              <input 
+                type="text"
+                value={formData.bolag.bransch}
+                onChange={(e) => setFormData({...formData, bolag: {...formData.bolag, bransch: e.target.value}})}
+                placeholder="T.ex. Cleantech, SaaS, Medtech"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Verksamhetsbeskrivning</label>
+              <textarea 
+                value={formData.bolag.verksamhetsbeskrivning}
+                onChange={(e) => setFormData({...formData, bolag: {...formData.bolag, verksamhetsbeskrivning: e.target.value}})}
+                rows="4"
+                placeholder="Beskriv vad bolaget gör, vilka produkter/tjänster ni erbjuder"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Strategi & Marknad */}
+        {step === 2 && (
+          <div className="wizard-step">
+            <h2>Steg 2: Strategi & Marknad</h2>
+
+            <button className="btn-secondary" onClick={() => handleResearch('strategi_marknad')} disabled={loadingResearch} style={{marginBottom: '16px'}}>
+              {loadingResearch ? 'Söker...' : '🤖 Hämta med AI'}
+            </button>
+
+            <div className="form-group">
+              <label>Affärsmodell</label>
+              <textarea 
+                value={formData.strategi.affärsmodell}
+                onChange={(e) => setFormData({...formData, strategi: {...formData.strategi, affärsmodell: e.target.value}})}
+                rows="3"
+                placeholder="Hur tjänar ni pengar? Prenumeration, licens, transaktion?"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Marknadsbeskrivning</label>
+              <textarea 
+                value={formData.strategi.marknadsbeskrivning}
+                onChange={(e) => setFormData({...formData, strategi: {...formData.strategi, marknadsbeskrivning: e.target.value}})}
+                rows="3"
+                placeholder="Beskriv er målmarknad, storlek, tillväxt"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Konkurrenter</label>
+              <textarea 
+                value={formData.strategi.konkurrenter}
+                onChange={(e) => setFormData({...formData, strategi: {...formData.strategi, konkurrenter: e.target.value}})}
+                rows="2"
+                placeholder="Vilka är era huvudkonkurrenter?"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Finansiell översikt */}
+        {step === 3 && (
+          <div className="wizard-step">
+            <h2>Steg 3: Finansiell översikt</h2>
+            <p>Senaste räkenskapsåret</p>
+
+            <div style={{display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap'}}>
+              <button className="btn-secondary" onClick={() => handleResearch('finansiellt')} disabled={loadingResearch}>
+                {loadingResearch ? 'Söker...' : '🤖 Hämta med AI'}
+              </button>
+              {projekt?.finansiellData && (
+                <button className="btn-primary" onClick={() => {
+                  const fd = projekt.finansiellData;
+                  const totalOms = Array.isArray(fd.omsättning) ? fd.omsättning.filter(v => v !== null).reduce((a, b) => a + b, 0) : '';
+                  const totalRes = Array.isArray(fd.resultat) ? fd.resultat.filter(v => v !== null).reduce((a, b) => a + b, 0) : '';
+                  setFormData(prev => ({
+                    ...prev,
+                    finansiellt: {
+                      omsättning: totalOms || prev.finansiellt.omsättning,
+                      resultat: totalRes || prev.finansiellt.resultat,
+                      egetKapital: fd.egetKapital || prev.finansiellt.egetKapital,
+                      år: fd.period ? parseInt(fd.period.match(/\d{4}/)?.[0]) || prev.finansiellt.år : prev.finansiellt.år
+                    }
+                  }));
+                  alert('✅ Data importerad från Kapitalrådgivaren!');
+                }}>
+                  📥 Importera från Kapitalrådgivaren
+                </button>
+              )}
+            </div>
+            <div className="info-box" style={{marginBottom: '16px', background: '#fff8e1', borderColor: '#ffe082'}}>
+              <p>⚠️ AI-hämtad finansiell data bör verifieras mot bolagets årsredovisning eller kvartalsrapporter.</p>
+              {projekt?.finansiellData && (
+                <p style={{marginTop: '8px'}}>💡 Du har finansiell data från Kapitalrådgivaren — klicka "Importera" ovan för att använda den.</p>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label>Räkenskapsår</label>
+              <input 
+                type="number"
+                value={formData.finansiellt.år}
+                onChange={(e) => setFormData({...formData, finansiellt: {...formData.finansiellt, år: parseInt(e.target.value)}})}
+              />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Omsättning (TSEK)</label>
+                <input 
+                  type="number"
+                  value={formData.finansiellt.omsättning}
+                  onChange={(e) => setFormData({...formData, finansiellt: {...formData.finansiellt, omsättning: e.target.value}})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Resultat (TSEK)</label>
+                <input 
+                  type="number"
+                  value={formData.finansiellt.resultat}
+                  onChange={(e) => setFormData({...formData, finansiellt: {...formData.finansiellt, resultat: e.target.value}})}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Eget kapital (TSEK)</label>
+              <input 
+                type="number"
+                value={formData.finansiellt.egetKapital}
+                onChange={(e) => setFormData({...formData, finansiellt: {...formData.finansiellt, egetKapital: e.target.value}})}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Team */}
+        {step === 4 && (
+          <div className="wizard-step">
+            <h2>Steg 4: Ledning & Styrelse</h2>
+
+            <button className="btn-secondary" onClick={() => handleResearch('ledning')} disabled={loadingResearch} style={{marginBottom: '16px'}}>
+              {loadingResearch ? 'Söker...' : '🤖 Hämta med AI'}
+            </button>
+
+            {formData.team.map((member, index) => (
+              <div key={index} className="team-member-card">
+                <div className="team-member-header">
+                  <h4>Person {index + 1}</h4>
+                  {formData.team.length > 1 && (
+                    <button className="btn-remove" onClick={() => removeTeamMember(index)}>
+                      ✕ Ta bort
+                    </button>
+                  )}
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Namn</label>
+                    <input 
+                      type="text"
+                      value={member.namn}
+                      onChange={(e) => updateTeamMember(index, 'namn', e.target.value)}
+                      placeholder="Förnamn Efternamn"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Roll</label>
+                    <input 
+                      type="text"
+                      value={member.roll}
+                      onChange={(e) => updateTeamMember(index, 'roll', e.target.value)}
+                      placeholder="VD, CFO, Styrelseordförande, etc."
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Bakgrund</label>
+                  <textarea 
+                    value={member.bakgrund}
+                    onChange={(e) => updateTeamMember(index, 'bakgrund', e.target.value)}
+                    rows="2"
+                    placeholder="Relevant erfarenhet och utbildning"
+                  />
+                </div>
+              </div>
+            ))}
+
+            <button className="btn-secondary" onClick={addTeamMember}>
+              ➕ Lägg till person
+            </button>
+          </div>
+        )}
+
+        {/* Step 5: Användning av emissionslikvid */}
+        {step === 5 && (
+          <div className="wizard-step">
+            <h2>Steg 5: Användning av emissionslikvid</h2>
+            <p>Kapitalet från emissionen kommer användas till:</p>
+
+            <div className="form-group">
+              <label>Beskriv hur emissionslikviden ska användas</label>
+              <textarea 
+                value={formData.användning}
+                onChange={(e) => setFormData({...formData, användning: e.target.value})}
+                rows="6"
+                placeholder="Exempel:&#10;• Produktutveckling: 40% (6 MSEK)&#10;• Marknadsföring: 30% (4.5 MSEK)&#10;• Anställningar: 20% (3 MSEK)&#10;• Rörelsekapital: 10% (1.5 MSEK)"
+              />
+            </div>
+
+            <div className="info-box">
+              <p><strong>Totalt tillgängligt från emission:</strong> {projekt.emissionsvillkor.emissionsvolym.toLocaleString('sv-SE')} SEK</p>
+            </div>
+          </div>
+        )}
+
+        {/* Step 6: Preview & Generate */}
+        {step === 6 && (
+          <div className="wizard-step">
+            <h2>Granska och generera</h2>
+
+            <div className="preview-section">
+              <h3>📄 Prospekt/IM innehåll</h3>
+              
+              <div className="preview-card">
+                <h4>Verksamhet och Strategi</h4>
+                <p>{generatedContent.verksamhet}</p>
+              </div>
+
+              <div className="preview-card">
+                <h4>Marknadsöversikt</h4>
+                <p>{generatedContent.marknad}</p>
+              </div>
+
+              <div className="preview-card">
+                <h4>Riskfaktorer</h4>
+                <pre>{generatedContent.riskfaktorer}</pre>
+              </div>
+
+              <div className="preview-card">
+                <h4>Ledning och Styrelse</h4>
+                <pre>{generatedContent.teamBios}</pre>
+              </div>
+
+              <div className="preview-card">
+                <h4>Finansiell information</h4>
+                <p>Omsättning: {formData.finansiellt.omsättning} TSEK ({formData.finansiellt.år})</p>
+                <p>Resultat: {formData.finansiellt.resultat} TSEK</p>
+                <p>Eget kapital: {formData.finansiellt.egetKapital} TSEK</p>
+              </div>
+
+              <div className="preview-card">
+                <h4>Emissionsvillkor</h4>
+                <p>Typ: {projekt.emissionsvillkor.typ}</p>
+                <p>Teckningskurs: {projekt.emissionsvillkor.teckningskurs} SEK</p>
+                <p>Antal nya aktier: {projekt.emissionsvillkor.antalNyaAktier.toLocaleString('sv-SE')}</p>
+                <p>Emissionsvolym: {projekt.emissionsvillkor.emissionsvolym.toLocaleString('sv-SE')} SEK</p>
+              </div>
+
+              <div className="preview-card">
+                <h4>Användning av emissionslikvid</h4>
+                <pre>{formData.användning}</pre>
+              </div>
+            </div>
+
+            <button 
+              className="btn-primary btn-large"
+              onClick={handleGeneratePDF}
+              style={{width: '100%', marginTop: '2rem'}}
+            >
+              📄 Generera PDF och gå vidare till Teckning
+            </button>
+          </div>
+        )}
+
+        {/* Navigation buttons */}
+        {step >= 1 && step < 6 && (
+          <div className="wizard-navigation">
+            {step > 1 ? (
+              <button className="btn-secondary" onClick={() => setStep(step - 1)}>
+                ← Föregående
+              </button>
+            ) : (
+              <button className="btn-secondary" onClick={() => setStep(0)}>
+                ← Tillbaka till kvalifikation
+              </button>
+            )}
+            {step < 5 && (
+              <button className="btn-primary" onClick={() => setStep(step + 1)}>
+                Nästa →
+              </button>
+            )}
+            {step === 5 && (
+              <button 
+                className="btn-primary"
+                onClick={handleGenerateContent}
+                disabled={loading}
+              >
+                {loading ? 'Genererar utkast...' : '🤖 Generera utkast till Prospekt/IM'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import './Login.css';
 import { apiPost, setAuthToken, setUser } from '../utils/api';
+import './Login.css';
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -14,30 +14,21 @@ function Login({ onLogin }) {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        (window.location.port === '3000' ? 'http://localhost:3001' : '') + '/api/auth/login',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        }
-      );
-
+      const response = await apiPost('/api/auth/login', { email, password });
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Inloggningen misslyckades');
-        setLoading(false);
-        return;
+        throw new Error(data.error || 'Inloggning misslyckades');
       }
 
       // Store token and user in session
       setAuthToken(data.token);
       setUser(data.user);
+
+      // Notify parent with user object
       onLogin(data.user);
     } catch (err) {
-      console.error('Login error:', err);
-      setError('Kunde inte ansluta till servern. Försök igen.');
+      setError(err.message || 'Kunde inte ansluta till servern');
     } finally {
       setLoading(false);
     }
@@ -51,13 +42,9 @@ function Login({ onLogin }) {
           <p>AI-driven plattform för kapitalanskaffning</p>
         </div>
 
-        {error && (
-          <div className="login-error">
-            <p>{error}</p>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="login-form">
+          {error && <div className="login-error">{error}</div>}
+
           <div className="form-group">
             <label>E-post</label>
             <input
@@ -88,11 +75,11 @@ function Login({ onLogin }) {
         </form>
 
         <div className="login-demo-notice">
-          <p><strong>Demo-version:</strong> Använd <code>demo@kapital.se</code> / <code>Demo2026!</code></p>
+          <p><strong>Demo:</strong> demo@kapital.se / Demo2026!</p>
         </div>
 
         <div className="login-footer">
-          <p>Kapitalplattformen v2.0</p>
+          <p>Ny användare? <a href="#register">Skapa konto</a></p>
         </div>
       </div>
     </div>
