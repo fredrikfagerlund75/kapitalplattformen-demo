@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Kassaflode.css';
-import { apiGet, apiPost, getAuthToken, getAuthHeaders } from '../utils/api';
+import { apiGet, apiPost, getAuthHeaders } from '../utils/api';
 
 const getApiBase = () =>
   (typeof window !== 'undefined' && window.location.port === '3000')
