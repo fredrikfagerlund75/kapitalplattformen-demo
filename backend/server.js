@@ -1524,6 +1524,37 @@ app.get('/api/marketing/brevo-campaigns', async (req, res) => {
 });
 
 // ========================================================================
+//  KASSAFLÖDE & NYHETER GET-routes – FÖRE SPA catch-all
+// ========================================================================
+
+const PptxGenJS = require('pptxgenjs');
+let kassaflodeData = {};
+function getKfData(userId) {
+  if (!kassaflodeData[userId]) kassaflodeData[userId] = { månader: [], prognos: null, scenarios: [] };
+  return kassaflodeData[userId];
+}
+function getUserIdFromReq(req) {
+  const token = req.headers.authorization?.split(' ')[1];
+  return tokenToUser.get(token)?.email || 'demo';
+}
+
+app.get('/api/kassaflode', (req, res) => {
+  res.json(getKfData(getUserIdFromReq(req)));
+});
+
+const newsAggregator = require('./news-aggregator');
+newsAggregator.start();
+
+app.get('/api/nyheter', requireAuth, (req, res) => {
+  const { category, limit = '50', skip = '0' } = req.query;
+  res.json(newsAggregator.getNyheter(category, +limit, +skip));
+});
+app.get('/api/nyheter/search', requireAuth, (req, res) => {
+  const { q = '' } = req.query;
+  res.json({ news: newsAggregator.search(q) });
+});
+
+// ========================================================================
 //  PRODUCTION: SERVE REACT BUILD
 // ========================================================================
 
@@ -1541,32 +1572,8 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ========================================================================
-//  KASSAFLÖDE
+//  KASSAFLÖDE (POST/DELETE/PUT routes – GET är registrerad före static)
 // ========================================================================
-
-const PptxGenJS = require('pptxgenjs');
-
-// In-memory storage: { [userId]: { månader: [], prognos: null, scenarios: [] } }
-let kassaflodeData = {};
-
-function getKfData(userId) {
-  if (!kassaflodeData[userId]) {
-    kassaflodeData[userId] = { månader: [], prognos: null, scenarios: [] };
-  }
-  return kassaflodeData[userId];
-}
-
-function getUserIdFromReq(req) {
-  const token = req.headers.authorization?.split(' ')[1];
-  return tokenToUser.get(token)?.email || 'demo';
-}
-
-// GET /api/kassaflode – hämta all data för inloggad användare
-app.get('/api/kassaflode', (req, res) => {
-  const userId = getUserIdFromReq(req);
-  const data = getKfData(userId);
-  res.json(data);
-});
 
 // POST /api/kassaflode/manad – lägg till eller uppdatera en månad
 app.post('/api/kassaflode/manad', (req, res) => {
@@ -1828,23 +1835,6 @@ app.post('/api/kassaflode/export-ppt', async (req, res) => {
     console.error('PPT export error:', error);
     res.status(500).json({ error: 'PowerPoint-export misslyckades: ' + error.message });
   }
-});
-
-// ========================================================================
-//  EMISSIONSNYHETER
-// ========================================================================
-
-const newsAggregator = require('./news-aggregator');
-newsAggregator.start();
-
-app.get('/api/nyheter', requireAuth, (req, res) => {
-  const { category, limit = '50', skip = '0' } = req.query;
-  res.json(newsAggregator.getNyheter(category, +limit, +skip));
-});
-
-app.get('/api/nyheter/search', requireAuth, (req, res) => {
-  const { q = '' } = req.query;
-  res.json({ news: newsAggregator.search(q) });
 });
 
 // ========================================================================
