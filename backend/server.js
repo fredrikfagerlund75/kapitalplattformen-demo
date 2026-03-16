@@ -40,6 +40,7 @@ console.log('API Key configured:', !!process.env.ANTHROPIC_API_KEY);
 // ========================================================================
 
 const validTokens = new Set();
+const tokenToUser = new Map(); // token → { email }
 
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
@@ -49,6 +50,7 @@ app.post('/api/auth/login', (req, res) => {
   if (email === demoEmail && password === demoPassword) {
     const token = crypto.randomUUID();
     validTokens.add(token);
+    tokenToUser.set(token, { email });
     console.log(`Login successful for ${email}. Active tokens: ${validTokens.size}`);
     return res.json({
       token,
@@ -1528,13 +1530,322 @@ app.get('/api/marketing/brevo-campaigns', async (req, res) => {
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, '..', 'frontend', 'build');
   app.use(express.static(buildPath));
-  app.get('*', (req, res) => {
+  app.get('*', (req, res, next) => {
     if (!req.path.startsWith('/api/')) {
       res.sendFile(path.join(buildPath, 'index.html'));
+    } else {
+      next();
     }
   });
   console.log('Production mode: serving React build from', buildPath);
 }
+
+// ========================================================================
+//  KASSAFLÖDE
+// ========================================================================
+
+const PptxGenJS = require('pptxgenjs');
+
+// In-memory storage: { [userId]: { månader: [], prognos: null, scenarios: [] } }
+let kassaflodeData = {};
+
+function getKfData(userId) {
+  if (!kassaflodeData[userId]) {
+    kassaflodeData[userId] = { månader: [], prognos: null, scenarios: [] };
+  }
+  return kassaflodeData[userId];
+}
+
+function getUserIdFromReq(req) {
+  const token = req.headers.authorization?.split(' ')[1];
+  return tokenToUser.get(token)?.email || 'demo';
+}
+
+// GET /api/kassaflode – hämta all data för inloggad användare
+app.get('/api/kassaflode', (req, res) => {
+  const userId = getUserIdFromReq(req);
+  const data = getKfData(userId);
+  res.json(data);
+});
+
+// POST /api/kassaflode/manad – lägg till eller uppdatera en månad
+app.post('/api/kassaflode/manad', (req, res) => {
+  const userId = getUserIdFromReq(req);
+  const data = getKfData(userId);
+  const { datum, inbetalningar, utbetalningar, kassaBalans } = req.body;
+
+  if (!datum) return res.status(400).json({ error: 'datum krävs (format: YYYY-MM)' });
+
+  const netto = (inbetalningar?.omsättning || 0) + (inbetalningar?.övrigtIn || 0)
+    - (utbetalningar?.löner || 0) - (utbetalningar?.lokaler || 0)
+    - (utbetalningar?.marknadsföring || 0) - (utbetalningar?.leverantörer || 0)
+    - (utbetalningar?.övrigt || 0);
+
+  const befintlig = data.månader.findIndex(m => m.datum === datum);
+  const månad = { datum, inbetalningar: inbetalningar || {}, utbetalningar: utbetalningar || {}, netto, kassaBalans: kassaBalans || 0 };
+
+  if (befintlig >= 0) {
+    data.månader[befintlig] = månad;
+  } else {
+    data.månader.push(månad);
+    data.månader.sort((a, b) => a.datum.localeCompare(b.datum));
+  }
+
+  res.json({ success: true, månad });
+});
+
+// DELETE /api/kassaflode/manad/:datum – ta bort månad
+app.delete('/api/kassaflode/manad/:datum', (req, res) => {
+  const userId = getUserIdFromReq(req);
+  const data = getKfData(userId);
+  const { datum } = req.params;
+  data.månader = data.månader.filter(m => m.datum !== datum);
+  res.json({ success: true });
+});
+
+// POST /api/kassaflode/generate-prognos – AI-prognos
+app.post('/api/kassaflode/generate-prognos', async (req, res) => {
+  const userId = getUserIdFromReq(req);
+  const data = getKfData(userId);
+  const { antaganden = {} } = req.body;
+
+  // Senaste 12 månader
+  const historik = data.månader.slice(-12);
+  if (historik.length === 0) {
+    return res.status(400).json({ error: 'Lägg till minst en månads data innan du genererar prognos.' });
+  }
+
+  const historikText = historik.map(m =>
+    `${m.datum}: Inbet ${(m.inbetalningar?.omsättning || 0) + (m.inbetalningar?.övrigtIn || 0)} kr, ` +
+    `Utbet ${(m.utbetalningar?.löner || 0) + (m.utbetalningar?.lokaler || 0) + (m.utbetalningar?.marknadsföring || 0) + (m.utbetalningar?.leverantörer || 0) + (m.utbetalningar?.övrigt || 0)} kr, ` +
+    `Netto ${m.netto} kr, Kassa ${m.kassaBalans} kr`
+  ).join('\n');
+
+  const antagandenText = Object.entries(antaganden).map(([k, v]) => `${k}: ${v}`).join(', ') || 'Inga specifika antaganden';
+
+  const prompt = `Du är en CFO-rådgivare. Analysera kassaflödeshistoriken nedan och generera en 12-månaders framåtprognos.
+
+HISTORIK (senaste ${historik.length} månader):
+${historikText}
+
+ANTAGANDEN: ${antagandenText}
+
+Returnera ENBART giltig JSON i detta format (inga kommentarer, ingen text utanför JSON):
+{
+  "sammanfattning": "2-3 meningar om trenden",
+  "burnRate": <genomsnittligt månatligt nettoutflöde som positivt tal, 0 om positivt kassaflöde>,
+  "runway": <antal månader kassa räcker baserat på senaste kassa och burn rate, null om ej beräkningsbart>,
+  "framtid": [
+    {"månad": "YYYY-MM", "prognos": <netto kr>, "kassaBalans": <kassa kr>, "confidence": <0.0-1.0>}
+  ],
+  "varningar": ["varning 1", "varning 2"],
+  "rekommendationer": ["råd 1", "råd 2"]
+}`;
+
+  try {
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    let prognosText = message.content[0].text.trim();
+    if (prognosText.startsWith('```')) {
+      prognosText = prognosText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+    }
+    const prognos = JSON.parse(prognosText);
+    data.prognos = { ...prognos, generatedAt: new Date().toISOString(), antaganden };
+    res.json({ success: true, prognos: data.prognos });
+  } catch (error) {
+    console.error('Kassaflöde prognos error:', error);
+    res.status(500).json({ error: 'Kunde inte generera prognos: ' + error.message });
+  }
+});
+
+// POST /api/kassaflode/scenarios – skapa nytt scenario
+app.post('/api/kassaflode/scenarios', async (req, res) => {
+  const userId = getUserIdFromReq(req);
+  const data = getKfData(userId);
+  const { namn, ändringar = [] } = req.body;
+
+  if (!namn) return res.status(400).json({ error: 'namn krävs' });
+  if (!data.prognos) return res.status(400).json({ error: 'Generera en basprognos först (Tab 3).' });
+
+  // Applicera ändringar på basprognosen
+  const månadsändring = ändringar.reduce((sum, ä) => {
+    if (ä.typ === 'anställningar') return sum - (ä.antal || 0) * (ä.kostnadPerPerson || 60000);
+    if (ä.typ === 'marknadsföring') return sum - (ä.ökning || 0);
+    if (ä.typ === 'intäktsökning') return sum + (ä.belopp || 0);
+    return sum;
+  }, 0);
+
+  let kassaBalans = data.månader.length > 0 ? data.månader[data.månader.length - 1].kassaBalans : 0;
+  const framtid = data.prognos.framtid.map(m => {
+    const netto = m.prognos + månadsändring;
+    kassaBalans += netto;
+    return { ...m, prognos: netto, kassaBalans };
+  });
+
+  const scenario = {
+    id: crypto.randomUUID(),
+    namn,
+    skapad: new Date().toISOString().split('T')[0],
+    ändringar,
+    månadsändring,
+    framtid,
+    runway: framtid.findIndex(m => m.kassaBalans <= 0),
+    kapitalbehov: Math.abs(Math.min(...framtid.map(m => m.kassaBalans), 0))
+  };
+
+  data.scenarios.push(scenario);
+  res.json({ success: true, scenario });
+});
+
+// DELETE /api/kassaflode/scenarios/:id – ta bort scenario
+app.delete('/api/kassaflode/scenarios/:id', (req, res) => {
+  const userId = getUserIdFromReq(req);
+  const data = getKfData(userId);
+  data.scenarios = data.scenarios.filter(s => s.id !== req.params.id);
+  res.json({ success: true });
+});
+
+// POST /api/kassaflode/export-ppt – generera PowerPoint
+app.post('/api/kassaflode/export-ppt', async (req, res) => {
+  const userId = getUserIdFromReq(req);
+  const data = getKfData(userId);
+  const { scenarioId } = req.body;
+
+  const scenario = scenarioId ? data.scenarios.find(s => s.id === scenarioId) : null;
+  const prognos = data.prognos;
+  const månader = data.månader;
+
+  if (!prognos) return res.status(400).json({ error: 'Generera en prognos först.' });
+
+  try {
+    const pptx = new PptxGenJS();
+    pptx.layout = 'LAYOUT_WIDE';
+
+    const TEAL = '0D7377';
+    const WHITE = 'FFFFFF';
+    const GRAY = '637070';
+
+    const addSlide = (title, cb) => {
+      const slide = pptx.addSlide();
+      slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: 1.2, fill: { color: TEAL } });
+      slide.addText(title, { x: 0.5, y: 0.25, w: 9, h: 0.7, fontSize: 24, bold: true, color: WHITE });
+      cb(slide);
+      return slide;
+    };
+
+    // Slide 1: Executive Summary
+    addSlide('Executive Summary – Kassaflöde', slide => {
+      const senaste = månader[månader.length - 1];
+      const kassa = senaste?.kassaBalans || 0;
+      const runway = prognos.runway;
+      const status = runway === null ? '–' : runway > 12 ? '🟢 God likviditet' : runway > 6 ? '🟡 Bevaka noga' : '🔴 Kritisk';
+      slide.addText([
+        { text: `Aktuell kassa: `, options: { bold: true } }, { text: `${kassa.toLocaleString('sv-SE')} kr\n` },
+        { text: `Burn rate: `, options: { bold: true } }, { text: `${(prognos.burnRate || 0).toLocaleString('sv-SE')} kr/mån\n` },
+        { text: `Runway: `, options: { bold: true } }, { text: `${runway ?? '–'} månader\n` },
+        { text: `Status: `, options: { bold: true } }, { text: status }
+      ], { x: 0.5, y: 1.5, w: 9, h: 2.5, fontSize: 14, color: '0F1F1F', valign: 'top' });
+      slide.addText(prognos.sammanfattning || '', { x: 0.5, y: 4, w: 9, h: 1.5, fontSize: 12, color: GRAY, wrap: true });
+    });
+
+    // Slide 2: Kassautveckling historik
+    addSlide('Kassautveckling – Historik', slide => {
+      const rows = [['Månad', 'Inbet (kr)', 'Utbet (kr)', 'Netto (kr)', 'Kassa (kr)']];
+      månader.slice(-12).forEach(m => {
+        const inbet = (m.inbetalningar?.omsättning || 0) + (m.inbetalningar?.övrigtIn || 0);
+        const utbet = (m.utbetalningar?.löner || 0) + (m.utbetalningar?.lokaler || 0) + (m.utbetalningar?.marknadsföring || 0) + (m.utbetalningar?.leverantörer || 0) + (m.utbetalningar?.övrigt || 0);
+        rows.push([m.datum, inbet.toLocaleString('sv-SE'), utbet.toLocaleString('sv-SE'), m.netto.toLocaleString('sv-SE'), m.kassaBalans.toLocaleString('sv-SE')]);
+      });
+      slide.addTable(rows, { x: 0.5, y: 1.4, w: 9, colW: [1.5, 1.8, 1.8, 1.8, 2.1], fontSize: 10, border: { type: 'solid', color: 'DDE6E6' }, fill: { color: WHITE }, color: '0F1F1F' });
+    });
+
+    // Slide 3: Nyckeltal KPI
+    addSlide('Nyckeltal & KPI', slide => {
+      const kpis = [
+        ['Aktuell kassa', `${(månader[månader.length - 1]?.kassaBalans || 0).toLocaleString('sv-SE')} kr`],
+        ['Burn rate (3-mån snitt)', `${(prognos.burnRate || 0).toLocaleString('sv-SE')} kr/mån`],
+        ['Runway', `${prognos.runway ?? '–'} månader`],
+        ['Antal månader historik', `${månader.length} st`],
+        ['Prognos genererad', prognos.generatedAt?.split('T')[0] || '–']
+      ];
+      kpis.forEach(([label, value], i) => {
+        slide.addText(label, { x: 0.5, y: 1.4 + i * 0.7, w: 4, h: 0.5, fontSize: 12, bold: true, color: GRAY });
+        slide.addText(value, { x: 4.5, y: 1.4 + i * 0.7, w: 5, h: 0.5, fontSize: 12, color: '0F1F1F' });
+      });
+    });
+
+    // Slide 4: 12-månaders prognos
+    addSlide('12-månaders Prognos', slide => {
+      const rows = [['Månad', 'Prognos netto (kr)', 'Kassabalans (kr)', 'Confidence']];
+      (prognos.framtid || []).forEach(m => {
+        rows.push([m.månad, m.prognos.toLocaleString('sv-SE'), m.kassaBalans.toLocaleString('sv-SE'), `${Math.round(m.confidence * 100)}%`]);
+      });
+      slide.addTable(rows, { x: 0.5, y: 1.4, w: 9, colW: [2, 2.5, 2.5, 2], fontSize: 10, border: { type: 'solid', color: 'DDE6E6' }, fill: { color: WHITE }, color: '0F1F1F' });
+    });
+
+    // Slide 5: Scenario (om valt)
+    if (scenario) {
+      addSlide(`Scenario: ${scenario.namn}`, slide => {
+        slide.addText(`Månadsändring: ${scenario.månadsändring.toLocaleString('sv-SE')} kr`, { x: 0.5, y: 1.4, w: 9, h: 0.4, fontSize: 13, bold: true, color: '0F1F1F' });
+        const rows = [['Månad', 'Scenario netto (kr)', 'Kassabalans (kr)']];
+        scenario.framtid.slice(0, 12).forEach(m => {
+          rows.push([m.månad, m.prognos.toLocaleString('sv-SE'), m.kassaBalans.toLocaleString('sv-SE')]);
+        });
+        slide.addTable(rows, { x: 0.5, y: 2, w: 9, colW: [2.5, 3, 3.5], fontSize: 10, border: { type: 'solid', color: 'DDE6E6' }, fill: { color: WHITE }, color: '0F1F1F' });
+      });
+    }
+
+    // Slide 6: Varningar
+    addSlide('Varningar & Rekommendationer', slide => {
+      if (prognos.varningar?.length) {
+        slide.addText('⚠️ Varningar', { x: 0.5, y: 1.4, w: 9, h: 0.4, fontSize: 14, bold: true, color: 'E03636' });
+        prognos.varningar.forEach((v, i) => {
+          slide.addText(`• ${v}`, { x: 0.5, y: 1.9 + i * 0.5, w: 9, h: 0.4, fontSize: 12, color: '0F1F1F' });
+        });
+      }
+      const recStart = 1.4 + (prognos.varningar?.length || 0) * 0.5 + 0.8;
+      if (prognos.rekommendationer?.length) {
+        slide.addText('✅ Rekommendationer', { x: 0.5, y: recStart, w: 9, h: 0.4, fontSize: 14, bold: true, color: TEAL });
+        prognos.rekommendationer.forEach((r, i) => {
+          slide.addText(`• ${r}`, { x: 0.5, y: recStart + 0.5 + i * 0.5, w: 9, h: 0.4, fontSize: 12, color: '0F1F1F' });
+        });
+      }
+    });
+
+    const scenarioNamn = scenario?.namn?.replace(/\s+/g, '_') || 'prognos';
+    const datum = new Date().toISOString().split('T')[0];
+    const filename = `kassaflode_${scenarioNamn}_${datum}.pptx`;
+
+    const buffer = await pptx.write({ outputType: 'nodebuffer' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('PPT export error:', error);
+    res.status(500).json({ error: 'PowerPoint-export misslyckades: ' + error.message });
+  }
+});
+
+// ========================================================================
+//  EMISSIONSNYHETER
+// ========================================================================
+
+const newsAggregator = require('./news-aggregator');
+newsAggregator.start();
+
+app.get('/api/nyheter', requireAuth, (req, res) => {
+  const { category, limit = '50', skip = '0' } = req.query;
+  res.json(newsAggregator.getNyheter(category, +limit, +skip));
+});
+
+app.get('/api/nyheter/search', requireAuth, (req, res) => {
+  const { q = '' } = req.query;
+  res.json({ news: newsAggregator.search(q) });
+});
 
 // ========================================================================
 //  SERVER START

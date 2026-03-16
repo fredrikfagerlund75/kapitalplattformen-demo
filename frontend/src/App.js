@@ -10,6 +10,8 @@ import Marknadsföring from './components/Marknadsföring';
 import Analytics from './components/Analytics';
 import Aktiebok from './components/Aktiebok';
 import Inställningar from './components/Inställningar';
+import Kassaflode from './components/Kassaflode';
+import Emissionsnyheter from './components/Emissionsnyheter';
 import { apiGet, apiPost, apiPut, getAuthToken, getUser, clearAuthToken } from './utils/api';
 
 function App() {
@@ -232,6 +234,20 @@ function App() {
               setCompanySettings(settings);
               sessionStorage.setItem('companySettings', JSON.stringify(settings));
             }}
+            onBack={() => navigateTo('dashboard')}
+          />
+        )}
+
+        {currentView === 'kassaflode' && (
+          <Kassaflode
+            user={user}
+            onBack={() => navigateTo('dashboard')}
+          />
+        )}
+
+        {currentView === 'emissionsnyheter' && (
+          <Emissionsnyheter
+            user={user}
             onBack={() => navigateTo('dashboard')}
           />
         )}

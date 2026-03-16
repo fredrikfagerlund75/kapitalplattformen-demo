@@ -1,0 +1,418 @@
+/* ============================================================
+   KASSAFLÖDE-MODUL  (prefix: kf-)
+   Återanvänder design tokens från App.css
+   ============================================================ */
+
+.kf-container {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* ── Tabs ───────────────────────────────────────────────── */
+.kf-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: var(--space-8);
+}
+
+.kf-tab {
+  padding: var(--space-3) var(--space-6);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-base);
+  margin-bottom: -2px;
+  font-family: inherit;
+}
+
+.kf-tab:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.kf-tab--active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* ── Alerts ─────────────────────────────────────────────── */
+.kf-alert {
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-6);
+  font-size: 0.95rem;
+}
+
+.kf-alert--error {
+  background: var(--color-danger-bg);
+  border-left: 4px solid var(--color-danger);
+  color: var(--color-danger);
+}
+
+.kf-alert--warning {
+  background: var(--color-warning-bg);
+  border-left: 4px solid var(--color-warning);
+  color: #7A5200;
+}
+
+.kf-alert--info {
+  background: var(--color-primary-light);
+  border-left: 4px solid var(--color-primary);
+  color: var(--color-primary-dark);
+}
+
+/* ── Loading ────────────────────────────────────────────── */
+.kf-loading {
+  text-align: center;
+  padding: var(--space-12);
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+}
+
+/* ── Dashboard tab ──────────────────────────────────────── */
+.kf-status-banner {
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-8);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.kf-status--green { background: var(--color-success-bg); color: #1a6b3c; border-left: 4px solid var(--color-success); }
+.kf-status--yellow { background: var(--color-warning-bg); color: #7A5200; border-left: 4px solid var(--color-warning); }
+.kf-status--red { background: var(--color-danger-bg); color: var(--color-danger); border-left: 4px solid var(--color-danger); }
+.kf-status--neutral { background: var(--color-bg); color: var(--color-text-secondary); border-left: 4px solid var(--color-border); }
+
+.kf-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+
+.kf-kpi-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+}
+
+.kf-kpi-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-2);
+}
+
+.kf-kpi-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: var(--space-1);
+}
+
+.kf-kpi-sub {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Chart ──────────────────────────────────────────────── */
+.kf-chart-section {
+  margin-bottom: var(--space-8);
+}
+
+.kf-chart-section h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-4);
+}
+
+.kf-chart-bars {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-end;
+  height: 120px;
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.kf-chart-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: var(--space-1);
+}
+
+.kf-chart-val {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+}
+
+.kf-chart-bar {
+  width: 100%;
+  max-width: 40px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  min-height: 4px;
+}
+
+.kf-bar--pos { background: var(--color-primary); opacity: 0.75; }
+.kf-bar--neg { background: var(--color-danger); opacity: 0.75; }
+
+.kf-chart-label {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+}
+
+/* ── CTA: Kapitalrådgivaren ─────────────────────────────── */
+.kf-kapitalrad-cta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-danger-bg);
+  border: 1px solid rgba(224, 54, 54, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  gap: var(--space-6);
+  margin-top: var(--space-8);
+}
+
+.kf-cta-text strong {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--color-danger);
+}
+
+.kf-cta-text p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+/* ── Form sections ──────────────────────────────────────── */
+.kf-form-section {
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-6);
+  margin-bottom: var(--space-4);
+}
+
+.kf-form-section h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: var(--space-3);
+  color: var(--color-text-primary);
+}
+
+.kf-netto-preview {
+  background: var(--color-bg) !important;
+  font-weight: 700;
+  color: var(--color-primary) !important;
+}
+
+/* ── Table ──────────────────────────────────────────────── */
+.kf-table-wrapper {
+  overflow-x: auto;
+  margin-bottom: var(--space-6);
+}
+
+.kf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.kf-table th {
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kf-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.kf-table tr:hover td {
+  background: var(--color-bg);
+}
+
+.kf-table--compact td,
+.kf-table--compact th {
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.85rem;
+}
+
+.kf-td--pos { color: var(--color-success); font-weight: 600; }
+.kf-td--neg { color: var(--color-danger); font-weight: 600; }
+
+.kf-btn-delete {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: var(--space-1) var(--space-2);
+  transition: var(--transition-base);
+  border-radius: var(--radius-sm);
+}
+
+.kf-btn-delete:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+/* ── Historik ───────────────────────────────────────────── */
+.kf-historik {
+  margin-top: var(--space-8);
+}
+
+.kf-historik h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+  color: var(--color-text-primary);
+}
+
+/* ── Prognos tab ────────────────────────────────────────── */
+.kf-description {
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  margin-bottom: var(--space-6);
+}
+
+.kf-antaganden {
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.kf-antaganden h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: var(--space-3);
+  color: var(--color-text-secondary);
+}
+
+.kf-prognos-resultat {
+  margin-top: var(--space-8);
+}
+
+.kf-prognos-summary {
+  background: var(--color-primary-light);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+  color: var(--color-primary-dark);
+}
+
+/* ── Scenarios tab ──────────────────────────────────────── */
+.kf-scenario-form {
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+
+.kf-scenario-form h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+}
+
+.kf-scenario-list h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+}
+
+.kf-scenario-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+  box-shadow: var(--shadow-sm);
+}
+
+.kf-scenario-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.kf-scenario-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.kf-scenario-date {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.kf-scenario-stats {
+  display: flex;
+  gap: var(--space-8);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.kf-stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+
+.kf-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.kf-compare-table-wrapper {
+  overflow-x: auto;
+  margin-bottom: var(--space-4);
+}
+
+.kf-scenario-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* ── Månadsdata headings ────────────────────────────────── */
+.kf-månadsdata h2,
+.kf-prognos h2,
+.kf-scenarios h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-4);
+  color: var(--color-text-primary);
+}

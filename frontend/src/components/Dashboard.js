@@ -159,11 +159,16 @@ function Dashboard({ user, emissionsprojekt, onNavigate, onCreateProject, onRefr
             <p>Hantera aktieägare</p>
           </div>
 
-          <div className="module-card disabled">
-            <div className="module-icon">📈</div>
-            <h3>Översikt</h3>
-            <p>Sammanställning alla projekt</p>
-            <span className="coming-soon-badge">Kommer snart</span>
+          <div className="module-card" onClick={() => onNavigate('kassaflode')}>
+            <div className="module-icon">💰</div>
+            <h3>Ditt kassaflöde</h3>
+            <p>Kassaflöde, burnrate & scenarios</p>
+          </div>
+
+          <div className="module-card" onClick={() => onNavigate('emissionsnyheter')}>
+            <div className="module-icon">📰</div>
+            <h3>Emissionsnyheter</h3>
+            <p>Nyheter från DI & Finansinspektionen</p>
           </div>
         </div>
       </div>
