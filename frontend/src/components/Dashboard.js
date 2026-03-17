@@ -104,7 +104,7 @@ function Dashboard({ user, emissionsprojekt, onNavigate, onCreateProject, onRefr
           <button className="back-button" onClick={() => setActiveSection(null)}>← Tillbaka</button>
           <h2>📁 Tidigare Emissionsprojekt</h2>
         </div>
-        {renderProjektList(tidigareProjekt, true)}
+        {renderProjektList(tidigareProjekt, false)}
       </div>
     );
   }

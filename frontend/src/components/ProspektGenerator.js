@@ -216,6 +216,27 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
     setLoading(false);
   };
 
+  const handleGenerateDocx = async () => {
+    try {
+      const response = await apiPost('/api/generate-docx', {
+        company: { name: formData.bolag.namn },
+        content: generatedContent,
+        emissionsvillkor: projekt.emissionsvillkor
+      });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${(formData.bolag.namn || 'Bolag').replace(/\s+/g, '_')}_IM.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert('Kunde inte generera Word-fil: ' + error.message);
+    }
+  };
+
   const handleGeneratePDF = async () => {
     setLoading(true);
     try {
@@ -698,22 +719,42 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
               
               <div className="preview-card">
                 <h4>Verksamhet och Strategi</h4>
-                <p>{generatedContent.verksamhet}</p>
+                <textarea
+                  value={generatedContent.verksamhet}
+                  onChange={(e) => setGeneratedContent({...generatedContent, verksamhet: e.target.value})}
+                  rows={8}
+                  style={{width: '100%', fontFamily: 'inherit', fontSize: '0.9rem', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box'}}
+                />
               </div>
 
               <div className="preview-card">
                 <h4>Marknadsöversikt</h4>
-                <p>{generatedContent.marknad}</p>
+                <textarea
+                  value={generatedContent.marknad}
+                  onChange={(e) => setGeneratedContent({...generatedContent, marknad: e.target.value})}
+                  rows={8}
+                  style={{width: '100%', fontFamily: 'inherit', fontSize: '0.9rem', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box'}}
+                />
               </div>
 
               <div className="preview-card">
                 <h4>Riskfaktorer</h4>
-                <pre>{generatedContent.riskfaktorer}</pre>
+                <textarea
+                  value={generatedContent.riskfaktorer}
+                  onChange={(e) => setGeneratedContent({...generatedContent, riskfaktorer: e.target.value})}
+                  rows={10}
+                  style={{width: '100%', fontFamily: 'inherit', fontSize: '0.9rem', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box'}}
+                />
               </div>
 
               <div className="preview-card">
                 <h4>Ledning och Styrelse</h4>
-                <pre>{generatedContent.teamBios}</pre>
+                <textarea
+                  value={generatedContent.teamBios}
+                  onChange={(e) => setGeneratedContent({...generatedContent, teamBios: e.target.value})}
+                  rows={8}
+                  style={{width: '100%', fontFamily: 'inherit', fontSize: '0.9rem', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box'}}
+                />
               </div>
 
               <div className="preview-card">
@@ -733,17 +774,33 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
 
               <div className="preview-card">
                 <h4>Användning av emissionslikvid</h4>
-                <pre>{formData.användning}</pre>
+                <p style={{whiteSpace: 'pre-wrap'}}>{formData.användning}</p>
               </div>
             </div>
 
-            <button 
-              className="btn-primary btn-large"
-              onClick={handleGeneratePDF}
-              style={{width: '100%', marginTop: '2rem'}}
-            >
-              📄 Generera PDF och gå vidare till Teckning
-            </button>
+            <div style={{marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
+              <button
+                className="btn-secondary"
+                onClick={() => onUpdateProject(projekt.id, { generatedContent })}
+                style={{width: '100%'}}
+              >
+                💾 Spara ändringar
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={handleGenerateDocx}
+                style={{width: '100%'}}
+              >
+                📝 Exportera som Word (.docx)
+              </button>
+              <button
+                className="btn-primary btn-large"
+                onClick={handleGeneratePDF}
+                style={{width: '100%'}}
+              >
+                📄 Generera PDF och gå vidare till Teckning
+              </button>
+            </div>
           </div>
         )}
 

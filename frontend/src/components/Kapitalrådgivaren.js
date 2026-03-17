@@ -55,7 +55,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
     kapitalbehov: '',
     tidhorisont: '',
     aktivaSektioner: {
-      prognoser: true,
+      prognoser: false,
       initiativ: false,
       åtaganden: false,
       milestones: false,
@@ -537,6 +537,9 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             </div>
             
             <div className="actions-section">
+              <button className="btn-secondary" onClick={() => setStep('upload')} style={{marginBottom: '1.5rem'}}>
+                🎯 Starta ny analys (nytt emissionsprojekt)
+              </button>
               <h3>Tillgängliga åtgärder</h3>
               <div style={{display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px'}}>
                 <button className="btn-primary" onClick={() => handleGenerateMarPM('beslut')} disabled={loading}>
@@ -1435,7 +1438,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                   </div>
 
                   <div className="stock-metric-card">
-                    <div className="metric-label">Uppdaterad</div>
+                    <div className="metric-label">Senaste handel</div>
                     <div className="metric-value" style={{fontSize: '1rem'}}>
                       {new Date(stockData.updatedAt).toLocaleString('sv-SE')}
                     </div>

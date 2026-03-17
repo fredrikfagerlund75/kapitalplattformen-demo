@@ -789,6 +789,7 @@ app.post('/api/kapitalradgivaren/emissionsanalys', async (req, res) => {
 
     // Bygg börsdata-avsnitt om sådant finns
     let börsdataAvsnitt = '';
+    let maxKapitalEnligtMandatMSEK = null;
     if (börsdataInfo && börsdataInfo.marketCap) {
       const börsvärde = (börsdataInfo.marketCap / 1000000).toFixed(1);
       const utestående = börsdataInfo.sharesOutstanding ? börsdataInfo.sharesOutstanding.toLocaleString('sv-SE') : 'okänt';
@@ -800,15 +801,20 @@ app.post('/api/kapitalradgivaren/emissionsanalys', async (req, res) => {
       const utspädning = (behovdaAktier && börsdataInfo.sharesOutstanding)
         ? ((behovdaAktier / (börsdataInfo.sharesOutstanding + behovdaAktier)) * 100).toFixed(1)
         : null;
+      maxKapitalEnligtMandatMSEK = (mandatAktier && teckningskurs20 > 0)
+        ? ((mandatAktier * teckningskurs20) / 1000000).toFixed(1)
+        : null;
+      const mandatRäcker = mandatAktier && behovdaAktier ? mandatAktier >= behovdaAktier : null;
 
       börsdataAvsnitt = `\nBÖRSDATA & EMISSIONSMANDAT:
 Börsvärde: ${börsvärde} MSEK
 Utestående aktier: ${utestående} st
 Aktiekurs: ${kurs} SEK
 ${mandatAktier ? `Bolagsstämmans bemyndigande: ${mandatAktier.toLocaleString('sv-SE')} aktier` : 'Bemyndigande: ej angivet'}
+${maxKapitalEnligtMandatMSEK ? `Max kapital inom befintligt bemyndigande (vid 20% rabatt): ${maxKapitalEnligtMandatMSEK} MSEK` : ''}
 ${behovdaAktier ? `Beräknade aktier för emission (vid 20% rabatt): ~${behovdaAktier.toLocaleString('sv-SE')} st` : ''}
 ${utspädning ? `Beräknad utspädning: ~${utspädning}% av totalt antal aktier efter emission` : ''}
-${mandatAktier && behovdaAktier ? (mandatAktier >= behovdaAktier ? '\u2192 Bem\u00fcndigandet R\u00c4CKER f\u00f6r f\u00f6reslagen emission.' : '\u2192 VARNING: Bem\u00fcndigandet r\u00e4cker INTE. Ny bolagesst\u00e4mma kr\u00e4vs.') : ''}
+${mandatRäcker === true ? '→ Bemyndigandet RÄCKER för föreslagen emission.' : mandatRäcker === false ? '→ VARNING: Bemyndigandet räcker INTE för föreslagen emission.' : ''}
 `;
     }
 
@@ -844,10 +850,20 @@ Svara med:
 4. SYFTE MED KAPITALET
    - Vad kapitalet ska användas till (baserat på strategiska planer och milestones)
 5. RISKER OCH ÖVERVÄGANDEN (3–4 punkter)
-${börsdataAvsnitt ? `6. EMISSIONSMANDAT (baserat på börsdata)
-   - Räcker befintligt bemyndigande för rekommenderad emission?
-   - Om nej: vad krävs (extra bolagsstämma)?
-   - Beräknad utspädning i procent` : ''}
+${börsdataAvsnitt ? `6. EMISSIONSMANDAT (obligatorisk sektion — börsdata finns)
+   Analysera om befintligt bemyndigande täcker det rekommenderade kapitalbehovet.
+   OM MANDATET RÄCKER:
+   - Bekräfta att emission ryms inom befintligt bemyndigande
+   - Ange beräknad utspädning och antal nya aktier
+   OM MANDATET INTE RÄCKER (antal behövda aktier > bemyndigande):
+   - Presentera BÅDA dessa alternativ:
+     * Alternativ 1 — Emission inom befintligt mandat:
+       Maximalt kapital som kan resas: ${maxKapitalEnligtMandatMSEK || 'X'} MSEK
+       Ange exakt antal aktier, teckningskurs och utspädning
+     * Alternativ 2 — Utökat mandat via extra bolagsstämma:
+       Motivera varför ett utökat bemyndigande krävs
+       Ange ungefär hur stort bemyndigande som behövs
+   - Avsluta med REKOMMENDERAT ALTERNATIV: väg ihop urgency, kapitalbehov och praktiska faktorer` : ''}
 
 Alla belopp i MSEK. Skriv professionellt, konkret och handlingsorienterat.`;
 
@@ -1074,6 +1090,83 @@ Struktur: 1. SAMMANDRAG 2. TECKNINGSPERIOD 3. TECKNING 4. TILLDELNING 5. BETALNI
     });
     res.json({ offeringTerms: message.content[0].text });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+//  WORD (DOCX) GENERATION
+// ========================================================================
+
+app.post('/api/generate-docx', async (req, res) => {
+  try {
+    const { Document, Paragraph, TextRun, HeadingLevel, Packer, AlignmentType } = require('docx');
+    const { company, content, emissionsvillkor } = req.body;
+    const bolagsnamn = company?.name || 'Bolag';
+
+    const makeParagraphs = (text) => {
+      if (!text) return [new Paragraph({ text: '' })];
+      return text.split('\n').map(line => new Paragraph({
+        children: [new TextRun({ text: line, size: 22 })],
+        spacing: { after: 120 }
+      }));
+    };
+
+    const doc = new Document({
+      styles: {
+        default: {
+          document: { run: { font: 'Calibri', size: 22 } }
+        }
+      },
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text: bolagsnamn, bold: true, size: 52, font: 'Calibri' })],
+            heading: HeadingLevel.TITLE,
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 300 }
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: 'Investeringsmemorandum', size: 36, color: '2B6CB0', font: 'Calibri' })],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 600 }
+          }),
+
+          new Paragraph({ text: '1. Verksamhet och Strategi', heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }),
+          ...makeParagraphs(content?.verksamhet),
+
+          new Paragraph({ text: '2. Marknadsöversikt', heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }),
+          ...makeParagraphs(content?.marknad),
+
+          new Paragraph({ text: '3. Riskfaktorer', heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }),
+          ...makeParagraphs(content?.riskfaktorer),
+
+          new Paragraph({ text: '4. Ledning och Styrelse', heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }),
+          ...makeParagraphs(content?.teamBios),
+
+          ...(emissionsvillkor ? [
+            new Paragraph({ text: '5. Emissionsvillkor', heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }),
+            new Paragraph({ children: [new TextRun({ text: `Typ: ${emissionsvillkor.typ || ''}`, size: 22 })], spacing: { after: 120 } }),
+            new Paragraph({ children: [new TextRun({ text: `Teckningskurs: ${emissionsvillkor.teckningskurs || ''} SEK`, size: 22 })], spacing: { after: 120 } }),
+            new Paragraph({ children: [new TextRun({ text: `Emissionsvolym: ${(emissionsvillkor.emissionsvolym || 0).toLocaleString('sv-SE')} SEK`, size: 22 })], spacing: { after: 120 } }),
+          ] : []),
+
+          new Paragraph({ text: '', spacing: { before: 600 } }),
+          new Paragraph({
+            children: [new TextRun({ text: 'Detta dokument är konfidentiellt och avsett uteslutande för den avsedda mottagaren.', italics: true, size: 18, color: '718096' })],
+            alignment: AlignmentType.CENTER
+          }),
+        ]
+      }]
+    });
+
+    const buffer = await Packer.toBuffer(doc);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${bolagsnamn.replace(/\s+/g, '_')}_IM.docx"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('DOCX generation error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
