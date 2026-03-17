@@ -749,13 +749,16 @@ VIKTIGT:
 
 app.post('/api/kapitalradgivaren/emissionsanalys', async (req, res) => {
   try {
-    const { companyData, kapitalbehov, tidhorisont, aktivaSektioner, prognoser, initiativ, åtaganden, milestones, risk } = req.body;
+    const { companyData, aktivaSektioner, prognoser, initiativ, åtaganden, milestones, risk, generellPrognos, finansiellData, beräknatKapitalbehov } = req.body;
 
-    // Konvertera fr\u00e5n TSEK till MSEK f\u00f6r AI-prompten
-    const kassaMSEK = (parseFloat(companyData.currentCapital) / 1000).toFixed(1);
-    const burnRateTSEK = parseFloat(companyData.burnRate);
-    const burnRateMSEK = (burnRateTSEK / 1000).toFixed(1);
-    const kapitalbehovMSEK = (parseFloat(kapitalbehov) / 1000).toFixed(1);
+    const kassaMSEK = ((parseFloat(finansiellData?.kassa) || parseFloat(companyData.currentCapital) || 0) / 1000).toFixed(1);
+    const burnRateTSEK = parseFloat(companyData.burnRate) || 0;
+    const burnRateMSEK = (burnRateTSEK / 1000).toFixed(2);
+    const runway = parseFloat(companyData.runway) || 0;
+    const beräknatKapitalbehovMSEK = ((beräknatKapitalbehov || 0) / 1000).toFixed(1);
+    const önskadRunway = milestones?.önskadRunway || 18;
+    const egetKapitalMSEK = ((parseFloat(finansiellData?.egetKapital) || 0) / 1000).toFixed(1);
+    const skulderMSEK = ((parseFloat(finansiellData?.skulder) || 0) / 1000).toFixed(1);
 
     // Bygg kompletterande data-sektion baserat p\u00e5 aktiva sektioner fr\u00e5n steg 3
     let kompletterandeData = '';
@@ -797,33 +800,40 @@ app.post('/api/kapitalradgivaren/emissionsanalys', async (req, res) => {
       }
     }
 
-    const prompt = `Du \u00e4r expert p\u00e5 kapitalanskaffning f\u00f6r nordiska tillv\u00e4xtbolag.
+    const prompt = `Du är expert på kapitalanskaffning för nordiska tillväxtbolag.
 
-VIKTIGT: Alla belopp nedan \u00e4r i MSEK (miljoner SEK). Svara ALLTID med belopp i MSEK.
-
-BOLAGSDATA:
-Namn: ${companyData.name}
-Bransch: ${companyData.industry}
+FINANSIELL STATUS:
+Bolag: ${companyData.name}
+Bransch: ${companyData.industry || 'Ej angiven'}
 Nuvarande kassa: ${kassaMSEK} MSEK
-Burn rate: ${burnRateMSEK} MSEK/m\u00e5nad (${burnRateTSEK} TSEK/m\u00e5nad)
-Runway: ${companyData.runway} m\u00e5nader
+Burn rate: ${burnRateMSEK} MSEK/månad
+Aktuell runway: ${runway.toFixed(1)} månader
+Burnrate-trend: ${companyData.burnRateTrend || 'okänd'}
+Eget kapital: ${egetKapitalMSEK} MSEK
+Skulder: ${skulderMSEK} MSEK
 
-KAPITALBEHOV:
-Behov: ${kapitalbehovMSEK} MSEK
-Tidshorisont: ${tidhorisont}
-Syfte: ${companyData.purpose}
+BERÄKNAT MINIMIBEHOV (matematiskt):
+Önskad runway efter emission: ${önskadRunway} månader
+Beräknat kapitalbehov (burn rate × önskad runway − kassa): ${beräknatKapitalbehovMSEK} MSEK
 ${kompletterandeData}
-Skapa en emissionsanalys (max 500 ord) som inneh\u00e5ller:
-1. SITUATIONSBESKRIVNING (2-3 meningar)
-2. REKOMMENDERAD EMISSIONSSTRUKTUR
-   - Typ av emission
-   - Rekommenderad emissionsvolym (i MSEK)
-   - F\u00f6rslag p\u00e5 teckningskurs
-   - Teckningsr\u00e4tter (om f\u00f6retr\u00e4desemission)
-3. TIDSPLAN med datum
-4. RISKER OCH \u00d6VERV\u00c4GANDEN (3-4 punkter)
-${kompletterandeData ? '\nVIKTIGT: V\u00e4g in den kompletterande informationen ovan i din analys. Anv\u00e4nd prognoser, strategiska initiativ, \u00e5taganden, milestones och riskfaktorer f\u00f6r att g\u00f6ra analysen mer specifik och relevant.\n' : ''}
-Alla belopp ska anges i MSEK. Skriv professionellt och konkret.`;
+Du ska SJÄLV analysera och rekommendera följande baserat på ovanstående data:
+- Faktiskt kapitalbehov (kan vara högre än minimibehov om strategiska planer kräver det)
+- Tidhorisont för emission (om runway < 6 mån: akut/omgående, 6–12 mån: normalt, > 12 mån: planerat)
+- Syfte med kapitalet (formulera utifrån aktiverade initiativ, milestones och prognoser)
+
+Svara med:
+1. SITUATIONSBESKRIVNING (2–3 meningar om finansiell ställning och hur brådskande det är)
+2. REKOMMENDERAT KAPITALBEHOV
+   - Rekommenderad emissionsvolym (MSEK) med motivering
+   - Varför detta belopp (inkl. buffert/säkerhetsmarginal)
+3. REKOMMENDERAD EMISSIONSSTRUKTUR
+   - Typ av emission (företräde/riktad/kombination)
+   - Föreslagen tidsplan baserat på nuvarande runway
+4. SYFTE MED KAPITALET
+   - Vad kapitalet ska användas till (baserat på strategiska planer och milestones)
+5. RISKER OCH ÖVERVÄGANDEN (3–4 punkter)
+
+Alla belopp i MSEK. Skriv professionellt, konkret och handlingsorienterat.`;
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',

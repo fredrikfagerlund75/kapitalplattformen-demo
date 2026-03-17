@@ -45,7 +45,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
   const [analysData, setAnalysData] = useState({
     companyData: {
       name: companySettings?.companyName || user.company,
-      industry: '',
+      industry: companySettings?.industry || '',
       currentCapital: '',
       burnRate: '',
       runway: '',
@@ -107,7 +107,18 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
   const handleGenerateAnalys = async () => {
     setLoading(true);
     try {
-      const response = await apiPost('/api/kapitalradgivaren/emissionsanalys', analysData);
+      const burnRateTSEK = parseFloat(analysData.companyData.burnRate) || 0;
+      const kassaTSEK = parseFloat(finansiellData.kassa) || 0;
+      const önskadRunway = parseFloat(analysData.milestones?.önskadRunway) || 18;
+      const beräknatKapitalbehov = Math.max(0, (burnRateTSEK * önskadRunway) - kassaTSEK);
+
+      const payload = {
+        ...analysData,
+        finansiellData,
+        beräknatKapitalbehov
+      };
+
+      const response = await apiPost('/api/kapitalradgivaren/emissionsanalys', payload);
       if (!response.ok) {
         const errText = await response.text();
         throw new Error(`Server svarade ${response.status}: ${errText}`);
@@ -1297,50 +1308,6 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             <h2>🤖 AI Emissionsanalys</h2>
             <p>AI analyserar era förutsättningar och ger en skräddarsydd emissionsrekommendation.</p>
 
-            <div style={{background: 'var(--color-bg)', border: '2px solid var(--color-border)', borderRadius: '12px', padding: '1.5rem', marginBottom: '1.5rem'}}>
-              <h3 style={{marginBottom: '1rem'}}>📝 Komplettera för fullständig analys</h3>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Kapitalbehov (TSEK) *</label>
-                  <input
-                    type="number"
-                    value={analysData.kapitalbehov}
-                    onChange={(e) => setAnalysData({...analysData, kapitalbehov: e.target.value})}
-                    placeholder="T.ex. 5000 (= 5 MSEK)"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Tidshorisont för emission</label>
-                  <input
-                    type="text"
-                    value={analysData.tidhorisont}
-                    onChange={(e) => setAnalysData({...analysData, tidhorisont: e.target.value})}
-                    placeholder="T.ex. Q3 2025"
-                  />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Bransch</label>
-                  <input
-                    type="text"
-                    value={analysData.companyData.industry}
-                    onChange={(e) => setAnalysData({...analysData, companyData: {...analysData.companyData, industry: e.target.value}})}
-                    placeholder="T.ex. SaaS, MedTech, Industri"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Syfte med kapitalresningen</label>
-                  <input
-                    type="text"
-                    value={analysData.companyData.purpose}
-                    onChange={(e) => setAnalysData({...analysData, companyData: {...analysData.companyData, purpose: e.target.value}})}
-                    placeholder="T.ex. Produktlansering, expansion till EU"
-                  />
-                </div>
-              </div>
-            </div>
-
             <div className="data-summary" style={{background: '#f7fafc', border: '2px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', margin: '1.5rem 0'}}>
               <h3>📋 Finansiell data som skickas till AI</h3>
               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem'}}>
@@ -1353,17 +1320,11 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
               </div>
             </div>
 
-            {!analysData.kapitalbehov && (
-              <p style={{color: 'var(--color-text-secondary)', fontSize: '0.9rem', textAlign: 'center', marginBottom: '1rem'}}>
-                Fyll i kapitalbehov (*) för att aktivera AI-analysen.
-              </p>
-            )}
-
             {!generatedAnalys && (
               <button
                 className="btn-primary btn-large"
                 onClick={handleGenerateAnalys}
-                disabled={loading || !analysData.kapitalbehov}
+                disabled={loading}
                 style={{width: '100%', marginBottom: '1.5rem'}}
               >
                 {loading ? '⏳ AI analyserar...' : '🤖 Generera AI-analys'}
