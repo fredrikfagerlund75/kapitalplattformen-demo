@@ -183,6 +183,16 @@
   margin-bottom: 2rem;
 }
 
+.prognos-section h3 {
+  margin-bottom: 0.5rem;
+}
+
+.section-description {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 1.25rem;
+}
+
 /* Section selector */
 .section-selector {
   background: var(--color-bg);
@@ -253,6 +263,12 @@
 
 .checkbox-icon {
   font-size: 2rem;
+}
+
+.checkbox-label {
+  flex: 1;
+  min-width: 0;
+  padding-right: 2rem;
 }
 
 .checkbox-label strong {

@@ -58,7 +58,8 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
       initiativ: false,
       åtaganden: false,
       milestones: false,
-      risk: false
+      risk: false,
+      generellPrognos: false
     },
     prognoser: {
       omsättningstillväxt: '',
@@ -84,6 +85,12 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
     risk: {
       kundkoncentration: '',
       säkerhetsbuffert: '20'
+    },
+    generellPrognos: {
+      intäktsförväntning: '',
+      kostnadsförväntning: '',
+      bruttomarginal: '',
+      breakEvenTidpunkt: ''
     }
   });
   
@@ -964,11 +971,11 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                 </label>
 
                 <label className="checkbox-card">
-                  <input 
+                  <input
                     type="checkbox"
                     checked={analysData.aktivaSektioner.risk}
                     onChange={(e) => setAnalysData({
-                      ...analysData, 
+                      ...analysData,
                       aktivaSektioner: {...analysData.aktivaSektioner, risk: e.target.checked}
                     })}
                   />
@@ -977,6 +984,24 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     <div className="checkbox-label">
                       <strong>Riskfaktorer</strong>
                       <span>Kundkoncentration, säkerhetsbuffert</span>
+                    </div>
+                  </div>
+                </label>
+
+                <label className="checkbox-card">
+                  <input
+                    type="checkbox"
+                    checked={analysData.aktivaSektioner.generellPrognos}
+                    onChange={(e) => setAnalysData({
+                      ...analysData,
+                      aktivaSektioner: {...analysData.aktivaSektioner, generellPrognos: e.target.checked}
+                    })}
+                  />
+                  <div className="checkbox-content">
+                    <div className="checkbox-icon">📊</div>
+                    <div className="checkbox-label">
+                      <strong>Generell intäkts- och kostnadsprognos</strong>
+                      <span>Övergripande förväntningar på intäkter, kostnader och lönsamhet</span>
                     </div>
                   </div>
                 </label>
@@ -1205,6 +1230,68 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
               </div>
             )}
 
+            {analysData.aktivaSektioner.generellPrognos && (
+              <div className="prognos-section">
+                <h3>📊 Generell intäkts- och kostnadsprognos</h3>
+                <p className="section-description">
+                  Beskriv er förväntade intäkts- och kostnadsutveckling i generella termer.
+                </p>
+
+                <div className="form-group">
+                  <label>Intäktsförväntningar (beskriv)</label>
+                  <textarea
+                    value={analysData.generellPrognos.intäktsförväntning}
+                    onChange={(e) => setAnalysData({
+                      ...analysData,
+                      generellPrognos: {...analysData.generellPrognos, intäktsförväntning: e.target.value}
+                    })}
+                    placeholder="T.ex. Vi förväntar oss att nå break-even inom 18 månader med nuvarande tillväxttakt..."
+                    rows={3}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Kostnadsförväntningar (beskriv)</label>
+                  <textarea
+                    value={analysData.generellPrognos.kostnadsförväntning}
+                    onChange={(e) => setAnalysData({
+                      ...analysData,
+                      generellPrognos: {...analysData.generellPrognos, kostnadsförväntning: e.target.value}
+                    })}
+                    placeholder="T.ex. Huvuddelen av kostnader är personal (70%), resterande är infrastruktur..."
+                    rows={3}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Målsatt bruttomarginal (%)</label>
+                    <input
+                      type="number"
+                      value={analysData.generellPrognos.bruttomarginal}
+                      onChange={(e) => setAnalysData({
+                        ...analysData,
+                        generellPrognos: {...analysData.generellPrognos, bruttomarginal: e.target.value}
+                      })}
+                      placeholder="T.ex. 65"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Förväntad break-even (kvartal/år)</label>
+                    <input
+                      type="text"
+                      value={analysData.generellPrognos.breakEvenTidpunkt}
+                      onChange={(e) => setAnalysData({
+                        ...analysData,
+                        generellPrognos: {...analysData.generellPrognos, breakEvenTidpunkt: e.target.value}
+                      })}
+                      placeholder="T.ex. Q3 2026"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="selected-sections-summary">
               <h4>Valt att komplettera:</h4>
               <div className="summary-tags">
@@ -1213,6 +1300,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                 {analysData.aktivaSektioner.åtaganden && <span className="tag">🏦 Åtaganden</span>}
                 {analysData.aktivaSektioner.milestones && <span className="tag">🎯 Milestones</span>}
                 {analysData.aktivaSektioner.risk && <span className="tag">⚠️ Risk</span>}
+                {analysData.aktivaSektioner.generellPrognos && <span className="tag">📊 Generell prognos</span>}
                 {!Object.values(analysData.aktivaSektioner).some(v => v) && (
                   <span className="tag tag-empty">
                     Ingen sektion vald — AI baserar analys endast på finansiell data
