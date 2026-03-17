@@ -41,6 +41,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
     maxSpädning: 38,
     teckningsrätter: '1:2'
   });
+  const [bemyndigande, setBemyndigande] = useState('');
 
   const [analysData, setAnalysData] = useState({
     companyData: {
@@ -115,7 +116,14 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
       const payload = {
         ...analysData,
         finansiellData,
-        beräknatKapitalbehov
+        beräknatKapitalbehov,
+        börsdataInfo: stockData ? {
+          price: stockData.price,
+          currency: stockData.currency || 'SEK',
+          sharesOutstanding: stockData.sharesOutstanding,
+          marketCap: stockData.marketCap,
+          bemyndigande: parseInt(bemyndigande) || null
+        } : null
       };
 
       const response = await apiPost('/api/kapitalradgivaren/emissionsanalys', payload);
@@ -579,8 +587,8 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
         <div className={`step clickable ${step === 'upload' ? 'active' : ['granska-data','prognoser','analys','börsdata','villkor','skapa'].includes(step) ? 'completed' : ''}`} onClick={() => setStep('upload')}>1. Ladda upp</div>
         <div className={`step clickable ${step === 'granska-data' ? 'active' : ['prognoser','analys','börsdata','villkor','skapa'].includes(step) ? 'completed' : ''}`} onClick={() => setStep('granska-data')}>2. Granska</div>
         <div className={`step clickable ${step === 'prognoser' ? 'active' : ['analys','börsdata','villkor','skapa'].includes(step) ? 'completed' : ''}`} onClick={() => setStep('prognoser')}>3. Prognoser</div>
-        <div className={`step clickable ${step === 'analys' ? 'active' : ['börsdata','villkor','skapa'].includes(step) ? 'completed' : ''}`} onClick={() => setStep('analys')}>4. AI-analys</div>
-        <div className={`step clickable ${step === 'börsdata' ? 'active' : ['villkor','skapa'].includes(step) ? 'completed' : ''}`} onClick={() => setStep('börsdata')}>5. Emissionsparametrar</div>
+        <div className={`step clickable ${step === 'börsdata' ? 'active' : ['analys','villkor','skapa'].includes(step) ? 'completed' : ''}`} onClick={() => setStep('börsdata')}>4. Börsdata</div>
+        <div className={`step clickable ${step === 'analys' ? 'active' : ['villkor','skapa'].includes(step) ? 'completed' : ''}`} onClick={() => setStep('analys')}>5. AI Kapitalbehovsanalys</div>
         <div className={`step clickable ${step === 'villkor' ? 'active' : step === 'skapa' ? 'completed' : ''}`} onClick={() => setStep('villkor')}>6. Villkor</div>
         <div className={`step clickable ${step === 'skapa' ? 'active' : ''}`} onClick={() => setStep('skapa')}>7. Skapa</div>
       </div>
@@ -1296,8 +1304,8 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
               <button className="btn-secondary" onClick={() => setStep('granska-data')}>
                 ← Tillbaka
               </button>
-              <button className="btn-primary" onClick={() => setStep('analys')}>
-                Fortsätt till AI-analys →
+              <button className="btn-primary" onClick={() => setStep('börsdata')}>
+                Fortsätt till Börsdata →
               </button>
             </div>
           </div>
@@ -1305,7 +1313,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
         {step === 'analys' && (
           <div className="analys-form">
-            <h2>🤖 AI Emissionsanalys</h2>
+            <h2>🤖 AI Kapitalbehovsanalys</h2>
             <p>AI analyserar era förutsättningar och ger en skräddarsydd emissionsrekommendation.</p>
 
             <div className="data-summary" style={{background: '#f7fafc', border: '2px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', margin: '1.5rem 0'}}>
@@ -1346,12 +1354,15 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             )}
             
             <div className="button-row">
-              <button className="btn-secondary" onClick={() => setStep('prognoser')}>← Tillbaka</button>
-              <button 
+              <button className="btn-secondary" onClick={() => setStep('börsdata')}>← Tillbaka</button>
+              <button
                 className="btn-primary"
-                onClick={() => setStep('börsdata')}
+                onClick={() => {
+                  if (stockData) generateAutoEmissionTerms();
+                  setStep('villkor');
+                }}
               >
-                Fortsätt till Emissionsparametrar →
+                Fortsätt till Emissionsvillkor →
               </button>
             </div>
           </div>
@@ -1552,13 +1563,25 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                 </div>
                 <div className="form-group">
                   <label>Utestående aktier</label>
-                  <input 
-                    type="number" 
-                    id="manual-shares" 
+                  <input
+                    type="number"
+                    id="manual-shares"
                     placeholder="T.ex. 25000000"
                   />
                 </div>
               </div>
+                <div className="form-group" style={{marginTop: '1rem'}}>
+                  <label>Bolagsstämmans bemyndigande (antal aktier)</label>
+                  <input
+                    type="number"
+                    value={bemyndigande}
+                    onChange={(e) => setBemyndigande(e.target.value)}
+                    placeholder="T.ex. 5000000"
+                  />
+                  <small style={{color: '#718096', display: 'block', marginTop: '0.25rem'}}>
+                    Antal nya aktier styrelsen är bemyndigad att ge ut utan ny bolagsstämma
+                  </small>
+                </div>
               <button 
                 className="btn-primary" 
                 style={{marginTop: '1rem'}}
@@ -1594,20 +1617,43 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
               </button>
             </div>
 
+            {stockData && bemyndigande && (() => {
+              const burnRateTSEK = parseFloat(analysData.companyData.burnRate) || 0;
+              const kassaTSEK = parseFloat(finansiellData.kassa) || 0;
+              const önskadRunway = parseFloat(analysData.milestones?.önskadRunway) || 18;
+              const behovTSEK = Math.max(0, (burnRateTSEK * önskadRunway) - kassaTSEK);
+              const behovSEK = behovTSEK * 1000;
+              const teckningskurs = stockData.price * 0.8;
+              const behovdaAktier = teckningskurs > 0 ? Math.round(behovSEK / teckningskurs) : 0;
+              const mandatAktier = parseInt(bemyndigande) || 0;
+              const räcker = mandatAktier >= behovdaAktier;
+              return (
+                <div style={{
+                  background: räcker ? '#f0fff4' : '#fff5f5',
+                  border: `2px solid ${räcker ? '#48bb78' : '#f56565'}`,
+                  borderRadius: '8px', padding: '1rem', marginBottom: '1.5rem'
+                }}>
+                  <strong>{räcker ? '✅ Bemyndigandet räcker' : '⚠️ Bemyndigandet räcker INTE'}</strong>
+                  <div style={{marginTop: '0.5rem', fontSize: '0.9rem'}}>
+                    <div>Beräknat behov: ~{behovdaAktier.toLocaleString('sv-SE')} nya aktier (vid 20% rabatt)</div>
+                    <div>Bemyndigande: {mandatAktier.toLocaleString('sv-SE')} aktier</div>
+                    {!räcker && <div style={{color: '#c53030', marginTop: '0.5rem', fontWeight: 600}}>
+                      En extra bolagsstämma krävs innan emission kan genomföras.
+                    </div>}
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="button-row">
-              <button className="btn-secondary" onClick={() => setStep('analys')}>
+              <button className="btn-secondary" onClick={() => setStep('prognoser')}>
                 ← Tillbaka
               </button>
-              <button 
+              <button
                 className="btn-primary"
-                onClick={() => {
-                  if (stockData) {
-                    generateAutoEmissionTerms();
-                  }
-                  setStep('villkor');
-                }}
+                onClick={() => setStep('analys')}
               >
-                {stockData ? 'Generera emissionsvillkor →' : 'Hoppa över börsdata →'}
+                {stockData ? 'Fortsätt till AI-analys →' : 'Hoppa över börsdata →'}
               </button>
             </div>
           </div>
@@ -1683,8 +1729,8 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             )}
 
             <div className="button-row">
-              <button className="btn-secondary" onClick={() => setStep('börsdata')}>← Tillbaka</button>
-              <button 
+              <button className="btn-secondary" onClick={() => setStep('analys')}>← Tillbaka</button>
+              <button
                 className="btn-primary"
                 onClick={handleCreateProject}
                 disabled={!emissionsvillkor.teckningskurs || !emissionsvillkor.antalNyaAktier}

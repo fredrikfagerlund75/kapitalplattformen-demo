@@ -7,6 +7,8 @@ const { PDFParse } = require('pdf-parse');
 const path = require('path');
 const crypto = require('crypto');
 const Brevo = require('@getbrevo/brevo');
+const YahooFinance = require('yahoo-finance2').default;
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 const app = express();
 app.use(cors());
@@ -474,42 +476,27 @@ app.get('/api/stock-data/:ticker', async (req, res) => {
     const { ticker } = req.params;
     const fullTicker = ticker.includes('.') ? ticker : `${ticker}.ST`;
 
-    const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${fullTicker}`;
-    const statsUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${fullTicker}?modules=defaultKeyStatistics,price`;
-
-    const [chartResponse, statsResponse] = await Promise.all([
-      fetch(chartUrl),
-      fetch(statsUrl)
+    const [quote, summary] = await Promise.all([
+      yahooFinance.quote(fullTicker),
+      yahooFinance.quoteSummary(fullTicker, { modules: ['defaultKeyStatistics', 'price'] })
     ]);
 
-    if (!chartResponse.ok || !statsResponse.ok) {
-      throw new Error('Yahoo Finance API error');
-    }
-
-    const chartData = await chartResponse.json();
-    const statsData = await statsResponse.json();
-
-    const quote = chartData.chart.result[0];
-    const stats = statsData.quoteSummary.result[0];
-
-    const stockData = {
+    res.json({
       ticker: fullTicker,
-      price: quote.meta.regularMarketPrice,
-      currency: quote.meta.currency,
-      sharesOutstanding: stats.defaultKeyStatistics.sharesOutstanding.raw,
-      marketCap: stats.price.marketCap.raw,
-      previousClose: quote.meta.previousClose,
-      change: quote.meta.regularMarketPrice - quote.meta.previousClose,
-      changePercent: ((quote.meta.regularMarketPrice - quote.meta.previousClose) / quote.meta.previousClose) * 100,
-      updatedAt: new Date(quote.meta.regularMarketTime * 1000).toISOString(),
+      price: quote.regularMarketPrice,
+      currency: quote.currency,
+      sharesOutstanding: summary.defaultKeyStatistics?.sharesOutstanding || quote.sharesOutstanding,
+      marketCap: summary.price?.marketCap || quote.marketCap,
+      previousClose: quote.regularMarketPreviousClose,
+      change: quote.regularMarketChange,
+      changePercent: quote.regularMarketChangePercent,
+      updatedAt: quote.regularMarketTime?.toISOString() || new Date().toISOString(),
       demo: false
-    };
-
-    res.json(stockData);
+    });
   } catch (error) {
     console.error('Yahoo Finance error:', error.message);
 
-    // Robust fallback to demo data
+    // Fallback to demo data
     res.json({
       ticker: `${req.params.ticker}.ST`,
       price: 2.84,
@@ -749,7 +736,7 @@ VIKTIGT:
 
 app.post('/api/kapitalradgivaren/emissionsanalys', async (req, res) => {
   try {
-    const { companyData, aktivaSektioner, prognoser, initiativ, åtaganden, milestones, risk, generellPrognos, finansiellData, beräknatKapitalbehov } = req.body;
+    const { companyData, aktivaSektioner, prognoser, initiativ, åtaganden, milestones, risk, generellPrognos, finansiellData, beräknatKapitalbehov, börsdataInfo } = req.body;
 
     const kassaMSEK = ((parseFloat(finansiellData?.kassa) || parseFloat(companyData.currentCapital) || 0) / 1000).toFixed(1);
     const burnRateTSEK = parseFloat(companyData.burnRate) || 0;
@@ -800,6 +787,31 @@ app.post('/api/kapitalradgivaren/emissionsanalys', async (req, res) => {
       }
     }
 
+    // Bygg börsdata-avsnitt om sådant finns
+    let börsdataAvsnitt = '';
+    if (börsdataInfo && börsdataInfo.marketCap) {
+      const börsvärde = (börsdataInfo.marketCap / 1000000).toFixed(1);
+      const utestående = börsdataInfo.sharesOutstanding ? börsdataInfo.sharesOutstanding.toLocaleString('sv-SE') : 'okänt';
+      const kurs = börsdataInfo.price ? börsdataInfo.price.toFixed(2) : 'okänd';
+      const behovSEK = (beräknatKapitalbehov || 0) * 1000;
+      const teckningskurs20 = (börsdataInfo.price || 0) * 0.8;
+      const behovdaAktier = teckningskurs20 > 0 ? Math.round(behovSEK / teckningskurs20) : null;
+      const mandatAktier = börsdataInfo.bemyndigande || null;
+      const utspädning = (behovdaAktier && börsdataInfo.sharesOutstanding)
+        ? ((behovdaAktier / (börsdataInfo.sharesOutstanding + behovdaAktier)) * 100).toFixed(1)
+        : null;
+
+      börsdataAvsnitt = `\nBÖRSDATA & EMISSIONSMANDAT:
+Börsvärde: ${börsvärde} MSEK
+Utestående aktier: ${utestående} st
+Aktiekurs: ${kurs} SEK
+${mandatAktier ? `Bolagsstämmans bemyndigande: ${mandatAktier.toLocaleString('sv-SE')} aktier` : 'Bemyndigande: ej angivet'}
+${behovdaAktier ? `Beräknade aktier för emission (vid 20% rabatt): ~${behovdaAktier.toLocaleString('sv-SE')} st` : ''}
+${utspädning ? `Beräknad utspädning: ~${utspädning}% av totalt antal aktier efter emission` : ''}
+${mandatAktier && behovdaAktier ? (mandatAktier >= behovdaAktier ? '\u2192 Bem\u00fcndigandet R\u00c4CKER f\u00f6r f\u00f6reslagen emission.' : '\u2192 VARNING: Bem\u00fcndigandet r\u00e4cker INTE. Ny bolagesst\u00e4mma kr\u00e4vs.') : ''}
+`;
+    }
+
     const prompt = `Du är expert på kapitalanskaffning för nordiska tillväxtbolag.
 
 FINANSIELL STATUS:
@@ -815,7 +827,7 @@ Skulder: ${skulderMSEK} MSEK
 BERÄKNAT MINIMIBEHOV (matematiskt):
 Önskad runway efter emission: ${önskadRunway} månader
 Beräknat kapitalbehov (burn rate × önskad runway − kassa): ${beräknatKapitalbehovMSEK} MSEK
-${kompletterandeData}
+${kompletterandeData}${börsdataAvsnitt}
 Du ska SJÄLV analysera och rekommendera följande baserat på ovanstående data:
 - Faktiskt kapitalbehov (kan vara högre än minimibehov om strategiska planer kräver det)
 - Tidhorisont för emission (om runway < 6 mån: akut/omgående, 6–12 mån: normalt, > 12 mån: planerat)
@@ -832,6 +844,10 @@ Svara med:
 4. SYFTE MED KAPITALET
    - Vad kapitalet ska användas till (baserat på strategiska planer och milestones)
 5. RISKER OCH ÖVERVÄGANDEN (3–4 punkter)
+${börsdataAvsnitt ? `6. EMISSIONSMANDAT (baserat på börsdata)
+   - Räcker befintligt bemyndigande för rekommenderad emission?
+   - Om nej: vad krävs (extra bolagsstämma)?
+   - Beräknad utspädning i procent` : ''}
 
 Alla belopp i MSEK. Skriv professionellt, konkret och handlingsorienterat.`;
 
