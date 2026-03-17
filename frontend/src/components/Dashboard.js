@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
 import './Dashboard.css';
 
-function Dashboard({ user, emissionsprojekt, onNavigate, onCreateProject, onRefresh }) {
-  const [showNewProjectDialog, setShowNewProjectDialog] = useState(false); // eslint-disable-line no-unused-vars
+function Dashboard({ user, emissionsprojekt, onNavigate, onCreateProject, onRefresh, defaultSection }) {
+  const [activeSection, setActiveSection] = useState(defaultSection || null);
+
+  const pagaendeProjekt = emissionsprojekt.filter(p => p.status !== 'completed' && p.status !== 'cancelled');
+  const tidigareProjekt = emissionsprojekt.filter(p => p.status === 'completed' || p.status === 'cancelled');
+
+  const getStatusColor = (status) => {
+    return status === 'completed' ? 'green' : status === 'cancelled' ? 'red' : status === 'active' ? 'blue' : 'gray';
+  };
 
   const getModuleInfo = (currentModule) => {
     const modules = {
@@ -16,164 +23,131 @@ function Dashboard({ user, emissionsprojekt, onNavigate, onCreateProject, onRefr
     return modules[currentModule] || modules['kapitalrådgivaren'];
   };
 
-  const getStatusColor = (status) => {
-    return status === 'completed' ? 'green' : status === 'cancelled' ? 'red' : status === 'active' ? 'blue' : 'gray';
+  const renderProjektList = (projektLista, readonly = false) => {
+    if (projektLista.length === 0) {
+      return (
+        <div className="empty-state">
+          <h3>Inga projekt</h3>
+          <p>Starta ett nytt projekt via Kapitalrådgivaren.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="projekt-grid">
+        {projektLista.map(projekt => {
+          const moduleInfo = getModuleInfo(projekt.currentModule);
+          return (
+            <div key={projekt.id} className={`projekt-card${readonly ? ' projekt-card--readonly' : ''}`}>
+              <div className="projekt-header">
+                <div>
+                  <h3>{projekt.name}</h3>
+                  <span className="projekt-id">{projekt.id}</span>
+                </div>
+                <span className={`status-badge status-${getStatusColor(projekt.status)}`}>
+                  {projekt.status === 'completed' ? 'Slutförd' :
+                   projekt.status === 'cancelled' ? 'Avbruten' :
+                   projekt.status === 'active' ? 'Aktiv' : 'Utkast'}
+                </span>
+              </div>
+
+              <div className="projekt-info">
+                <div className="info-row">
+                  <span className="info-label">Typ:</span>
+                  <span>{projekt.emissionsvillkor.typ}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Volym:</span>
+                  <span>{projekt.emissionsvillkor.emissionsvolym.toLocaleString('sv-SE')} SEK</span>
+                </div>
+                {!readonly && (
+                  <div className="info-row">
+                    <span className="info-label">Aktuell fas:</span>
+                    <span className={`module-badge module-${moduleInfo.color}`}>
+                      {moduleInfo.icon} {moduleInfo.name}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {!readonly && (
+                <div className="projekt-actions">
+                  <button className="btn-action" onClick={() => onNavigate('projektvy', projekt)}>🎯 Kapitalrådgivaren</button>
+                  <button className="btn-action" onClick={() => onNavigate('prospekt', projekt)}>📄 Prospekt/IM</button>
+                  <button className="btn-action" onClick={() => onNavigate('teckning', projekt)}>✍️ Teckning</button>
+                  <button className="btn-action" onClick={() => onNavigate('marknadsföring', projekt)}>📢 Marknadsföring</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
+
+  if (activeSection === 'emissionsprojekt') {
+    return (
+      <div className="dashboard-v5">
+        <div className="section-detail-header">
+          <button className="back-button" onClick={() => setActiveSection(null)}>← Tillbaka</button>
+          <h2>📊 Pågående Emissionsprojekt</h2>
+          <button className="btn-secondary" onClick={onRefresh}>🔄 Uppdatera</button>
+        </div>
+        {renderProjektList(pagaendeProjekt)}
+      </div>
+    );
+  }
+
+  if (activeSection === 'tidigare') {
+    return (
+      <div className="dashboard-v5">
+        <div className="section-detail-header">
+          <button className="back-button" onClick={() => setActiveSection(null)}>← Tillbaka</button>
+          <h2>📁 Tidigare Emissionsprojekt</h2>
+        </div>
+        {renderProjektList(tidigareProjekt, true)}
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-v5">
-      {/* Hero Section */}
       <div className="dashboard-hero">
         <h1>Välkommen till Kapitalplattformen</h1>
         <p className="hero-subtitle">Hantera er kapitalanskaffning från beslut till genomförande</p>
-        <button 
-          className="btn-hero"
-          onClick={() => onNavigate('kapitalrådgivaren')}
-        >
+        <button className="btn-hero" onClick={() => onNavigate('kapitalrådgivaren')}>
           🎯 Öppna Kapitalrådgivaren
         </button>
       </div>
 
-      {/* Emission Projects */}
-      <div className="emissionsprojekt-section">
-        <div className="section-header">
-          <h2>📊 Emissionsprojekt</h2>
-          <button className="btn-secondary" onClick={onRefresh}>
-            🔄 Uppdatera
-          </button>
+      <div className="dashboard-tiles">
+        <div className="dashboard-tile" onClick={() => setActiveSection('emissionsprojekt')}>
+          <div className="tile-icon">📊</div>
+          <div className="tile-body">
+            <h3>Pågående Emissionsprojekt</h3>
+            <p>{pagaendeProjekt.length > 0 ? `${pagaendeProjekt.length} aktivt projekt` : 'Inga aktiva projekt'}</p>
+          </div>
+          <span className="tile-arrow">→</span>
         </div>
 
-        {emissionsprojekt.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📋</div>
-            <h3>Inga emissionsprojekt än</h3>
-            <p>Starta ett nytt projekt genom Kapitalrådgivaren</p>
-            <button 
-              className="btn-primary"
-              onClick={() => onNavigate('kapitalrådgivaren')}
-            >
-              Öppna Kapitalrådgivaren
-            </button>
+        <div className="dashboard-tile" onClick={() => onNavigate('kassaflode')}>
+          <div className="tile-icon">💰</div>
+          <div className="tile-body">
+            <h3>Ditt Kassaflöde</h3>
+            <p>Prognos & kapitalbehov</p>
           </div>
-        ) : (
-          <div className="projekt-grid">
-            {emissionsprojekt.map(projekt => {
-              const moduleInfo = getModuleInfo(projekt.currentModule);
-              
-              return (
-                <div key={projekt.id} className="projekt-card">
-                  <div className="projekt-header">
-                    <div>
-                      <h3>{projekt.name}</h3>
-                      <span className="projekt-id">{projekt.id}</span>
-                    </div>
-                    <span className={`status-badge status-${getStatusColor(projekt.status)}`}>
-                      {projekt.status === 'completed' ? 'Slutförd' : 
-                       projekt.status === 'cancelled' ? 'Avbruten' :
-                       projekt.status === 'active' ? 'Aktiv' : 'Utkast'}
-                    </span>
-                  </div>
+          <span className="tile-arrow">→</span>
+        </div>
 
-                  <div className="projekt-info">
-                    <div className="info-row">
-                      <span className="info-label">Typ:</span>
-                      <span>{projekt.emissionsvillkor.typ}</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="info-label">Volym:</span>
-                      <span>{projekt.emissionsvillkor.emissionsvolym.toLocaleString('sv-SE')} SEK</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="info-label">Aktuell fas:</span>
-                      <span className={`module-badge module-${moduleInfo.color}`}>
-                        {moduleInfo.icon} {moduleInfo.name}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Progress Timeline */}
-                  <div className="projekt-timeline">
-                    <div className="timeline-step completed">
-                      <div className="timeline-dot"></div>
-                      <span>Kapitalrådgivaren</span>
-                    </div>
-                    <div className={`timeline-step ${projekt.prospekt?.generatedAt ? 'completed' : (projekt.currentModule === 'prospekt' || projekt.currentModule === 'kapitalrådgivaren') ? 'active' : ''}`}>
-                      <div className="timeline-dot"></div>
-                      <span>Prospekt/IM</span>
-                    </div>
-                    <div className={`timeline-step ${projekt.status === 'completed' ? 'completed' : projekt.teckning?.emissionssidaUrl ? 'active' : projekt.currentModule === 'teckning' ? 'active' : ''}`}>
-                      <div className="timeline-dot"></div>
-                      <span>Teckning</span>
-                    </div>
-                    <div className={`timeline-step ${projekt.marknadsföring?.emailCampaignId ? 'completed' : projekt.currentModule === 'marknadsföring' ? 'active' : ''}`}>
-                      <div className="timeline-dot"></div>
-                      <span>Marknadsföring</span>
-                    </div>
-                  </div>
-
-                  {/* Quick Stats */}
-                  {projekt.analytics && (
-                    <div className="projekt-stats">
-                      <div className="stat-mini">
-                        <div className="stat-value">{projekt.analytics.teckning.percent.toFixed(1)}%</div>
-                        <div className="stat-label">Tecknat</div>
-                      </div>
-                      <div className="stat-mini">
-                        <div className="stat-value">{projekt.analytics.emissionssida.visits}</div>
-                        <div className="stat-label">Besök</div>
-                      </div>
-                      <div className="stat-mini">
-                        <div className="stat-value">{projekt.analytics.email.opens}</div>
-                        <div className="stat-label">Email-öppningar</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="projekt-actions">
-                    <button className="btn-action" onClick={() => onNavigate('projektvy', projekt)}>🎯 Kapitalrådgivaren</button>
-                    <button className="btn-action" onClick={() => onNavigate('prospekt', projekt)}>📄 Prospekt/IM</button>
-                    <button className="btn-action" onClick={() => onNavigate('teckning', projekt)}>✍️ Teckning</button>
-                    <button className="btn-action" onClick={() => onNavigate('marknadsföring', projekt)}>📢 Marknadsföring</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Quick Access Modules */}
-      <div className="modules-section">
-        <h2>Snabbåtkomst</h2>
-        <div className="modules-grid">
-          <div className="module-card" onClick={() => onNavigate('kapitalrådgivaren')}>
-            <div className="module-icon">🎯</div>
-            <h3>Kapitalrådgivaren</h3>
-            <p>Emissionsanalys & skapa projekt</p>
-          </div>
-
-          <div className="module-card" onClick={() => onNavigate('aktiebok')}>
-            <div className="module-icon">📊</div>
-            <h3>Aktiebok</h3>
-            <p>Hantera aktieägare</p>
-          </div>
-
-          <div className="module-card" onClick={() => onNavigate('kassaflode')}>
-            <div className="module-icon">💰</div>
-            <h3>Ditt kassaflöde</h3>
-            <p>Kassaflöde, burnrate & scenarios</p>
-          </div>
-
-          <div className="module-card" onClick={() => onNavigate('emissionsnyheter')}>
-            <div className="module-icon">📰</div>
+        <div className="dashboard-tile" onClick={() => onNavigate('emissionsnyheter')}>
+          <div className="tile-icon">📰</div>
+          <div className="tile-body">
             <h3>Emissionsnyheter</h3>
-            <p>Nyheter från DI & Finansinspektionen</p>
+            <p>Marknadsöversikt & nyheter</p>
           </div>
+          <span className="tile-arrow">→</span>
         </div>
       </div>
 
-      {/* Info Banner */}
       <div className="info-banner">
         <div className="info-banner-icon">ℹ️</div>
         <div className="info-banner-content">

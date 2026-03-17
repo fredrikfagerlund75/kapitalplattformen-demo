@@ -158,12 +158,23 @@ function App() {
       />
       <main className="main-content">
         {currentView === 'dashboard' && (
-          <Dashboard 
+          <Dashboard
             user={user}
             emissionsprojekt={emissionsprojekt}
             onNavigate={navigateTo}
             onCreateProject={createNewProjekt}
             onRefresh={loadEmissionsprojekt}
+          />
+        )}
+
+        {currentView === 'tidigare-emissionsprojekt' && (
+          <Dashboard
+            user={user}
+            emissionsprojekt={emissionsprojekt}
+            onNavigate={navigateTo}
+            onCreateProject={createNewProjekt}
+            onRefresh={loadEmissionsprojekt}
+            defaultSection="tidigare"
           />
         )}
         

@@ -87,10 +87,8 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
       säkerhetsbuffert: '20'
     },
     generellPrognos: {
-      intäktsförväntning: '',
-      kostnadsförväntning: '',
-      bruttomarginal: '',
-      breakEvenTidpunkt: ''
+      intäktsförändring: '',
+      kostnadsförändring: ''
     }
   });
   
@@ -1237,55 +1235,29 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                   Beskriv er förväntade intäkts- och kostnadsutveckling i generella termer.
                 </p>
 
-                <div className="form-group">
-                  <label>Intäktsförväntningar (beskriv)</label>
-                  <textarea
-                    value={analysData.generellPrognos.intäktsförväntning}
-                    onChange={(e) => setAnalysData({
-                      ...analysData,
-                      generellPrognos: {...analysData.generellPrognos, intäktsförväntning: e.target.value}
-                    })}
-                    placeholder="T.ex. Vi förväntar oss att nå break-even inom 18 månader med nuvarande tillväxttakt..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Kostnadsförväntningar (beskriv)</label>
-                  <textarea
-                    value={analysData.generellPrognos.kostnadsförväntning}
-                    onChange={(e) => setAnalysData({
-                      ...analysData,
-                      generellPrognos: {...analysData.generellPrognos, kostnadsförväntning: e.target.value}
-                    })}
-                    placeholder="T.ex. Huvuddelen av kostnader är personal (70%), resterande är infrastruktur..."
-                    rows={3}
-                  />
-                </div>
-
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Målsatt bruttomarginal (%)</label>
+                    <label>Intäktsförändring kommande 12 mån (+/-, %)</label>
                     <input
                       type="number"
-                      value={analysData.generellPrognos.bruttomarginal}
+                      value={analysData.generellPrognos.intäktsförändring}
                       onChange={(e) => setAnalysData({
                         ...analysData,
-                        generellPrognos: {...analysData.generellPrognos, bruttomarginal: e.target.value}
+                        generellPrognos: {...analysData.generellPrognos, intäktsförändring: e.target.value}
                       })}
-                      placeholder="T.ex. 65"
+                      placeholder="T.ex. +15 eller -5"
                     />
                   </div>
                   <div className="form-group">
-                    <label>Förväntad break-even (kvartal/år)</label>
+                    <label>Kostnadsförändring kommande 12 mån (+/-, %)</label>
                     <input
-                      type="text"
-                      value={analysData.generellPrognos.breakEvenTidpunkt}
+                      type="number"
+                      value={analysData.generellPrognos.kostnadsförändring}
                       onChange={(e) => setAnalysData({
                         ...analysData,
-                        generellPrognos: {...analysData.generellPrognos, breakEvenTidpunkt: e.target.value}
+                        generellPrognos: {...analysData.generellPrognos, kostnadsförändring: e.target.value}
                       })}
-                      placeholder="T.ex. Q3 2026"
+                      placeholder="T.ex. +10 eller -3"
                     />
                   </div>
                 </div>
