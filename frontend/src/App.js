@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import Login from './auth/Login';
 import Dashboard from './components/Dashboard';
@@ -23,6 +23,7 @@ function App() {
   // loading state available for future use
   const [loading, setLoading] = useState(false); // eslint-disable-line no-unused-vars
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const keepAliveRef = useRef(null);
   const [companySettings, setCompanySettings] = useState(() => {
     try {
       const saved = sessionStorage.getItem('companySettings');
@@ -36,7 +37,11 @@ function App() {
     const savedUser = getUser();
     if (token && savedUser) {
       setUser(savedUser);
+      keepAliveRef.current = setInterval(() => {
+        fetch('/api/health').catch(() => {});
+      }, 4 * 60 * 1000);
     }
+    return () => clearInterval(keepAliveRef.current);
   }, []);
 
   // Load emission projects when user is set
@@ -60,9 +65,13 @@ function App() {
 
   const handleLogin = (userObj) => {
     setUser(userObj);
+    keepAliveRef.current = setInterval(() => {
+      fetch('/api/health').catch(() => {});
+    }, 4 * 60 * 1000);
   };
 
   const handleLogout = () => {
+    clearInterval(keepAliveRef.current);
     clearAuthToken();
     setUser(null);
     setCurrentView('dashboard');
