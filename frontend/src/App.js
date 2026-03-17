@@ -12,6 +12,7 @@ import Aktiebok from './components/Aktiebok';
 import Inställningar from './components/Inställningar';
 import Kassaflode from './components/Kassaflode';
 import Emissionsnyheter from './components/Emissionsnyheter';
+import Sidebar from './components/Sidebar';
 import { apiGet, apiPost, apiPut, getAuthToken, getUser, clearAuthToken } from './utils/api';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
   const [aktivtProjekt, setAktivtProjekt] = useState(null);
   // loading state available for future use
   const [loading, setLoading] = useState(false); // eslint-disable-line no-unused-vars
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [companySettings, setCompanySettings] = useState(() => {
     try {
       const saved = sessionStorage.getItem('companySettings');
@@ -147,6 +149,13 @@ function App() {
       </nav>
 
       {/* Main Content Area */}
+      <div className="app-body">
+      <Sidebar
+        currentView={currentView}
+        onNavigate={navigateTo}
+        expanded={sidebarExpanded}
+        onToggle={() => setSidebarExpanded(!sidebarExpanded)}
+      />
       <main className="main-content">
         {currentView === 'dashboard' && (
           <Dashboard 
@@ -252,6 +261,7 @@ function App() {
           />
         )}
       </main>
+      </div>
 
       {/* Footer */}
       <footer className="global-footer">
