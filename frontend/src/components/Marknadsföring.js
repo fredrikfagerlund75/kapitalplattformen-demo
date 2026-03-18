@@ -24,6 +24,11 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
   // Analytics state
   const [analytics, setAnalytics] = useState(null);
 
+  // Kampanjkit state
+  const [kampanjKit, setKampanjKit] = useState(null);
+  const [kampanjLoading, setKampanjLoading] = useState(false);
+  const [kampanjSubTab, setKampanjSubTab] = useState('social');
+
   if (!projekt) {
     return (
       <div className="module-container">
@@ -162,6 +167,31 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
     setLoading(false);
   };
 
+  // ---- Kampanjmotor ----
+  const handleGenerateKampanjKit = async () => {
+    setKampanjLoading(true);
+    try {
+      const response = await apiPost('/api/kampanjmotor/generate', {
+        emissionId: projekt.id,
+        companyName: user.company,
+        emissionType: projekt.emissionsvillkor?.typ || 'Nyemission',
+        emissionsvolym: projekt.emissionsvillkor?.emissionsvolym || 0,
+        teckningskurs: projekt.emissionsvillkor?.teckningskurs || ''
+      });
+      const data = await response.json();
+      setKampanjKit(data);
+    } catch (error) {
+      console.error('Kampanjmotor error:', error);
+      alert('Kunde inte generera kampanjkit');
+    }
+    setKampanjLoading(false);
+  };
+
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text);
+    alert('Kopierad!');
+  };
+
   // ---- Analytics ----
   const handleLoadAnalytics = async () => {
     setLoading(true);
@@ -201,6 +231,9 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
         </button>
         <button className={`tab ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => { setActiveTab('analytics'); handleLoadAnalytics(); }}>
           📊 Statistik
+        </button>
+        <button className={`tab ${activeTab === 'kampanjkit' ? 'active' : ''}`} onClick={() => setActiveTab('kampanjkit')}>
+          🎨 Kampanjkit
         </button>
       </div>
 
@@ -401,6 +434,98 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                 <span className="mf-badge" style={{ background: '#fef3cd', color: '#856404' }}>🚧 Kommer i framtida version</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ===== KAMPANJKIT TAB ===== */}
+        {activeTab === 'kampanjkit' && (
+          <div className="mf-section">
+            <h2>🎨 Kampanjkit</h2>
+            <p>Generera färdigt marknadsföringsinnehåll baserat på emissionsdata och varumärkesprofil</p>
+
+            <div className="mf-kampanj-status">
+              <div className="mf-kampanj-status-info">
+                <strong>{projekt.name}</strong>
+                <span>{projekt.emissionsvillkor?.typ || 'Emission'} · {projekt.emissionsvillkor?.emissionsvolym ? Number(projekt.emissionsvillkor.emissionsvolym).toLocaleString('sv-SE') + ' SEK' : ''}</span>
+              </div>
+              <button className="btn-primary" onClick={handleGenerateKampanjKit} disabled={kampanjLoading}>
+                {kampanjLoading ? '⏳ Genererar...' : kampanjKit ? '🔄 Regenerera' : '🤖 Generera kampanjkit'}
+              </button>
+            </div>
+
+            {kampanjKit && (
+              <>
+                <div className="mf-referral-box">
+                  <span className="mf-referral-label">🔗 Referrallänk</span>
+                  <span className="mf-referral-url">{kampanjKit.referralUrl}</span>
+                  <button className="btn-secondary btn-small" onClick={() => handleCopy(kampanjKit.referralUrl)}>
+                    📋 Kopiera
+                  </button>
+                </div>
+
+                <div className="mf-kampanj-subtabs">
+                  <button className={`mf-kampanj-subtab ${kampanjSubTab === 'social' ? 'active' : ''}`} onClick={() => setKampanjSubTab('social')}>
+                    LinkedIn & X
+                  </button>
+                  <button className={`mf-kampanj-subtab ${kampanjSubTab === 'press' ? 'active' : ''}`} onClick={() => setKampanjSubTab('press')}>
+                    Presstext
+                  </button>
+                  <button className={`mf-kampanj-subtab ${kampanjSubTab === 'email' ? 'active' : ''}`} onClick={() => setKampanjSubTab('email')}>
+                    Email-mall
+                  </button>
+                </div>
+
+                {kampanjSubTab === 'social' && (
+                  <div>
+                    <h3 style={{ margin: '1.5rem 0 1rem' }}>LinkedIn</h3>
+                    {kampanjKit.linkedin.map((v, i) => (
+                      <div key={i} className="mf-variant-card">
+                        <div className="mf-variant-header">
+                          <span className="mf-variant-label">{v.label}</span>
+                          <button className="btn-secondary btn-small" onClick={() => handleCopy(v.text)}>📋 Kopiera</button>
+                        </div>
+                        <p className="mf-variant-text">{v.text}</p>
+                      </div>
+                    ))}
+
+                    <h3 style={{ margin: '1.5rem 0 1rem' }}>X / Twitter</h3>
+                    {kampanjKit.x.map((v, i) => (
+                      <div key={i} className="mf-variant-card">
+                        <div className="mf-variant-header">
+                          <span className="mf-variant-label">{v.label}</span>
+                          <button className="btn-secondary btn-small" onClick={() => handleCopy(v.text)}>📋 Kopiera</button>
+                        </div>
+                        <p className="mf-variant-text">{v.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {kampanjSubTab === 'press' && (
+                  <div className="mf-variant-card" style={{ marginTop: '1.5rem' }}>
+                    <div className="mf-variant-header">
+                      <span className="mf-variant-label">Presstext</span>
+                      <button className="btn-secondary btn-small" onClick={() => handleCopy(kampanjKit.presstext)}>📋 Kopiera</button>
+                    </div>
+                    <p className="mf-variant-text" style={{ whiteSpace: 'pre-wrap' }}>{kampanjKit.presstext}</p>
+                  </div>
+                )}
+
+                {kampanjSubTab === 'email' && (
+                  <div style={{ marginTop: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+                      <button className="btn-secondary btn-small" onClick={() => handleCopy(kampanjKit.emailHtml)}>📋 Kopiera HTML</button>
+                    </div>
+                    <iframe
+                      srcDoc={kampanjKit.emailHtml}
+                      title="Email-mall förhandsgranskning"
+                      sandbox="allow-same-origin"
+                      style={{ width: '100%', height: '500px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff' }}
+                    />
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 

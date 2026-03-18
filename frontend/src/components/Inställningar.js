@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Inställningar.css';
-import { apiPost } from '../utils/api';
+import { apiPost, apiGet, apiPut } from '../utils/api';
 
 function Inställningar({ user, companySettings, onSave, onBack }) {
   const [formData, setFormData] = useState({
@@ -13,6 +13,49 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
   });
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  const [brandProfile, setBrandProfile] = useState({
+    ton: 'Professionell',
+    tagline: '',
+    primaryColor: '#667eea',
+    secondaryColor: '#764ba2',
+    font: 'Inter',
+    logoUrl: ''
+  });
+  const [brandSaved, setBrandSaved] = useState(false);
+
+  useEffect(() => {
+    apiGet('/api/settings/brand-profile')
+      .then(r => r.json())
+      .then(data => setBrandProfile(data))
+      .catch(() => {});
+  }, []);
+
+  const handleBrandChange = (field, value) => {
+    setBrandProfile(prev => ({ ...prev, [field]: value }));
+    setBrandSaved(false);
+  };
+
+  const handleBrandSave = async () => {
+    try {
+      await apiPut('/api/settings/brand-profile', brandProfile);
+      setBrandSaved(true);
+    } catch {
+      alert('Kunde inte spara varumärkesprofil');
+    }
+  };
+
+  const handleBrandDemo = () => {
+    setBrandProfile({
+      ton: 'Tillväxt',
+      tagline: 'Investera i morgondagens infrastruktur',
+      primaryColor: '#2563eb',
+      secondaryColor: '#7c3aed',
+      font: 'Inter',
+      logoUrl: ''
+    });
+    setBrandSaved(false);
+  };
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -148,8 +191,106 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
         </div>
 
         <div className="settings-info-box">
-          <p>💡 Informationen som sparas här används som grund i Kapitalrådgivaren, Prospektgeneratorn och övriga moduler. 
+          <p>💡 Informationen som sparas här används som grund i Kapitalrådgivaren, Prospektgeneratorn och övriga moduler.
           Du kan alltid ändra uppgifterna i respektive modul.</p>
+        </div>
+
+        <div className="settings-card" style={{ marginTop: '1.5rem' }}>
+          <h2>🎨 Varumärkesprofil</h2>
+          <p className="settings-desc">
+            Används av Kampanjmotorn i Marknadsföring för att anpassa ton och stil på genererat innehåll.
+          </p>
+
+          <div className="settings-form">
+            <div className="form-row two-col">
+              <div className="form-group">
+                <label>Kommunikationston</label>
+                <select value={brandProfile.ton} onChange={(e) => handleBrandChange('ton', e.target.value)}>
+                  <option value="Professionell">Professionell</option>
+                  <option value="Tillväxt">Tillväxt</option>
+                  <option value="Nordisk">Nordisk</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Typsnitt</label>
+                <select value={brandProfile.font} onChange={(e) => handleBrandChange('font', e.target.value)}>
+                  <option value="Inter">Inter</option>
+                  <option value="Roboto">Roboto</option>
+                  <option value="Playfair Display">Playfair Display</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Tagline</label>
+                <input
+                  type="text"
+                  value={brandProfile.tagline}
+                  onChange={(e) => handleBrandChange('tagline', e.target.value)}
+                  placeholder="Investera i morgondagens infrastruktur"
+                />
+              </div>
+            </div>
+
+            <div className="form-row two-col">
+              <div className="form-group">
+                <label>Primärfärg</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="color"
+                    value={brandProfile.primaryColor}
+                    onChange={(e) => handleBrandChange('primaryColor', e.target.value)}
+                    style={{ width: '48px', height: '38px', padding: '2px', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                  />
+                  <input
+                    type="text"
+                    value={brandProfile.primaryColor}
+                    onChange={(e) => handleBrandChange('primaryColor', e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Sekundärfärg</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="color"
+                    value={brandProfile.secondaryColor}
+                    onChange={(e) => handleBrandChange('secondaryColor', e.target.value)}
+                    style={{ width: '48px', height: '38px', padding: '2px', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+                  />
+                  <input
+                    type="text"
+                    value={brandProfile.secondaryColor}
+                    onChange={(e) => handleBrandChange('secondaryColor', e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Logotyp-URL (valfritt)</label>
+                <input
+                  type="text"
+                  value={brandProfile.logoUrl}
+                  onChange={(e) => handleBrandChange('logoUrl', e.target.value)}
+                  placeholder="https://example.com/logo.png"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-actions">
+            <button className="btn-secondary" onClick={handleBrandDemo}>
+              🎲 Fyll i exempeldata
+            </button>
+            <button className="btn-primary" onClick={handleBrandSave}>
+              {brandSaved ? '✅ Sparat' : '💾 Spara varumärkesprofil'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

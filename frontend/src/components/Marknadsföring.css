@@ -211,6 +211,124 @@
   font-size: 1.1rem;
 }
 
+/* ===== KAMPANJKIT ===== */
+
+.mf-kampanj-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8faff;
+  border: 1px solid #e0e7ff;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.mf-kampanj-status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mf-kampanj-status-info strong {
+  font-size: 1rem;
+  color: #1a202c;
+}
+
+.mf-kampanj-status-info span {
+  font-size: 0.85rem;
+  color: #718096;
+}
+
+.mf-referral-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.mf-referral-label {
+  font-weight: 600;
+  color: #166534;
+  white-space: nowrap;
+}
+
+.mf-referral-url {
+  flex: 1;
+  color: #15803d;
+  font-family: monospace;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.mf-kampanj-subtabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0;
+}
+
+.mf-kampanj-subtab {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  color: #718096;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.mf-kampanj-subtab:hover {
+  color: #4a5568;
+}
+
+.mf-kampanj-subtab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  font-weight: 600;
+}
+
+.mf-variant-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.mf-variant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.mf-variant-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #667eea;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mf-variant-text {
+  color: #2d3748;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.btn-small {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .mf-stats-grid {

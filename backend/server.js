@@ -1647,6 +1647,105 @@ app.get('/api/marketing/brevo-campaigns', async (req, res) => {
 });
 
 // ========================================================================
+//  BRAND PROFILE & KAMPANJMOTOR
+// ========================================================================
+
+let brandProfile = {
+  ton: 'Professionell',
+  tagline: '',
+  primaryColor: '#667eea',
+  secondaryColor: '#764ba2',
+  font: 'Inter',
+  logoUrl: ''
+};
+
+app.get('/api/settings/brand-profile', requireAuth, (req, res) => {
+  res.json(brandProfile);
+});
+
+app.put('/api/settings/brand-profile', requireAuth, (req, res) => {
+  brandProfile = { ...brandProfile, ...req.body };
+  res.json(brandProfile);
+});
+
+let kampanjKits = {};
+
+app.post('/api/kampanjmotor/generate', requireAuth, async (req, res) => {
+  try {
+    const { emissionId, companyName, emissionType, emissionsvolym, teckningskurs } = req.body;
+    const profil = req.body.brandProfile || brandProfile;
+
+    const prompt = `Du är en expert på finansiell kommunikation för svenska börsbolag. Generera marknadsföringsmaterial för följande emission:
+
+Bolag: ${companyName}
+Emissionstyp: ${emissionType || 'Nyemission'}
+Emissionsvolym: ${emissionsvolym ? Number(emissionsvolym).toLocaleString('sv-SE') : 'N/A'} SEK
+Teckningskurs: ${teckningskurs || 'N/A'} SEK
+Ton: ${profil.ton || 'Professionell'}
+Tagline: ${profil.tagline || ''}
+
+Returnera ENDAST ett JSON-objekt med denna exakta struktur:
+{
+  "linkedin": [
+    {"label": "Kort (150 tecken)", "text": "..."},
+    {"label": "Medium (300 tecken)", "text": "..."},
+    {"label": "Lång (600 tecken)", "text": "..."}
+  ],
+  "x": [
+    {"label": "Inlägg 1", "text": "..."},
+    {"label": "Inlägg 2", "text": "..."},
+    {"label": "Inlägg 3", "text": "..."}
+  ],
+  "presstext": "En generell presstext på 200-300 ord om emissionen, skriven för finansiell press."
+}
+
+Alla texter ska vara på svenska, professionella och MAR-kompatibla (inga garantier, inga överdrifter). Inkludera relevanta #hashtags på LinkedIn och X-posterna.`;
+
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2500,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const rawText = response.content[0].text.trim();
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    const generated = jsonMatch ? JSON.parse(jsonMatch[0]) : { linkedin: [], x: [], presstext: '' };
+
+    const emailPrompt = `Generera ett kort, professionellt HTML-email (inline-stilar) för ${companyName}s emission (${emissionType || 'Nyemission'}, volym ${emissionsvolym ? Number(emissionsvolym).toLocaleString('sv-SE') : 'N/A'} SEK, teckningskurs ${teckningskurs || 'N/A'} SEK). Ton: ${profil.ton}. Inkludera ämnesrad, ingress, nyckelvillkor och uppmaning att teckna. MAR-kompatibel text. Returnera ENDAST HTML-koden.`;
+
+    const emailResp = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1500,
+      messages: [{ role: 'user', content: emailPrompt }]
+    });
+    const emailHtml = emailResp.content[0].text.trim();
+
+    const kit = {
+      emissionId,
+      generatedAt: new Date().toISOString(),
+      brandProfileSnapshot: profil,
+      linkedin: generated.linkedin || [],
+      x: generated.x || [],
+      presstext: generated.presstext || '',
+      emailHtml,
+      referralUrl: `https://kapital.demo/emission-${emissionId}`
+    };
+
+    kampanjKits[emissionId] = kit;
+    res.json(kit);
+  } catch (error) {
+    console.error('Kampanjmotor error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/kampanjmotor/:emissionId', requireAuth, (req, res) => {
+  const kit = kampanjKits[req.params.emissionId];
+  if (!kit) return res.status(404).json({ error: 'Inget kampanjkit hittades' });
+  res.json(kit);
+});
+
+// ========================================================================
 //  KASSAFLÖDE & NYHETER GET-routes – FÖRE SPA catch-all
 // ========================================================================
 
