@@ -1701,7 +1701,7 @@ Returnera ENDAST ett JSON-objekt med denna exakta struktur:
 
 Alla texter ska vara på svenska, professionella och MAR-kompatibla (inga garantier, inga överdrifter). Inkludera relevanta #hashtags på LinkedIn och X-posterna.`;
 
-    const response = await client.messages.create({
+    const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2500,
       messages: [{ role: 'user', content: prompt }]
@@ -1716,7 +1716,7 @@ Alla texter ska vara på svenska, professionella och MAR-kompatibla (inga garant
 
     const emailPrompt = `Generera ett kort, professionellt HTML-email (inline-stilar) för ${companyName}s emission (${emissionType || 'Nyemission'}, volym ${emissionsvolym ? Number(emissionsvolym).toLocaleString('sv-SE') : 'N/A'} SEK, teckningskurs ${teckningskurs || 'N/A'} SEK). Ton: ${profil.ton}. Inkludera ämnesrad, ingress, nyckelvillkor och uppmaning att teckna. MAR-kompatibel text. Returnera ENDAST HTML-koden.`;
 
-    const emailResp = await client.messages.create({
+    const emailResp = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1500,
       messages: [{ role: 'user', content: emailPrompt }]
