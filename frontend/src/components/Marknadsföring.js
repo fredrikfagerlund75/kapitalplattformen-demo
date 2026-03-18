@@ -179,6 +179,10 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
         teckningskurs: projekt.emissionsvillkor?.teckningskurs || ''
       });
       const data = await response.json();
+      if (!response.ok || data.error) {
+        alert('Kunde inte generera kampanjkit: ' + (data.error || 'Okänt fel'));
+        return;
+      }
       setKampanjKit(data);
     } catch (error) {
       console.error('Kampanjmotor error:', error);
@@ -478,7 +482,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                 {kampanjSubTab === 'social' && (
                   <div>
                     <h3 style={{ margin: '1.5rem 0 1rem' }}>LinkedIn</h3>
-                    {kampanjKit.linkedin.map((v, i) => (
+                    {(kampanjKit.linkedin || []).map((v, i) => (
                       <div key={i} className="mf-variant-card">
                         <div className="mf-variant-header">
                           <span className="mf-variant-label">{v.label}</span>
@@ -489,7 +493,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                     ))}
 
                     <h3 style={{ margin: '1.5rem 0 1rem' }}>X / Twitter</h3>
-                    {kampanjKit.x.map((v, i) => (
+                    {(kampanjKit.x || []).map((v, i) => (
                       <div key={i} className="mf-variant-card">
                         <div className="mf-variant-header">
                           <span className="mf-variant-label">{v.label}</span>

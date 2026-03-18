@@ -1709,7 +1709,10 @@ Alla texter ska vara på svenska, professionella och MAR-kompatibla (inga garant
 
     const rawText = response.content[0].text.trim();
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    const generated = jsonMatch ? JSON.parse(jsonMatch[0]) : { linkedin: [], x: [], presstext: '' };
+    let generated = { linkedin: [], x: [], presstext: '' };
+    if (jsonMatch) {
+      try { generated = JSON.parse(jsonMatch[0]); } catch {}
+    }
 
     const emailPrompt = `Generera ett kort, professionellt HTML-email (inline-stilar) för ${companyName}s emission (${emissionType || 'Nyemission'}, volym ${emissionsvolym ? Number(emissionsvolym).toLocaleString('sv-SE') : 'N/A'} SEK, teckningskurs ${teckningskurs || 'N/A'} SEK). Ton: ${profil.ton}. Inkludera ämnesrad, ingress, nyckelvillkor och uppmaning att teckna. MAR-kompatibel text. Returnera ENDAST HTML-koden.`;
 
