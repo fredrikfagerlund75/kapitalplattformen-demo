@@ -151,8 +151,8 @@ function Dashboard({ user, emissionsprojekt, onNavigate, onCreateProject, onRefr
       <div className="info-banner">
         <div className="info-banner-icon">ℹ️</div>
         <div className="info-banner-content">
-          <strong>Version 5.0 - Emissionsprojekt-arkitektur</strong>
-          <p>All data och processer kopplas nu till specifika emissionsprojekt som flödar genom plattformen.</p>
+          <strong>PROTOTYP – Kapitalplattformen v5</strong>
+          <p>Vissa funktioner visas enbart som placeholders och använder sig av testdata.</p>
         </div>
       </div>
     </div>
