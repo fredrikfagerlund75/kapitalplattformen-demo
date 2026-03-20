@@ -48,9 +48,12 @@ export default function PitchDeckEditor({ emissionId, companyId }) {
         method: 'POST',
         headers: getAuthHeaders()
       });
-      const data = await res.json();
+      let data;
+      try { data = await res.json(); } catch { data = {}; }
       if (res.ok) { setDeck(data); setCurrentSlide(0); }
-      else alert(data.message || data.error || 'Generering misslyckades');
+      else alert(data.message || data.error || `Generering misslyckades (HTTP ${res.status})`);
+    } catch (err) {
+      alert('Nätverksfel: ' + err.message);
     } finally {
       setGenerating(false);
     }
