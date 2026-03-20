@@ -42,7 +42,6 @@ export default function PitchDeckEditor({ emissionId, companyId }) {
   }, [deck?.conversation_history]);
 
   const handleGenerate = async (force = false) => {
-    if (!force && brandStatus && !brandStatus.valid) return;
     setGenerating(true);
     try {
       const res  = await fetch(`/api/emissions/${emissionId}/pitch-deck/generate`, {

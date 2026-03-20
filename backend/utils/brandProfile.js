@@ -1,8 +1,7 @@
 const db = require('../db');
 
 const REQUIRED_FIELDS = [
-  'company_name', 'tagline', 'logo_url',
-  'color_primary', 'color_secondary',
+  'company_name', 'tagline',
   'tone', 'language'
 ];
 
