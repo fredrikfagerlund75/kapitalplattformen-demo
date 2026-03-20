@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Inställningar.css';
-import { apiPost } from '../utils/api';
+import { apiPost, getAuthHeaders } from '../utils/api';
 
 // Demo company ID (from DB seed)
 const DEMO_COMPANY_ID = '1485df45-910c-43cc-8197-ead8282e357d';
@@ -48,19 +48,21 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
 
   useEffect(() => {
     fetch(`/api/companies/${DEMO_COMPANY_ID}/brand-profile`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      headers: getAuthHeaders()
     })
       .then(r => r.json())
       .then(data => {
-        setBrandProfile({ ...BRAND_DEFAULTS, ...data });
+        if (data && !data.error) setBrandProfile({ ...BRAND_DEFAULTS, ...data });
       })
       .catch(() => {});
 
     fetch(`/api/companies/${DEMO_COMPANY_ID}/brand-profile/status`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      headers: getAuthHeaders()
     })
       .then(r => r.json())
-      .then(setBrandStatus)
+      .then(data => {
+        if (data && !data.error) setBrandStatus(data);
+      })
       .catch(() => {});
   }, []);
 
@@ -73,19 +75,15 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
     try {
       const res = await fetch(`/api/companies/${DEMO_COMPANY_ID}/brand-profile`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(brandProfile)
       });
       const updated = await res.json();
-      setBrandProfile({ ...BRAND_DEFAULTS, ...updated });
+      if (updated && !updated.error) setBrandProfile({ ...BRAND_DEFAULTS, ...updated });
       setBrandSaved(true);
-      // Refresh status
       fetch(`/api/companies/${DEMO_COMPANY_ID}/brand-profile/status`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
-      }).then(r => r.json()).then(setBrandStatus).catch(() => {});
+        headers: getAuthHeaders()
+      }).then(r => r.json()).then(data => { if (data && !data.error) setBrandStatus(data); }).catch(() => {});
     } catch {
       alert('Kunde inte spara varumärkesprofil');
     }
