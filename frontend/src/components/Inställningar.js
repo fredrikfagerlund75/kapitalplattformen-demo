@@ -52,7 +52,14 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
     })
       .then(r => r.json())
       .then(data => {
-        if (data && !data.error) setBrandProfile({ ...BRAND_DEFAULTS, ...data });
+        if (data && !data.error) setBrandProfile({
+            ...BRAND_DEFAULTS,
+            ...data,
+            disclaimer_text: data.disclaimer_text || '',
+            keywords:        Array.isArray(data.keywords)    ? data.keywords    : [],
+            avoid_words:     Array.isArray(data.avoid_words) ? data.avoid_words : [],
+            hero_images:     Array.isArray(data.hero_images) ? data.hero_images : []
+          });
       })
       .catch(() => {});
 
@@ -79,7 +86,14 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
         body: JSON.stringify(brandProfile)
       });
       const updated = await res.json();
-      if (updated && !updated.error) setBrandProfile({ ...BRAND_DEFAULTS, ...updated });
+      if (updated && !updated.error) setBrandProfile({
+        ...BRAND_DEFAULTS,
+        ...updated,
+        disclaimer_text: updated.disclaimer_text || '',
+        keywords:        Array.isArray(updated.keywords)    ? updated.keywords    : [],
+        avoid_words:     Array.isArray(updated.avoid_words) ? updated.avoid_words : [],
+        hero_images:     Array.isArray(updated.hero_images) ? updated.hero_images : []
+      });
       setBrandSaved(true);
       fetch(`/api/companies/${DEMO_COMPANY_ID}/brand-profile/status`, {
         headers: getAuthHeaders()
@@ -299,7 +313,7 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
           {brandStatus && !brandStatus.valid && (
             <div className="brand-status-warning">
               ⚠ Varumärkesprofilen är ofullständig — pitch deck kan inte genereras.<br />
-              <span>Saknade fält: {brandStatus.missing.join(', ')}</span>
+              <span>Saknade fält: {(brandStatus.missing || []).join(', ')}</span>
             </div>
           )}
 
