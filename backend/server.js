@@ -2066,8 +2066,10 @@ app.post('/api/kassaflode/export-ppt', async (req, res) => {
 //  DB-BACKED ROUTES
 // ========================================================================
 
-const companiesRouter = require('./routes/companies');
+const companiesRouter  = require('./routes/companies');
+const pitchDeckRouter  = require('./routes/pitch_deck');
 app.use('/api/companies', requireAuth, companiesRouter);
+app.use('/api/emissions', requireAuth, pitchDeckRouter);
 
 // ========================================================================
 //  SERVER START

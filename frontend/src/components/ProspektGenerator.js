@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import './ProspektGenerator.css';
 import { apiPost } from '../utils/api';
+import PitchDeckEditor from './PitchDeckEditor/PitchDeckEditor';
+
+const DEMO_EMISSION_ID = '83ed09ce-cd14-46e0-bcc9-5141d6aa70c3';
+const DEMO_COMPANY_ID  = '1485df45-910c-43cc-8197-ead8282e357d';
 
 function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdateProject, onNavigate }) {
   const [step, setStep] = useState(0);
@@ -800,7 +804,27 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
               >
                 📄 Generera PDF och gå vidare till Teckning
               </button>
+              <button
+                className="btn-secondary"
+                onClick={() => setStep(7)}
+                style={{width: '100%'}}
+              >
+                ◈ Skapa Pitch Deck / Teaser
+              </button>
             </div>
+          </div>
+        )}
+
+        {step === 7 && (
+          <div className="wizard-step">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
+              <button className="btn-secondary" onClick={() => setStep(6)}>← Tillbaka till Prospekt/IM</button>
+              <h2 style={{ margin: 0 }}>◈ Pitch Deck / Teaser</h2>
+            </div>
+            <PitchDeckEditor
+              emissionId={DEMO_EMISSION_ID}
+              companyId={DEMO_COMPANY_ID}
+            />
           </div>
         )}
 

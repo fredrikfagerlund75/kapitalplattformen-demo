@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Inställningar.css';
-import { apiPost, apiGet, apiPut } from '../utils/api';
+import { apiPost } from '../utils/api';
 
 // Demo company ID (from DB seed)
 const DEMO_COMPANY_ID = '1485df45-910c-43cc-8197-ead8282e357d';
