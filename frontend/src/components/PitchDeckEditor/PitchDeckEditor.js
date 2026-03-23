@@ -294,7 +294,7 @@ function SlidePreview({ slide, brand }) {
   );
 
   if (slide.type === 'bullets') return (
-    <div className="pd-slide pd-slide-content" style={{ display: 'flex' }}>
+    <div className="pd-slide pd-slide-content" style={{ display: 'flex', flexDirection: 'row' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
         {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}
         <div className="pd-slide-header"><h2>{slide.title}</h2></div>
