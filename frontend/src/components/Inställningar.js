@@ -107,8 +107,8 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
     setBrandProfile({
       company_name: 'GreenTech Nordic AB',
       tagline: 'Investera i morgondagens infrastruktur',
-      logo_url: '',
-      logo_dark_url: '',
+      logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Placeholder_view_vector.svg/320px-Placeholder_view_vector.svg.png',
+      logo_dark_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Placeholder_view_vector.svg/320px-Placeholder_view_vector.svg.png',
       website_url: 'https://greentechnordic.se',
       color_primary: '#1E2761',
       color_secondary: '#185FA5',
@@ -123,8 +123,11 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
       ir_contact_name: 'Anna Lindqvist',
       ir_contact_email: 'ir@greentechnordic.se',
       ir_contact_phone: '+46 70 123 45 67',
-      disclaimer_text: '',
-      hero_images: []
+      disclaimer_text: 'Detta material utgör inte ett erbjudande om att teckna aktier och har enbart informationssyfte. Historisk avkastning är ingen garanti för framtida avkastning.',
+      hero_images: [
+        'https://images.unsplash.com/photo-1466611653911-95081537e5b7?w=800',
+        'https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=800'
+      ]
     });
     setBrandSaved(false);
   };
