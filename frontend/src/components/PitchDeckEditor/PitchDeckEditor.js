@@ -277,7 +277,7 @@ function SlidePreview({ slide, brand }) {
   const primaryColor = brand?.color_primary || '#1E2761';
   const heroBg       = hero
     ? { backgroundImage: `url(${hero})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-    : { background: `linear-gradient(135deg, ${primaryColor}18, ${primaryColor}3a)` };
+    : { background: `linear-gradient(135deg, ${primaryColor}28, ${primaryColor}55)` };
 
   if (slide.type === 'cover') return (
     <div className="pd-slide pd-slide-cover" style={hero ? {
@@ -306,8 +306,11 @@ function SlidePreview({ slide, brand }) {
       <div style={{
         width: '38%', flexShrink: 0,
         borderLeft: `2px solid ${primaryColor}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         ...heroBg
-      }} />
+      }}>
+        {!hero && <span style={{ fontSize: 6, color: primaryColor, opacity: 0.5, textAlign: 'center', padding: '0 4px' }}>Bakgrundsbild</span>}
+      </div>
     </div>
   );
 

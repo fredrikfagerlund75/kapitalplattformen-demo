@@ -1785,9 +1785,16 @@ app.get('/api/nyheter/search', requireAuth, (req, res) => {
 
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, '..', 'frontend', 'build');
-  app.use(express.static(buildPath));
+  app.use(express.static(buildPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('index.html')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      }
+    }
+  }));
   app.get('*', (req, res, next) => {
     if (!req.path.startsWith('/api/')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.sendFile(path.join(buildPath, 'index.html'));
     } else {
       next();
