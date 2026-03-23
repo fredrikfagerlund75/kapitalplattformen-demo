@@ -257,6 +257,9 @@ export default function PitchDeckEditor({ emissionId, companyId }) {
           </div>
           <div className="pd-action-row">
             <button className="pd-btn-ghost" onClick={handleReset}>Börja om</button>
+            <button className="pd-btn-secondary" onClick={() => handleGenerate()} disabled={generating}>
+              {generating ? 'Genererar...' : 'Generera nytt utkast'}
+            </button>
             <button className="pd-btn-primary" onClick={handleExport}>Exportera .pptx</button>
           </div>
         </div>

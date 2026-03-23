@@ -366,10 +366,16 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
       {step < 7 && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 0 8px' }}>
           <button
-            style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', border: '0.5px solid #e5e7eb', background: '#f9fafb', color: '#6b7280', cursor: 'pointer' }}
-            onClick={() => setStep(7)}
+            title="OBS: Pitch deck genereras på seed-data om du inte har sparat IM (steg 6)"
+            style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', border: '0.5px solid #e5e7eb', background: '#f9fafb', color: '#9ca3af', cursor: 'pointer' }}
+            onClick={() => {
+              if (step < 6) {
+                if (!window.confirm('Du har inte gått igenom steg 6 ännu — pitch deck kommer genereras på demo-data (GreenTech Nordic). Fortsätt ändå?')) return;
+              }
+              setStep(7);
+            }}
           >
-            Hoppa direkt till Pitch Deck →
+            Testa Pitch Deck direkt (dev) →
           </button>
         </div>
       )}
