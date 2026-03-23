@@ -107,8 +107,8 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
     setBrandProfile({
       company_name: 'GreenTech Nordic AB',
       tagline: 'Investera i morgondagens infrastruktur',
-      logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Placeholder_view_vector.svg/320px-Placeholder_view_vector.svg.png',
-      logo_dark_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Placeholder_view_vector.svg/320px-Placeholder_view_vector.svg.png',
+      logo_url: '',
+      logo_dark_url: '',
       website_url: 'https://greentechnordic.se',
       color_primary: '#1E2761',
       color_secondary: '#185FA5',

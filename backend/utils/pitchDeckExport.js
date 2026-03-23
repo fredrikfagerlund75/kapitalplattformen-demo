@@ -43,7 +43,9 @@ async function generatePPTX(slides, brand) {
 function addLogo(slide, brand, dark = false) {
   const url = dark ? (brand.logo_dark_url || brand.logo_url) : brand.logo_url;
   if (!url) return;
-  slide.addImage({ path: url, x: 0.3, y: 0.15, h: 0.45, sizing: { type: 'contain', h: 0.45 } });
+  try {
+    slide.addImage({ path: url, x: 0.3, y: 0.15, w: 1.5, h: 0.45, sizing: { type: 'contain', w: 1.5, h: 0.45 } });
+  } catch { /* logotyp ej tillgänglig — hoppa över */ }
 }
 
 function addFooter(slide, C, fontB, pageNum, total) {
