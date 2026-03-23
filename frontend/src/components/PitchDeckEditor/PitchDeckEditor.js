@@ -220,7 +220,10 @@ export default function PitchDeckEditor({ emissionId, companyId }) {
         {showSugg && (
           <div className="pd-suggestions">
             {SUGGESTIONS.map(s => (
-              <button key={s} className="pd-sug-chip" onClick={() => setPrompt(s)}>
+              <button key={s} className="pd-sug-chip" onClick={() => {
+                setPrompt(s);
+                if (/lägg till|ny slide|hela/i.test(s)) setScope('Hela decket');
+              }}>
                 {s}
               </button>
             ))}

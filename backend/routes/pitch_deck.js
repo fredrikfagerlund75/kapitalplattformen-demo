@@ -143,12 +143,12 @@ router.put('/:id/pitch-deck/chat', async (req, res) => {
 
     const scopeInstruction =
       scope === 'slide'
-        ? `Uppdatera ENBART slide med id "${slide_id}". Returnera JSON: { "slide": { ...uppdaterad slide } }`
-        : `Uppdatera hela decket där relevant. Returnera JSON: { "slides": [ ...alla slides ] }`;
+        ? `Uppdatera ENBART slide med id "${slide_id}". Returnera JSON: { "slide": { ...uppdaterad slide med alla fält } }`
+        : `Du får uppdatera befintliga slides OCH lägga till nya slides om användaren ber om det. Returnera alltid ALLA slides (befintliga + eventuellt nya) i: { "slides": [ ...komplett lista ] }`;
 
     const aiResponse = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 2000,
+      max_tokens: scope === 'slide' ? 2000 : 8000,
       system:     `Du är en assistent som hjälper till att redigera ett pitch deck.
 ${buildBrandContext(brand)}
 Returnera ENBART giltig JSON. ${scopeInstruction}`,
@@ -161,34 +161,44 @@ Returnera ENBART giltig JSON. ${scopeInstruction}`,
       ]
     });
 
+    let rawChat = aiResponse.content[0].text.trim();
+    rawChat = rawChat.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+
     let parsed;
     try {
-      parsed = JSON.parse(aiResponse.content[0].text);
+      parsed = JSON.parse(rawChat);
     } catch {
-      const match = aiResponse.content[0].text.match(/\{[\s\S]*\}/);
+      const match = rawChat.match(/\{[\s\S]*\}/);
       if (match) parsed = JSON.parse(match[0]);
-      else throw new Error('Claude returnerade ogiltig JSON');
+      else throw new Error('Claude returnerade ogiltig JSON i chat');
     }
 
     const ts = new Date().toISOString();
 
     let updatedSlides;
+    let assistantMsg;
+
     if (parsed.slide) {
       updatedSlides = deck.slides.map(s =>
         s.id === parsed.slide.id
           ? { ...parsed.slide, last_edited_by: 'ai', last_edited_at: ts }
           : s
       );
-    } else {
+      const updatedTitle = parsed.slide.title || parsed.slide.id;
+      assistantMsg = `Klart! Jag har uppdaterat sliden "${updatedTitle}".`;
+    } else if (parsed.slides) {
       updatedSlides = parsed.slides.map(s => ({
         ...s, last_edited_by: 'ai', last_edited_at: ts
       }));
+      assistantMsg = `Klart! Jag har uppdaterat ${updatedSlides.length} slides.`;
+    } else {
+      throw new Error('Oväntat JSON-format från Claude (varken slide eller slides)');
     }
 
     const updatedHistory = [
       ...(deck.conversation_history || []),
       { role: 'user',      content: prompt, scope, slide_id: slide_id || null, ts },
-      { role: 'assistant', content: aiResponse.content[0].text.substring(0, 200) + '…', ts }
+      { role: 'assistant', content: assistantMsg, ts }
     ];
 
     await db.query(
