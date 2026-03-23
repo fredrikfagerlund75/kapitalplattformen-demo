@@ -290,42 +290,61 @@ function SlidePreview({ slide, brand }) {
   );
 
   if (slide.type === 'bullets') return (
-    <div className="pd-slide pd-slide-content">
-      {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}
-      <div className="pd-slide-header"><h2>{slide.title}</h2></div>
-      <ul className="pd-bullets">
-        {(c.bullets || []).map((b, i) => <li key={i}>{b}</li>)}
-      </ul>
-      {c.highlight_box && <div className="pd-highlight-box">{c.highlight_box}</div>}
+    <div className="pd-slide pd-slide-content" style={{ display: 'flex' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}
+        <div className="pd-slide-header"><h2>{slide.title}</h2></div>
+        <ul className="pd-bullets">
+          {(c.bullets || []).map((b, i) => <li key={i}>{b}</li>)}
+        </ul>
+        {c.highlight_box && <div className="pd-highlight-box">{c.highlight_box}</div>}
+      </div>
+      {hero && (
+        <div style={{
+          width: '38%', backgroundImage: `url(${hero})`,
+          backgroundSize: 'cover', backgroundPosition: 'center',
+          borderLeft: '2px solid #1E2761', flexShrink: 0
+        }} />
+      )}
     </div>
   );
 
   if (slide.type === 'twocol') return (
-    <div className="pd-slide pd-slide-content">
-      {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}
-      <div className="pd-slide-header"><h2>{slide.title}</h2></div>
-      <div className="pd-col-grid">
-        {(c.cards || []).map((card, i) => (
-          <div key={i} className="pd-col-card">
-            <h3>{card.title}</h3>
-            <p>{card.body}</p>
-          </div>
-        ))}
+    <div className="pd-slide pd-slide-content" style={hero ? {
+      backgroundImage: `url(${hero})`, backgroundSize: 'cover', backgroundPosition: 'center'
+    } : {}}>
+      {hero && <div style={{ position: 'absolute', inset: 0, background: 'rgba(244,246,251,0.88)', borderRadius: 6 }} />}
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
+        {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}
+        <div className="pd-slide-header"><h2>{slide.title}</h2></div>
+        <div className="pd-col-grid">
+          {(c.cards || []).map((card, i) => (
+            <div key={i} className="pd-col-card">
+              <h3>{card.title}</h3>
+              <p>{card.body}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 
   if (slide.type === 'metrics') return (
-    <div className="pd-slide pd-slide-content">
-      {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}
-      <div className="pd-slide-header"><h2>{slide.title}</h2></div>
-      <div className="pd-metrics-grid">
-        {(c.metrics || []).map((m, i) => (
-          <div key={i} className="pd-metric-card">
-            <div className="pd-metric-val">{m.value}</div>
-            <div className="pd-metric-lbl">{m.label}</div>
-          </div>
-        ))}
+    <div className="pd-slide pd-slide-content" style={hero ? {
+      backgroundImage: `url(${hero})`, backgroundSize: 'cover', backgroundPosition: 'center'
+    } : {}}>
+      {hero && <div style={{ position: 'absolute', inset: 0, background: 'rgba(244,246,251,0.88)', borderRadius: 6 }} />}
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
+        {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}
+        <div className="pd-slide-header"><h2>{slide.title}</h2></div>
+        <div className="pd-metrics-grid">
+          {(c.metrics || []).map((m, i) => (
+            <div key={i} className="pd-metric-card">
+              <div className="pd-metric-val">{m.value}</div>
+              <div className="pd-metric-lbl">{m.label}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

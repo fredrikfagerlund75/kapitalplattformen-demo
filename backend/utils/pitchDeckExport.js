@@ -7,7 +7,7 @@ const hex = c => (c || '').replace('#', '');
 
 async function generatePPTX(slides, brand) {
   const pres = new PptxGenJS();
-  pres.layout  = 'LAYOUT_WIDE';
+  pres.layout  = 'LAYOUT_16x9';
   pres.author  = brand.company_name;
   pres.subject = 'Pitch Deck / Teaser';
 
