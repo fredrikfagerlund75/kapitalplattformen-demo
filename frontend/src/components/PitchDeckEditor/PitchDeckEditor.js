@@ -189,7 +189,7 @@ export default function PitchDeckEditor({ emissionId, companyId }) {
 
           {/* Slide canvas */}
           <div className="pd-canvas">
-            <SlidePreview slide={active} />
+            <SlidePreview slide={active} brand={brandStatus?.profile} />
           </div>
         </div>
       </div>
@@ -268,22 +268,30 @@ export default function PitchDeckEditor({ emissionId, companyId }) {
   );
 }
 
-function SlidePreview({ slide }) {
+function SlidePreview({ slide, brand }) {
   if (!slide?.type) return <div className="pd-slide-empty">Välj en slide</div>;
   const c = slide.content || {};
+  const heroImages = brand?.hero_images || [];
+  const logoUrl    = brand?.logo_url || '';
+  const hero       = heroImages[slide.order % heroImages.length] || heroImages[0];
 
   if (slide.type === 'cover') return (
-    <div className="pd-slide pd-slide-cover">
-      <div className="pd-cover-name">{c.company_name}</div>
-      <div className="pd-cover-tagline">{c.tagline}</div>
+    <div className="pd-slide pd-slide-cover" style={hero ? {
+      backgroundImage: `url(${hero})`, backgroundSize: 'cover', backgroundPosition: 'center'
+    } : {}}>
+      {hero && <div style={{ position: 'absolute', inset: 0, background: 'rgba(30,39,97,0.55)', borderRadius: 6 }} />}
+      {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 6, left: 8, height: 18, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />}
+      <div className="pd-cover-name" style={{ position: 'relative' }}>{c.company_name}</div>
+      <div className="pd-cover-tagline" style={{ position: 'relative' }}>{c.tagline}</div>
       {c.emission_amount && (
-        <div className="pd-cover-badge">{c.emission_type} · {c.emission_amount} · {c.marketplace}</div>
+        <div className="pd-cover-badge" style={{ position: 'relative' }}>{c.emission_type} · {c.emission_amount} · {c.marketplace}</div>
       )}
     </div>
   );
 
   if (slide.type === 'bullets') return (
     <div className="pd-slide pd-slide-content">
+      {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}
       <div className="pd-slide-header"><h2>{slide.title}</h2></div>
       <ul className="pd-bullets">
         {(c.bullets || []).map((b, i) => <li key={i}>{b}</li>)}
@@ -294,6 +302,7 @@ function SlidePreview({ slide }) {
 
   if (slide.type === 'twocol') return (
     <div className="pd-slide pd-slide-content">
+      {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}
       <div className="pd-slide-header"><h2>{slide.title}</h2></div>
       <div className="pd-col-grid">
         {(c.cards || []).map((card, i) => (
@@ -308,6 +317,7 @@ function SlidePreview({ slide }) {
 
   if (slide.type === 'metrics') return (
     <div className="pd-slide pd-slide-content">
+      {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}
       <div className="pd-slide-header"><h2>{slide.title}</h2></div>
       <div className="pd-metrics-grid">
         {(c.metrics || []).map((m, i) => (
