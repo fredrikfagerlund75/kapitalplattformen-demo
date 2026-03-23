@@ -1,4 +1,4 @@
-.pd-editor { display: flex; height: 760px; border: 0.5px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #fff; }
+.pd-editor { display: flex; height: calc(100vh - 420px); min-height: 500px; border: 0.5px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #fff; }
 
 /* Slide panel */
 .pd-slide-panel { width: 62%; display: flex; flex-direction: column; border-right: 0.5px solid #e5e7eb; }
