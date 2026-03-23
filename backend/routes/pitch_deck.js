@@ -8,6 +8,52 @@ const { generatePPTX } = require('../utils/pitchDeckExport');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// PUT /api/emissions/:id/im-sections  — spara IM-innehåll från wizarden till DB
+router.put('/:id/im-sections', async (req, res) => {
+  try {
+    const { sections } = req.body;
+    if (!Array.isArray(sections) || sections.length === 0) {
+      return res.status(400).json({ error: 'sections array krävs' });
+    }
+
+    const emRes = await db.query('SELECT company_id FROM emissions WHERE id = $1', [req.params.id]);
+    if (!emRes.rows[0]) return res.status(404).json({ error: 'Emission hittades inte' });
+    const { company_id } = emRes.rows[0];
+
+    // Hitta eller skapa IM-dokument
+    let docRes = await db.query(
+      `SELECT id FROM documents WHERE emission_id = $1 AND doc_type = 'IM' ORDER BY created_at DESC LIMIT 1`,
+      [req.params.id]
+    );
+    let docId;
+    if (docRes.rows[0]) {
+      docId = docRes.rows[0].id;
+    } else {
+      const ins = await db.query(
+        `INSERT INTO documents (emission_id, company_id, doc_type, title)
+         VALUES ($1, $2, 'IM', 'Informationsmemorandum') RETURNING id`,
+        [req.params.id, company_id]
+      );
+      docId = ins.rows[0].id;
+    }
+
+    // Ersätt sektioner
+    await db.query('DELETE FROM document_sections WHERE document_id = $1', [docId]);
+    for (const s of sections) {
+      await db.query(
+        `INSERT INTO document_sections (document_id, section_key, section_title, content, order_index)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [docId, s.section_key, s.section_title, s.content || '', s.order_index]
+      );
+    }
+
+    res.json({ ok: true, document_id: docId, sections_saved: sections.length });
+  } catch (err) {
+    console.error('im-sections error:', err);
+    res.status(500).json({ error: err?.message || err?.toString() });
+  }
+});
+
 // GET /api/emissions/:id/pitch-deck
 router.get('/:id/pitch-deck', async (req, res) => {
   try {

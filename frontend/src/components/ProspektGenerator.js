@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './ProspektGenerator.css';
-import { apiPost } from '../utils/api';
+import { apiPost, getAuthHeaders } from '../utils/api';
 import PitchDeckEditor from './PitchDeckEditor/PitchDeckEditor';
 
 const DEMO_EMISSION_ID = '83ed09ce-cd14-46e0-bcc9-5141d6aa70c3';
@@ -55,6 +55,28 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
     riskfaktorer: '',
     teamBios: ''
   });
+
+  const saveImSections = async () => {
+    const sections = [
+      { section_key: 'verksamhet',      section_title: 'Verksamhet och Strategi',        content: generatedContent.verksamhet,  order_index: 1 },
+      { section_key: 'marknad',         section_title: 'Marknadsöversikt',               content: generatedContent.marknad,     order_index: 2 },
+      { section_key: 'riskfaktorer',    section_title: 'Riskfaktorer',                   content: generatedContent.riskfaktorer,order_index: 3 },
+      { section_key: 'team',            section_title: 'Ledning och Styrelse',           content: generatedContent.teamBios,    order_index: 4 },
+      { section_key: 'finansiellt',     section_title: 'Finansiell information',         content: `Omsättning: ${formData.finansiellt.omsättning} TSEK (${formData.finansiellt.år})\nResultat: ${formData.finansiellt.resultat} TSEK\nEget kapital: ${formData.finansiellt.egetKapital} TSEK`, order_index: 5 },
+      { section_key: 'emissionsvillkor',section_title: 'Emissionsvillkor',               content: `Typ: ${projekt.emissionsvillkor.typ}\nTeckningskurs: ${projekt.emissionsvillkor.teckningskurs} SEK\nAntal nya aktier: ${projekt.emissionsvillkor.antalNyaAktier}\nEmissionsvolym: ${projekt.emissionsvillkor.emissionsvolym} SEK`, order_index: 6 },
+      { section_key: 'anvandning',      section_title: 'Användning av emissionslikvid', content: formData.användning,           order_index: 7 },
+    ].filter(s => s.content && s.content.trim());
+
+    const res = await fetch(`/api/emissions/${DEMO_EMISSION_ID}/im-sections`, {
+      method:  'PUT',
+      headers: getAuthHeaders(),
+      body:    JSON.stringify({ sections }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+  };
 
   const handleResearch = async (researchType) => {
     if (!formData.bolag.namn) {
@@ -796,7 +818,13 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
             <div style={{marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
               <button
                 className="btn-secondary"
-                onClick={() => onUpdateProject(projekt.id, { generatedContent })}
+                onClick={async () => {
+                  try {
+                    await saveImSections();
+                    onUpdateProject(projekt.id, { generatedContent });
+                    alert('Sparat!');
+                  } catch (e) { alert('Kunde inte spara: ' + e.message); }
+                }}
                 style={{width: '100%'}}
               >
                 💾 Spara ändringar
@@ -817,7 +845,14 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
               </button>
               <button
                 className="btn-secondary"
-                onClick={() => setStep(7)}
+                onClick={async () => {
+                  try {
+                    await saveImSections();
+                  } catch (e) {
+                    if (!window.confirm(`Kunde inte spara IM till databasen (${e.message}). Fortsätt ändå med seed-data?`)) return;
+                  }
+                  setStep(7);
+                }}
                 style={{width: '100%'}}
               >
                 ◈ Skapa Pitch Deck / Teaser
