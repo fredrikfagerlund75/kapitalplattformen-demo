@@ -61,7 +61,7 @@ router.post('/:id/pitch-deck/generate', async (req, res) => {
 
     const aiResponse = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
-      max_tokens: 4000,
+      max_tokens: 8000,
       system:     systemPrompt,
       messages:   [{
         role:    'user',
@@ -71,13 +71,24 @@ router.post('/:id/pitch-deck/generate', async (req, res) => {
       }]
     });
 
+    let rawText = aiResponse.content[0].text.trim();
+    console.log('AI raw response (first 300 chars):', rawText.substring(0, 300));
+
+    // Strip markdown code fences if present
+    rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+
     let parsed;
     try {
-      parsed = JSON.parse(aiResponse.content[0].text);
+      parsed = JSON.parse(rawText);
     } catch {
-      const match = aiResponse.content[0].text.match(/\{[\s\S]*\}/);
+      const match = rawText.match(/\{[\s\S]*\}/);
       if (match) parsed = JSON.parse(match[0]);
-      else throw new Error('Claude returnerade ogiltig JSON');
+      else throw new Error('Claude returnerade ogiltig JSON: ' + rawText.substring(0, 200));
+    }
+
+    if (!parsed?.slides?.length) {
+      console.error('AI returned no slides. Full response:', rawText.substring(0, 1000));
+      throw new Error('Claude returnerade inga slides (tomt svar)');
     }
 
     const pitchDeck = {

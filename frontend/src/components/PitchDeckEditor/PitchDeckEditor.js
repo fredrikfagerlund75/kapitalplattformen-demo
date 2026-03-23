@@ -127,7 +127,7 @@ export default function PitchDeckEditor({ emissionId, companyId }) {
 
   const brandIncomplete = brandStatus && !brandStatus.valid;
 
-  if (!deck) {
+  if (!deck || !(deck.slides?.length)) {
     return (
       <div className="pd-empty">
         {brandIncomplete && (
