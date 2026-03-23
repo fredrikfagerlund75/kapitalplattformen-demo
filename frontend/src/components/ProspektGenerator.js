@@ -341,6 +341,17 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
         <div className="progress-label">{step === 0 ? 'Dokumentkvalificering' : `Steg ${step} av 6`}{qualification ? ` — ${qualification.recommendedType === 'PROSPEKT' ? 'Prospekt' : 'Informationsmemorandum'}` : ''}</div>
       </div>
 
+      {step < 7 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 0 8px' }}>
+          <button
+            style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', border: '0.5px solid #e5e7eb', background: '#f9fafb', color: '#6b7280', cursor: 'pointer' }}
+            onClick={() => setStep(7)}
+          >
+            Hoppa direkt till Pitch Deck →
+          </button>
+        </div>
+      )}
+
       <div className="module-content">
         {/* Show emission details at top */}
         <div className="emission-details-banner">
