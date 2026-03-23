@@ -21,7 +21,9 @@ export default function PitchDeckEditor({ emissionId, companyId }) {
   const [prompt,       setPrompt]       = useState('');
   const [chatLoading,  setChatLoading]  = useState(false);
   const [showSugg,     setShowSugg]     = useState(true);
-  const chatRef = useRef(null);
+  const [slideScale,   setSlideScale]   = useState(1);
+  const chatRef   = useRef(null);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     const headers = getAuthHeaders();
@@ -40,6 +42,19 @@ export default function PitchDeckEditor({ emissionId, companyId }) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
   }, [deck?.conversation_history]);
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth - 32;
+      setSlideScale(Math.min(Math.max(w / 420, 0.5), 1.5));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const handleGenerate = async (force = false) => {
     setGenerating(true);
@@ -188,8 +203,19 @@ export default function PitchDeckEditor({ emissionId, companyId }) {
           </div>
 
           {/* Slide canvas */}
-          <div className="pd-canvas">
-            <SlidePreview slide={active} brand={brandStatus?.profile} />
+          <div className="pd-canvas" ref={canvasRef}>
+            <div style={{
+              width: Math.round(420 * slideScale),
+              height: Math.round(420 * slideScale * 9 / 16),
+              flexShrink: 0,
+              borderRadius: 6,
+              overflow: 'hidden',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.1)'
+            }}>
+              <div style={{ width: 420, transformOrigin: 'top left', transform: `scale(${slideScale})` }}>
+                <SlidePreview slide={active} brand={brandStatus?.profile} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
