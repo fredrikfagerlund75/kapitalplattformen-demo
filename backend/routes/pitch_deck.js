@@ -113,7 +113,8 @@ router.post('/:id/pitch-deck/generate', async (req, res) => {
     res.json(pitchDeck);
   } catch (err) {
     console.error('generate error:', err);
-    res.status(500).json({ error: err.message });
+    const msg = err?.message || err?.toString() || 'Okänt fel';
+    res.status(500).json({ error: msg });
   }
 });
 
