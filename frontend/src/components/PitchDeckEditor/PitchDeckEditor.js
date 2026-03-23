@@ -271,9 +271,13 @@ export default function PitchDeckEditor({ emissionId, companyId }) {
 function SlidePreview({ slide, brand }) {
   if (!slide?.type) return <div className="pd-slide-empty">Välj en slide</div>;
   const c = slide.content || {};
-  const heroImages = brand?.hero_images || [];
-  const logoUrl    = brand?.logo_url || '';
-  const hero       = heroImages[slide.order % heroImages.length] || heroImages[0];
+  const heroImages   = brand?.hero_images || [];
+  const logoUrl      = brand?.logo_url || '';
+  const hero         = heroImages[slide.order % heroImages.length] || heroImages[0];
+  const primaryColor = brand?.color_primary || '#1E2761';
+  const heroBg       = hero
+    ? { backgroundImage: `url(${hero})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { background: `linear-gradient(135deg, ${primaryColor}18, ${primaryColor}3a)` };
 
   if (slide.type === 'cover') return (
     <div className="pd-slide pd-slide-cover" style={hero ? {
@@ -299,20 +303,16 @@ function SlidePreview({ slide, brand }) {
         </ul>
         {c.highlight_box && <div className="pd-highlight-box">{c.highlight_box}</div>}
       </div>
-      {hero && (
-        <div style={{
-          width: '38%', backgroundImage: `url(${hero})`,
-          backgroundSize: 'cover', backgroundPosition: 'center',
-          borderLeft: '2px solid #1E2761', flexShrink: 0
-        }} />
-      )}
+      <div style={{
+        width: '38%', flexShrink: 0,
+        borderLeft: `2px solid ${primaryColor}`,
+        ...heroBg
+      }} />
     </div>
   );
 
   if (slide.type === 'twocol') return (
-    <div className="pd-slide pd-slide-content" style={hero ? {
-      backgroundImage: `url(${hero})`, backgroundSize: 'cover', backgroundPosition: 'center'
-    } : {}}>
+    <div className="pd-slide pd-slide-content" style={heroBg}>
       {hero && <div style={{ position: 'absolute', inset: 0, background: 'rgba(244,246,251,0.88)', borderRadius: 6 }} />}
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
         {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}
@@ -330,9 +330,7 @@ function SlidePreview({ slide, brand }) {
   );
 
   if (slide.type === 'metrics') return (
-    <div className="pd-slide pd-slide-content" style={hero ? {
-      backgroundImage: `url(${hero})`, backgroundSize: 'cover', backgroundPosition: 'center'
-    } : {}}>
+    <div className="pd-slide pd-slide-content" style={heroBg}>
       {hero && <div style={{ position: 'absolute', inset: 0, background: 'rgba(244,246,251,0.88)', borderRadius: 6 }} />}
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
         {logoUrl && <img src={logoUrl} alt="logo" style={{ position: 'absolute', top: 5, right: 8, height: 12, objectFit: 'contain', opacity: 0.6 }} />}

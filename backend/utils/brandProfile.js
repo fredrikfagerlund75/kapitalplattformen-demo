@@ -16,7 +16,10 @@ const DEFAULTS = {
   language:              'sv',
   keywords:              [],
   avoid_words:           [],
-  disclaimer_text:       null
+  disclaimer_text:       null,
+  logo_url:              '',
+  logo_dark_url:         '',
+  hero_images:           []
 };
 
 async function getBrandProfile(companyId) {
