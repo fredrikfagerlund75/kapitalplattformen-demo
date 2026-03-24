@@ -82,6 +82,7 @@ export default function Kassaflode({ companyId }) {
     if (!companyId) return;
     try {
       const r = await apiGet(`/api/cashflow?company_id=${companyId}`);
+      if (!r.ok) return;
       setMonths(await r.json());
     }
     catch(e) { console.error(e); }
@@ -91,6 +92,7 @@ export default function Kassaflode({ companyId }) {
     if (!companyId) return;
     try {
       const r = await apiGet(`/api/cashflow/targets?company_id=${companyId}`);
+      if (!r.ok) return;
       const t = await r.json();
       setTargets(t);
       if (t) setTForm({ ...EMPTY_TARGETS, ...Object.fromEntries(Object.entries(t).map(([k,v])=>[k, v===null?'':v])) });
