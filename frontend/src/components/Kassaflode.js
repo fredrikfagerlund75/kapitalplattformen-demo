@@ -1,634 +1,544 @@
-import React, { useState, useEffect } from 'react';
+// frontend/src/components/Kassaflode.js
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { apiGet, apiPost, apiDelete } from '../utils/api';
 import './Kassaflode.css';
-import { apiGet, apiPost, getAuthHeaders } from '../utils/api';
 
-const getApiBase = () =>
-  (typeof window !== 'undefined' && window.location.port === '3000')
-    ? 'http://localhost:3001' : '';
-
-// ── Hjälpfunktioner ─────────────────────────────────────────────────────────
-
-function beräknaBurnRate(månader) {
-  const senaste3 = månader.slice(-3);
-  if (senaste3.length === 0) return 0;
-  const snitt = senaste3.reduce((s, m) => s + (m.netto || 0), 0) / senaste3.length;
-  return snitt < 0 ? Math.abs(snitt) : 0;
+// ─── Chart.js via CDN ─────────────────────────────────────────────────────────
+let chartJsLoading = false;
+function loadChartJs(cb) {
+  if (window.Chart) { cb(); return; }
+  if (chartJsLoading) { const t = setInterval(() => { if (window.Chart) { clearInterval(t); cb(); } }, 50); return; }
+  chartJsLoading = true;
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+  s.onload = cb;
+  document.head.appendChild(s);
 }
 
-function beräknaRunway(kassa, burnRate) {
-  if (burnRate === 0) return null;
-  return Math.floor(kassa / burnRate);
+// ─── Beräkningshjälpare ───────────────────────────────────────────────────────
+const n = v => Number(v) || 0;
+function calcKassa(d)   { return n(d.ing_kassa)+n(d.omsattning)+n(d.ovrigt_in)+n(d.externt_kapital)-n(d.produktionskost)-n(d.personalkost)-n(d.externa_kost)+n(d.capex); }
+function calcRorelse(d) { return n(d.omsattning)-n(d.produktionskost)-n(d.personalkost)-n(d.externa_kost); }
+function calcGM(d)      { return n(d.omsattning)>0 ? (n(d.omsattning)-n(d.produktionskost))/n(d.omsattning)*100 : null; }
+function calcEBIT(d)    { return n(d.omsattning)>0 ? calcRorelse(d)/n(d.omsattning)*100 : null; }
+function calcBurnAvg(months) {
+  if (!months.length) return null;
+  return months.slice(-3).reduce((s,d)=>s+calcRorelse(d),0)/Math.min(3,months.length);
+}
+function calcRunway(months) {
+  if (!months.length) return null;
+  const burn = calcBurnAvg(months);
+  if (burn >= 0) return 99;
+  const kassa = calcKassa(months[months.length-1]);
+  return Math.max(0, Math.floor(kassa/Math.abs(burn)));
+}
+function calcCapexQ(months) {
+  return months.slice(-3).reduce((s,d)=>s+Math.abs(n(d.capex)),0);
+}
+function fmtSEK(v)  { return Math.round(Number(v)).toLocaleString('sv-SE'); }
+function fmtPct(v)  { return v===null ? '–' : Math.round(v)+'%'; }
+function periodLabel(p) {
+  const [y,m] = p.split('-');
+  return ['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'][parseInt(m,10)-1]+' '+y;
 }
 
-function formatSEK(val) {
-  if (val === null || val === undefined) return '–';
-  return Math.round(val).toLocaleString('sv-SE') + ' kr';
+// ─── Avvikelsehjälpare ────────────────────────────────────────────────────────
+function variance(actual, target, higherIsBetter = true) {
+  if (actual === null || target === null) return null;
+  const diff = actual - target;
+  const diffPct = target !== 0 ? diff/Math.abs(target)*100 : null;
+  let status;
+  const sign = higherIsBetter ? 1 : -1;
+  if (diff*sign >= 0) status = 'ok';
+  else if (Math.abs(diffPct) <= 10) status = 'warn';
+  else status = 'danger';
+  return { val: actual, target, diff, diffPct, status };
 }
 
-// ── Huvudkomponent ───────────────────────────────────────────────────────────
+const EMPTY_FORM = { period:'', omsattning:'', ovrigt_in:'', ing_kassa:'', produktionskost:'', personalkost:'', externa_kost:'', capex:'', externt_kapital:'' };
+const EMPTY_TARGETS = { label:'Budget 12 mån', omsattning_tillvaxt:'', bruttomarginal:'', rorelsemarginal:'', burn_rate_max:'', runway_min:'', capex_budget:'', betalningstid_dagar:'', avskrivningstakt:'', aktiveringsgrad:'' };
 
-function Kassaflode({ user, onNavigate, onBack }) {
-  const [tab, setTab] = useState('dashboard');
-  const [data, setData] = useState({ månader: [], prognos: null, scenarios: [] });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+// ─────────────────────────────────────────────────────────────────────────────
+export default function Kassaflode({ companyId }) {
+  const [tab, setTab]             = useState('oversikt');
+  const [months, setMonths]       = useState([]);
+  const [targets, setTargets]     = useState(null);
+  const [form, setForm]           = useState(EMPTY_FORM);
+  const [tForm, setTForm]         = useState(EMPTY_TARGETS);
+  const [saving, setSaving]       = useState(false);
+  const [savingT, setSavingT]     = useState(false);
+  const [loadingDemo, setLoadingDemo] = useState(false);
+  const [deleteId, setDeleteId]   = useState(null);
+  const [notification, setNotif]  = useState(null);
 
-  // Tab 2: formulärstate
-  const [form, setForm] = useState({
-    datum: '', omsättning: '', övrigtIn: '',
-    löner: '', lokaler: '', marknadsföring: '', leverantörer: '', övrigt: '',
-    kassaBalans: ''
-  });
-  const [formError, setFormError] = useState(null);
+  const chartKassaRef  = useRef(null);
+  const chartMarginRef = useRef(null);
+  const chartWfRef     = useRef(null);
+  const chartVarRef    = useRef(null);
+  const chartInst      = useRef({});
 
-  // Tab 3: prognos
-  const [antaganden, setAntaganden] = useState({ tillväxt: '', kostnadsökning: '' });
-  const [prognosLoading, setPrognosLoading] = useState(false);
+  const loadMonths = useCallback(async () => {
+    if (!companyId) return;
+    try {
+      const r = await apiGet(`/api/cashflow?company_id=${companyId}`);
+      setMonths(await r.json());
+    }
+    catch(e) { console.error(e); }
+  }, [companyId]);
 
-  // Tab 4: scenarios
-  const [nyttScenario, setNyttScenario] = useState({ namn: '', anställningar: '', kostnadPerPerson: '60000', marknadsföring: '', intäktsökning: '' });
-  const [scenarioLoading, setScenarioLoading] = useState(false);
-  const [exportLoading, setExportLoading] = useState(null);
+  const loadTargets = useCallback(async () => {
+    if (!companyId) return;
+    try {
+      const r = await apiGet(`/api/cashflow/targets?company_id=${companyId}`);
+      const t = await r.json();
+      setTargets(t);
+      if (t) setTForm({ ...EMPTY_TARGETS, ...Object.fromEntries(Object.entries(t).map(([k,v])=>[k, v===null?'':v])) });
+    } catch(e) { console.error(e); }
+  }, [companyId]);
+
+  useEffect(() => { loadMonths(); loadTargets(); }, [loadMonths, loadTargets]);
 
   useEffect(() => {
-    laddaData();
-  }, []);
+    if (tab !== 'oversikt' || months.length === 0) return;
+    loadChartJs(() => buildCharts(months, targets));
+    return () => destroyCharts();
+  }, [tab, months, targets]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const laddaData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await apiGet('/api/kassaflode');
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      } else {
-        setError('Kunde inte ladda kassaflödesdata.');
-      }
-    } catch (e) {
-      setError('Nätverksfel: ' + e.message);
-    } finally {
-      setLoading(false);
+  function destroyCharts() {
+    Object.values(chartInst.current).forEach(c => { try { c.destroy(); } catch(_){} });
+    chartInst.current = {};
+  }
+
+  function buildCharts(data, tgts) {
+    destroyCharts();
+    const labels   = data.map(d => periodLabel(d.period));
+    const kassaV   = data.map(d => Math.round(calcKassa(d)));
+    const gmV      = data.map(d => { const v=calcGM(d); return v!==null?Math.round(v):null; });
+    const ebitV    = data.map(d => { const v=calcEBIT(d); return v!==null?Math.round(v):null; });
+    const burn     = calcBurnAvg(data)||0;
+    const lastK    = kassaV[kassaV.length-1];
+    const progLbls = ['(+1 mån)','(+2 mån)','(+3 mån)'];
+    const progV    = [1,2,3].map(i=>Math.max(0,Math.round(lastK+i*burn)));
+
+    if (chartKassaRef.current) {
+      chartInst.current.kassa = new window.Chart(chartKassaRef.current, {
+        type: 'line',
+        data: {
+          labels: [...labels,...progLbls],
+          datasets: [
+            { label:'Utfall',  data:[...kassaV,null,null,null], borderColor:'#378add', backgroundColor:'rgba(55,138,221,0.07)', tension:0.3, pointRadius:3, fill:true },
+            { label:'Prognos', data:[...kassaV.map(()=>null),lastK,...progV], borderColor:'#e24b4a', borderDash:[4,3], tension:0.3, pointRadius:3, fill:false }
+          ]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{ticks:{callback:v=>fmtSEK(v)}}, x:{ticks:{autoSkip:false,maxRotation:45,font:{size:10}}} } }
+      });
     }
-  };
 
-  // ── KPI-beräkningar ─────────────────────────────────────────────────────
+    if (chartMarginRef.current) {
+      const datasets = [
+        { label:'Bruttomarginal',  data:gmV,   borderColor:'#639922', tension:0.3, pointRadius:3 },
+        { label:'Rörelsemarginal', data:ebitV,  borderColor:'#e24b4a', borderDash:[3,2], tension:0.3, pointRadius:3 }
+      ];
+      if (tgts?.bruttomarginal) datasets.push({ label:'Mål BM',  data:labels.map(()=>n(tgts.bruttomarginal)),  borderColor:'#639922', borderDash:[6,3], pointRadius:0, borderWidth:1 });
+      if (tgts?.rorelsemarginal) datasets.push({ label:'Mål ROM', data:labels.map(()=>n(tgts.rorelsemarginal)), borderColor:'#e24b4a', borderDash:[6,3], pointRadius:0, borderWidth:1 });
+      chartInst.current.margin = new window.Chart(chartMarginRef.current, {
+        type:'line', data:{ labels, datasets },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{ticks:{callback:v=>v+'%'}}, x:{ticks:{autoSkip:false,maxRotation:45,font:{size:10}}} } }
+      });
+    }
 
-  const senasteMånad = data.månader[data.månader.length - 1] || null;
-  const kassa = senasteMånad?.kassaBalans || 0;
-  const burnRate = beräknaBurnRate(data.månader);
-  const runway = beräknaRunway(kassa, burnRate);
+    if (chartWfRef.current && data.length>0) {
+      const last   = data[data.length-1];
+      const wfLbls = ['Omsättning','Prod.kost','Personal','Externa','CAPEX','Ext. kapital'];
+      const wfV    = [n(last.omsattning),-n(last.produktionskost),-n(last.personalkost),-n(last.externa_kost),n(last.capex),n(last.externt_kapital)];
+      chartInst.current.wf = new window.Chart(chartWfRef.current, {
+        type:'bar', data:{ labels:wfLbls, datasets:[{ data:wfV, backgroundColor:wfV.map(v=>v>=0?'#639922':'#e24b4a'), borderRadius:4 }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{ticks:{callback:v=>fmtSEK(v)}}, x:{ticks:{font:{size:11},autoSkip:false}} } }
+      });
+    }
 
-  const statusFärg = runway === null ? 'kf-status--neutral'
-    : runway > 12 ? 'kf-status--green'
-    : runway > 6 ? 'kf-status--yellow'
-    : 'kf-status--red';
+    if (chartVarRef.current && tgts && data.length>0) {
+      const last    = data[data.length-1];
+      const lastGM  = calcGM(last);
+      const lastEB  = calcEBIT(last);
+      const lastBrn = calcBurnAvg(data);
+      const varItems = [
+        { label:'Bruttomarginal',  actual:lastGM,          target:n(tgts.bruttomarginal)||null,  higherIsBetter:true },
+        { label:'Rörelsemarginal', actual:lastEB,          target:n(tgts.rorelsemarginal)||null,  higherIsBetter:true },
+        { label:'Burn rate',       actual:lastBrn,         target:n(tgts.burn_rate_max)||null,    higherIsBetter:false },
+        { label:'Runway',          actual:calcRunway(data),target:n(tgts.runway_min)||null,       higherIsBetter:true },
+      ].filter(i=>i.target!==null && i.actual!==null);
 
-  const statusText = runway === null ? '– Lägg till data för att se status'
-    : runway > 12 ? `🟢 God likviditet – ${runway} månader runway`
-    : runway > 6 ? `🟡 Bevaka noga – ${runway} månader runway`
-    : `🔴 Kritisk – ${runway} månader runway`;
+      if (varItems.length>0) {
+        const vDiffs = varItems.map(i => { const d=i.actual-i.target; return i.higherIsBetter?d:-d; });
+        chartInst.current.var = new window.Chart(chartVarRef.current, {
+          type:'bar',
+          data:{ labels:varItems.map(i=>i.label), datasets:[{ data:vDiffs, backgroundColor:vDiffs.map(v=>v>=0?'rgba(99,153,34,0.7)':'rgba(226,75,74,0.7)'), borderRadius:4 }] },
+          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>(ctx.raw>=0?'+':'')+Math.round(ctx.raw*10)/10}}}, scales:{ y:{ticks:{callback:v=>(v>=0?'+':'')+Math.round(v)}}, x:{ticks:{font:{size:11}}} } }
+        });
+      }
+    }
+  }
 
-  // ── Tab 2: Spara månad ───────────────────────────────────────────────────
+  const runway    = calcRunway(months);
+  const lastMonth = months.length>0 ? months[months.length-1] : null;
+  const prevMonth = months.length>1 ? months[months.length-2] : null;
+  const lastKassa = lastMonth ? Math.round(calcKassa(lastMonth)) : null;
+  const prevKassa = prevMonth ? Math.round(calcKassa(prevMonth)) : null;
+  const avgBurn   = calcBurnAvg(months);
+  const lastGM    = lastMonth ? calcGM(lastMonth) : null;
+  const prevGM    = prevMonth ? calcGM(prevMonth) : null;
+  const lastEBIT  = lastMonth ? calcEBIT(lastMonth) : null;
 
-  const sparaMånad = async (e) => {
-    e.preventDefault();
-    if (!form.datum) { setFormError('Välj ett datum.'); return; }
+  const variances = targets ? [
+    { label:'Bruttomarginal',  unit:'%',        v: variance(lastGM!==null?Math.round(lastGM):null,    n(targets.bruttomarginal)||null, true) },
+    { label:'Rörelsemarginal', unit:'%',        v: variance(lastEBIT!==null?Math.round(lastEBIT):null, n(targets.rorelsemarginal)||null, true) },
+    { label:'Burn rate',       unit:'kSEK/mån', v: variance(avgBurn!==null?Math.round(avgBurn):null,   n(targets.burn_rate_max)||null, false) },
+    { label:'Runway',          unit:'mån',      v: variance(runway===99?null:runway,                   n(targets.runway_min)||null, true) },
+    { label:'CAPEX/kvartal',   unit:'kSEK',     v: variance(-calcCapexQ(months),                       -(n(targets.capex_budget)||0)||null, false) },
+  ].filter(x=>x.v!==null) : [];
+
+  const fv = k => parseFloat(form[k])||0;
+  const formNetto = fv('omsattning')+fv('ovrigt_in')+fv('externt_kapital')-fv('produktionskost')-fv('personalkost')-fv('externa_kost')+fv('capex');
+  const formGM    = fv('omsattning')>0 ? Math.round((fv('omsattning')-fv('produktionskost'))/fv('omsattning')*100) : null;
+
+  async function handleSave() {
+    if (!form.period) { notify('Välj en period.','warn'); return; }
     setSaving(true);
-    setFormError(null);
     try {
-      const res = await apiPost('/api/kassaflode/manad', {
-        datum: form.datum,
-        inbetalningar: { omsättning: +form.omsättning || 0, övrigtIn: +form.övrigtIn || 0 },
-        utbetalningar: { löner: +form.löner || 0, lokaler: +form.lokaler || 0, marknadsföring: +form.marknadsföring || 0, leverantörer: +form.leverantörer || 0, övrigt: +form.övrigt || 0 },
-        kassaBalans: +form.kassaBalans || 0
-      });
-      if (res.ok) {
-        await laddaData();
-        setForm({ datum: '', omsättning: '', övrigtIn: '', löner: '', lokaler: '', marknadsföring: '', leverantörer: '', övrigt: '', kassaBalans: '' });
-      } else {
-        const err = await res.json();
-        setFormError(err.error || 'Fel vid sparande.');
-      }
-    } catch (e) {
-      setFormError('Nätverksfel: ' + e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+      await apiPost('/api/cashflow', { company_id:companyId, ...form });
+      await loadMonths();
+      setForm(EMPTY_FORM);
+      setTab('oversikt');
+      notify('Månad sparad!','ok');
+    } catch { notify('Kunde inte spara.','danger'); }
+    finally { setSaving(false); }
+  }
 
-  const taBortMånad = async (datum) => {
-    if (!window.confirm(`Ta bort ${datum}?`)) return;
+  async function handleSaveTargets() {
+    setSavingT(true);
     try {
-      await fetch(`${getApiBase()}/api/kassaflode/manad/${datum}`, { method: 'DELETE', headers: getAuthHeaders() });
-      await laddaData();
-    } catch (e) {
-      alert('Fel: ' + e.message);
-    }
-  };
+      await apiPost('/api/cashflow/targets', { company_id:companyId, ...tForm });
+      await loadTargets();
+      notify('Mål sparade!','ok');
+    } catch { notify('Kunde inte spara mål.','danger'); }
+    finally { setSavingT(false); }
+  }
 
-  // ── Tab 3: Generera prognos ──────────────────────────────────────────────
-
-  const genereraPrognos = async () => {
-    setPrognosLoading(true);
-    setError(null);
+  async function handleDemo() {
+    setLoadingDemo(true);
     try {
-      const res = await apiPost('/api/kassaflode/generate-prognos', { antaganden });
-      const json = await res.json();
-      if (res.ok) {
-        await laddaData();
-      } else {
-        setError(json.error || 'Kunde inte generera prognos.');
-      }
-    } catch (e) {
-      setError('Nätverksfel: ' + e.message);
-    } finally {
-      setPrognosLoading(false);
-    }
-  };
+      await apiPost('/api/cashflow/demo', { company_id:companyId });
+      await Promise.all([loadMonths(), loadTargets()]);
+      setTab('oversikt');
+      notify('6 månaders exempeldata + mål inlagda!','ok');
+    } catch { notify('Kunde inte fylla i exempeldata.','danger'); }
+    finally { setLoadingDemo(false); }
+  }
 
-  // ── Tab 4: Skapa scenario ────────────────────────────────────────────────
-
-  const skapaScenario = async (e) => {
-    e.preventDefault();
-    if (!nyttScenario.namn) return;
-    setScenarioLoading(true);
-    setError(null);
+  async function handleDelete(id) {
     try {
-      const ändringar = [];
-      if (+nyttScenario.anställningar > 0) {
-        ändringar.push({ typ: 'anställningar', antal: +nyttScenario.anställningar, kostnadPerPerson: +nyttScenario.kostnadPerPerson || 60000 });
-      }
-      if (+nyttScenario.marknadsföring > 0) {
-        ändringar.push({ typ: 'marknadsföring', ökning: +nyttScenario.marknadsföring });
-      }
-      if (+nyttScenario.intäktsökning > 0) {
-        ändringar.push({ typ: 'intäktsökning', belopp: +nyttScenario.intäktsökning });
-      }
-      const res = await apiPost('/api/kassaflode/scenarios', { namn: nyttScenario.namn, ändringar });
-      const json = await res.json();
-      if (res.ok) {
-        await laddaData();
-        setNyttScenario({ namn: '', anställningar: '', kostnadPerPerson: '60000', marknadsföring: '', intäktsökning: '' });
-      } else {
-        setError(json.error || 'Kunde inte skapa scenario.');
-      }
-    } catch (e) {
-      setError('Nätverksfel: ' + e.message);
-    } finally {
-      setScenarioLoading(false);
-    }
-  };
+      await apiDelete(`/api/cashflow/${id}`);
+      await loadMonths();
+      setDeleteId(null);
+      notify('Månad borttagen.','ok');
+    } catch { notify('Kunde inte ta bort.','danger'); }
+  }
 
-  const taBortScenario = async (id) => {
-    if (!window.confirm('Ta bort scenario?')) return;
-    try {
-      await fetch(`${getApiBase()}/api/kassaflode/scenarios/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      await laddaData();
-    } catch (e) {
-      alert('Fel: ' + e.message);
-    }
-  };
+  function notify(msg, type='ok') {
+    setNotif({msg,type});
+    setTimeout(()=>setNotif(null),3500);
+  }
 
-  const exporteraPPT = async (scenarioId) => {
-    setExportLoading(scenarioId || 'prognos');
-    try {
-      const res = await fetch(`${getApiBase()}/api/kassaflode/export-ppt`, {
-        method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenarioId })
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || 'Export misslyckades.');
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const cd = res.headers.get('Content-Disposition') || '';
-      const fnMatch = cd.match(/filename="(.+?)"/);
-      a.download = fnMatch ? fnMatch[1] : 'kassaflode.pptx';
-      a.href = url;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      alert('Nätverksfel: ' + e.message);
-    } finally {
-      setExportLoading(null);
-    }
-  };
-
-  // ── Render ───────────────────────────────────────────────────────────────
+  const alertLevel = runway!==null && runway<3 ? 'danger' : runway!==null && runway<6 ? 'warn' : null;
 
   return (
-    <div className="kf-container module-container">
-      {/* Header */}
-      <div className="module-header">
-        <button className="back-button" onClick={onBack}>←</button>
-        <h1>💰 Ditt Kassaflöde</h1>
+    <div className="kf-page">
+      {notification && <div className={`kf-notification kf-notif-${notification.type}`}>{notification.msg}</div>}
+
+      <div className="kf-header">
+        <h1 className="kf-title">Kassaflöde</h1>
+        {runway!==null && (
+          <span className={`kf-badge kf-badge-${runway>=6?'ok':runway>=3?'warn':'danger'}`}>
+            {runway>=99?'Runway: stabil':`Runway: ${runway} mån`}
+          </span>
+        )}
       </div>
 
-      {error && <div className="kf-alert kf-alert--error">{error}</div>}
+      {alertLevel && (
+        <div className={`kf-alert kf-alert-${alertLevel}`}>
+          <span className="kf-alert-icon">{alertLevel==='danger'?'⚠':'!'}</span>
+          <div>
+            {alertLevel==='danger'
+              ? <><strong>Kritisk likviditet</strong> — kassaprognosen visar underskott inom 3 månader. Kapitalförstärkning är nödvändig.</>
+              : <><strong>Runway {runway} månader</strong> — överväg att inleda kapitalförberedelser nu.</>}
+          </div>
+        </div>
+      )}
 
-      {/* Tabs */}
+      {months.length>0 && (
+        <div className="kf-kpi-grid">
+          <div className="kf-kpi">
+            <div className="kf-kpi-label">Kassa (senaste)</div>
+            <div className={`kf-kpi-val ${lastKassa<1500?'danger':lastKassa<2500?'warn':'ok'}`}>{lastKassa!==null?fmtSEK(lastKassa)+' kSEK':'–'}</div>
+            {prevKassa!==null && <div className="kf-kpi-sub">{lastKassa-prevKassa>=0?'+':''}{fmtSEK(lastKassa-prevKassa)} vs föregående</div>}
+          </div>
+          <div className="kf-kpi">
+            <div className="kf-kpi-label">Burn rate (snitt 3 mån)</div>
+            <div className={`kf-kpi-val ${avgBurn!==null&&avgBurn<0?'warn':'ok'}`}>{avgBurn!==null?(avgBurn>=0?'+':'')+fmtSEK(avgBurn)+' kSEK/mån':'–'}</div>
+            <div className="kf-kpi-sub">Rörelsekassaflöde</div>
+          </div>
+          <div className="kf-kpi">
+            <div className="kf-kpi-label">Bruttomarginal</div>
+            <div className={`kf-kpi-val ${lastGM!==null&&lastGM>=40?'ok':'warn'}`}>{fmtPct(lastGM!==null?Math.round(lastGM):null)}</div>
+            {prevGM!==null&&lastGM!==null&&<div className="kf-kpi-sub">{Math.round(lastGM-prevGM)>=0?'+':''}{Math.round(lastGM-prevGM)}pp vs föregående</div>}
+          </div>
+          <div className="kf-kpi">
+            <div className="kf-kpi-label">Rörelsemarginal</div>
+            <div className={`kf-kpi-val ${lastEBIT!==null&&lastEBIT>=0?'ok':'warn'}`}>{fmtPct(lastEBIT!==null?Math.round(lastEBIT):null)}</div>
+            <div className="kf-kpi-sub">{targets?.rorelsemarginal ? `Mål: ${n(targets.rorelsemarginal)}%` : 'Inget mål satt'}</div>
+          </div>
+        </div>
+      )}
+
       <div className="kf-tabs">
-        {[['dashboard', '📊 Dashboard'], ['månadsdata', '📋 Månadsdata'], ['prognos', '🔮 Prognos'], ['scenarios', '🎯 Scenarios']].map(([id, label]) => (
-          <button key={id} className={`kf-tab ${tab === id ? 'kf-tab--active' : ''}`} onClick={() => setTab(id)}>
-            {label}
-          </button>
+        {[['oversikt','Översikt'],['inmatning','Lägg till månad'],['historik','Historik'],['mal','Mål & budget']].map(([t,l])=>(
+          <button key={t} className={`kf-tab${tab===t?' active':''}`} onClick={()=>setTab(t)}>{l}</button>
         ))}
       </div>
 
-      {loading ? (
-        <div className="kf-loading">Laddar kassaflödesdata…</div>
-      ) : (
-        <div className="kf-content">
-
-          {/* ── Tab 1: Dashboard ── */}
-          {tab === 'dashboard' && (
-            <div className="kf-dashboard">
-              <div className={`kf-status-banner ${statusFärg}`}>{statusText}</div>
-
-              <div className="kf-kpi-grid">
-                <div className="kf-kpi-card">
-                  <div className="kf-kpi-label">Aktuell kassa</div>
-                  <div className="kf-kpi-value">{formatSEK(kassa)}</div>
-                  <div className="kf-kpi-sub">{senasteMånad ? senasteMånad.datum : 'Ingen data'}</div>
+      {tab==='oversikt' && (
+        <div className="kf-tab-content">
+          {months.length===0 ? (
+            <div className="kf-empty">
+              <p>Ingen data ännu.</p>
+              <button className="kf-btn-secondary" onClick={()=>setTab('inmatning')}>Lägg till första månaden →</button>
+            </div>
+          ) : (<>
+            {variances.length>0 && (
+              <div className="kf-card kf-var-card">
+                <div className="kf-card-title">Avvikelseanalys — utfall vs mål (senaste månad)</div>
+                <div className="kf-var-grid">
+                  {variances.map(({label,unit,v})=>(
+                    <div key={label} className={`kf-var-item kf-var-${v.status}`}>
+                      <div className="kf-var-label">{label}</div>
+                      <div className="kf-var-vals">
+                        <span className="kf-var-actual">{Math.round(v.val)}{unit==='%'?'%':''}</span>
+                        <span className="kf-var-sep">vs</span>
+                        <span className="kf-var-target">{Math.round(v.target)}{unit==='%'?'%':''}</span>
+                      </div>
+                      <div className="kf-var-diff">
+                        {v.diff>=0?'+':''}{Math.round(v.diff)}{unit==='%'?'pp':' '+unit}
+                        {v.diffPct!==null && <span className="kf-var-diffpct"> ({v.diff>=0?'+':''}{Math.round(v.diffPct)}%)</span>}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="kf-kpi-card">
-                  <div className="kf-kpi-label">Burn rate (3-mån snitt)</div>
-                  <div className="kf-kpi-value">{burnRate > 0 ? formatSEK(burnRate) + '/mån' : '–'}</div>
-                  <div className="kf-kpi-sub">Genomsnittligt nettoutflöde</div>
-                </div>
-                <div className="kf-kpi-card">
-                  <div className="kf-kpi-label">Runway</div>
-                  <div className="kf-kpi-value">{runway !== null ? `${runway} mån` : '–'}</div>
-                  <div className="kf-kpi-sub">Månader kassa räcker</div>
+                {months.length>0 && targets && (
+                  <div className="kf-chart-wrap kf-chart-var"><canvas ref={chartVarRef}></canvas></div>
+                )}
+              </div>
+            )}
+            <div className="kf-two-col">
+              <div className="kf-card">
+                <div className="kf-card-title">Kassautveckling &amp; prognos (kSEK)</div>
+                <div className="kf-chart-wrap"><canvas ref={chartKassaRef}></canvas></div>
+                <div className="kf-chart-legend">
+                  <span><span className="kf-leg-dot" style={{background:'#378add'}}></span>Utfall</span>
+                  <span><span className="kf-leg-dot kf-leg-dashed" style={{borderColor:'#e24b4a'}}></span>Prognos</span>
                 </div>
               </div>
-
-              {/* Enkel kassagraf (sista 6 mån) */}
-              {data.månader.length > 0 && (
-                <div className="kf-chart-section">
-                  <h3>Kassautveckling (sista {Math.min(data.månader.length, 6)} månader)</h3>
-                  <div className="kf-chart-bars">
-                    {data.månader.slice(-6).map(m => {
-                      const maxKassa = Math.max(...data.månader.slice(-6).map(x => x.kassaBalans), 1);
-                      const h = Math.max((m.kassaBalans / maxKassa) * 100, 2);
-                      return (
-                        <div key={m.datum} className="kf-chart-col">
-                          <div className="kf-chart-val">{Math.round(m.kassaBalans / 1000)}k</div>
-                          <div className={`kf-chart-bar ${m.kassaBalans >= 0 ? 'kf-bar--pos' : 'kf-bar--neg'}`} style={{ height: `${h}%` }} />
-                          <div className="kf-chart-label">{m.datum.slice(5)}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
+              <div className="kf-card">
+                <div className="kf-card-title">Marginaler per månad</div>
+                <div className="kf-chart-wrap"><canvas ref={chartMarginRef}></canvas></div>
+                <div className="kf-chart-legend">
+                  <span><span className="kf-leg-dot" style={{background:'#639922'}}></span>Bruttomarginal</span>
+                  <span><span className="kf-leg-dot kf-leg-dashed" style={{borderColor:'#e24b4a'}}></span>Rörelsemarginal</span>
+                  {targets?.bruttomarginal && <span><span className="kf-leg-dot kf-leg-target" style={{borderColor:'#639922'}}></span>Mål</span>}
                 </div>
-              )}
-
-              {data.månader.length === 0 && (
-                <div className="empty-state">
-                  <div className="empty-icon">📋</div>
-                  <h3>Inga data ännu</h3>
-                  <p>Gå till "Månadsdata" och lägg till din första månad.</p>
-                  <button className="btn-primary" onClick={() => setTab('månadsdata')}>Lägg till månadsdata →</button>
-                </div>
-              )}
-
-              {runway !== null && runway < 12 && (
-                <div className="kf-kapitalrad-cta">
-                  <div className="kf-cta-text">
-                    <strong>🚨 Runway under 12 månader</strong>
-                    <p>Det är dags att planera för kapitalanskaffning.</p>
-                  </div>
-                  <button className="btn-primary" onClick={() => onNavigate('kapitalrådgivaren')}>
-                    Öppna Kapitalrådgivaren →
-                  </button>
-                </div>
-              )}
+              </div>
             </div>
-          )}
-
-          {/* ── Tab 2: Månadsdata ── */}
-          {tab === 'månadsdata' && (
-            <div className="kf-månadsdata">
-              <h2>Lägg till månadsdata</h2>
-              <form onSubmit={sparaMånad} className="kf-form">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Månad *</label>
-                    <input type="month" value={form.datum} onChange={e => setForm({ ...form, datum: e.target.value })} required />
-                  </div>
-                  <div className="form-group">
-                    <label>Kassabalans (kr)</label>
-                    <input type="number" placeholder="0" value={form.kassaBalans} onChange={e => setForm({ ...form, kassaBalans: e.target.value })} />
-                  </div>
-                </div>
-
-                <div className="kf-form-section">
-                  <h4>💚 Inbetalningar</h4>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Omsättning (kr)</label>
-                      <input type="number" placeholder="0" value={form.omsättning} onChange={e => setForm({ ...form, omsättning: e.target.value })} />
-                    </div>
-                    <div className="form-group">
-                      <label>Övrigt in (kr)</label>
-                      <input type="number" placeholder="0" value={form.övrigtIn} onChange={e => setForm({ ...form, övrigtIn: e.target.value })} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="kf-form-section">
-                  <h4>🔴 Utbetalningar</h4>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Löner (kr)</label>
-                      <input type="number" placeholder="0" value={form.löner} onChange={e => setForm({ ...form, löner: e.target.value })} />
-                    </div>
-                    <div className="form-group">
-                      <label>Lokaler (kr)</label>
-                      <input type="number" placeholder="0" value={form.lokaler} onChange={e => setForm({ ...form, lokaler: e.target.value })} />
-                    </div>
-                  </div>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Marknadsföring (kr)</label>
-                      <input type="number" placeholder="0" value={form.marknadsföring} onChange={e => setForm({ ...form, marknadsföring: e.target.value })} />
-                    </div>
-                    <div className="form-group">
-                      <label>Leverantörer (kr)</label>
-                      <input type="number" placeholder="0" value={form.leverantörer} onChange={e => setForm({ ...form, leverantörer: e.target.value })} />
-                    </div>
-                  </div>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Övrigt ut (kr)</label>
-                      <input type="number" placeholder="0" value={form.övrigt} onChange={e => setForm({ ...form, övrigt: e.target.value })} />
-                    </div>
-                    <div className="form-group">
-                      <label>Netto (auto)</label>
-                      <input
-                        type="text"
-                        readOnly
-                        value={formatSEK(
-                          (+form.omsättning || 0) + (+form.övrigtIn || 0)
-                          - (+form.löner || 0) - (+form.lokaler || 0)
-                          - (+form.marknadsföring || 0) - (+form.leverantörer || 0)
-                          - (+form.övrigt || 0)
-                        )}
-                        className="kf-netto-preview"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {formError && <div className="kf-alert kf-alert--error">{formError}</div>}
-                <div className="button-row">
-                  <button type="submit" className="btn-primary" disabled={saving}>
-                    {saving ? 'Sparar…' : '💾 Spara månad'}
-                  </button>
-                </div>
-              </form>
-
-              {/* Historiktabell */}
-              {data.månader.length > 0 && (
-                <div className="kf-historik">
-                  <h3>Historik ({data.månader.length} månader)</h3>
-                  <div className="kf-table-wrapper">
-                    <table className="kf-table">
-                      <thead>
-                        <tr>
-                          <th>Månad</th>
-                          <th>Inbet</th>
-                          <th>Utbet</th>
-                          <th>Netto</th>
-                          <th>Kassa</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...data.månader].reverse().map(m => {
-                          const inbet = (m.inbetalningar?.omsättning || 0) + (m.inbetalningar?.övrigtIn || 0);
-                          const utbet = (m.utbetalningar?.löner || 0) + (m.utbetalningar?.lokaler || 0) + (m.utbetalningar?.marknadsföring || 0) + (m.utbetalningar?.leverantörer || 0) + (m.utbetalningar?.övrigt || 0);
-                          return (
-                            <tr key={m.datum}>
-                              <td>{m.datum}</td>
-                              <td className="kf-td--pos">{formatSEK(inbet)}</td>
-                              <td className="kf-td--neg">{formatSEK(utbet)}</td>
-                              <td className={m.netto >= 0 ? 'kf-td--pos' : 'kf-td--neg'}>{formatSEK(m.netto)}</td>
-                              <td>{formatSEK(m.kassaBalans)}</td>
-                              <td><button className="kf-btn-delete" onClick={() => taBortMånad(m.datum)}>✕</button></td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
+            <div className="kf-card">
+              <div className="kf-card-title">Kassaflöde per komponent — {lastMonth?periodLabel(lastMonth.period):''} (kSEK)</div>
+              <div className="kf-chart-wrap kf-chart-sm"><canvas ref={chartWfRef}></canvas></div>
             </div>
-          )}
+          </>)}
+        </div>
+      )}
 
-          {/* ── Tab 3: Prognos ── */}
-          {tab === 'prognos' && (
-            <div className="kf-prognos">
-              <h2>AI-prognos</h2>
-              <p className="kf-description">
-                AI analyserar dina senaste {Math.min(data.månader.length, 12)} månader och genererar en 12-månaders framåtprognos.
-                {data.månader.length > 12 && ` (Du har ${data.månader.length} månader – äldre data ingår inte i prognosen.)`}
-              </p>
-
-              {data.månader.length === 0 ? (
-                <div className="empty-state">
-                  <p>Lägg till månadsdata i Tab 2 innan du genererar prognos.</p>
-                  <button className="btn-primary" onClick={() => setTab('månadsdata')}>Lägg till månadsdata →</button>
+      {tab==='inmatning' && (
+        <div className="kf-tab-content">
+          <div className="kf-two-col">
+            <div className="kf-card">
+              <div className="kf-demo-bar">
+                <span className="kf-demo-label">Snabbstart</span>
+                <button className="kf-btn-demo" onClick={handleDemo} disabled={loadingDemo}>
+                  {loadingDemo?'Fyller i...':'✦ Fyll i exempeldata'}
+                </button>
+              </div>
+              <div className="kf-divider"><span>eller fyll i manuellt</span></div>
+              <div className="kf-form-section">
+                <div className="kf-section-label">Period</div>
+                <div className="kf-form-row">
+                  <div className="kf-field"><label>Månad</label><input type="month" value={form.period} onChange={e=>setForm(f=>({...f,period:e.target.value}))}/></div>
+                  <div className="kf-field"><label>Ingående kassa (kSEK)</label><input type="number" placeholder="0" value={form.ing_kassa} onChange={e=>setForm(f=>({...f,ing_kassa:e.target.value}))}/></div>
                 </div>
-              ) : (
-                <>
-                  <div className="kf-antaganden">
-                    <h4>Antaganden (valfritt)</h4>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Förväntad tillväxt (%/mån)</label>
-                        <input type="number" placeholder="t.ex. 5" value={antaganden.tillväxt} onChange={e => setAntaganden({ ...antaganden, tillväxt: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label>Planerad kostnadsökning (kr/mån)</label>
-                        <input type="number" placeholder="t.ex. 50000" value={antaganden.kostnadsökning} onChange={e => setAntaganden({ ...antaganden, kostnadsökning: e.target.value })} />
-                      </div>
-                    </div>
-                  </div>
+              </div>
+              <div className="kf-form-section">
+                <div className="kf-section-label"><span className="kf-dot kf-dot-green"></span>Inbetalningar</div>
+                <div className="kf-form-row">
+                  <div className="kf-field"><label>Inbetald omsättning (kSEK)</label><input type="number" placeholder="0" value={form.omsattning} onChange={e=>setForm(f=>({...f,omsattning:e.target.value}))}/></div>
+                  <div className="kf-field"><label>Övrigt in (kSEK)</label><input type="number" placeholder="0" value={form.ovrigt_in} onChange={e=>setForm(f=>({...f,ovrigt_in:e.target.value}))}/></div>
+                </div>
+              </div>
+              <div className="kf-form-section">
+                <div className="kf-section-label"><span className="kf-dot kf-dot-red"></span>Utbetalningar rörelse</div>
+                <div className="kf-form-row">
+                  <div className="kf-field"><label>Produktionskostnader (kSEK)</label><input type="number" placeholder="0" value={form.produktionskost} onChange={e=>setForm(f=>({...f,produktionskost:e.target.value}))}/></div>
+                  <div className="kf-field"><label>Personalkostnader (kSEK)</label><input type="number" placeholder="0" value={form.personalkost} onChange={e=>setForm(f=>({...f,personalkost:e.target.value}))}/></div>
+                </div>
+                <div className="kf-form-row">
+                  <div className="kf-field"><label>Externa kostnader (kSEK)</label><input type="number" placeholder="0" value={form.externa_kost} onChange={e=>setForm(f=>({...f,externa_kost:e.target.value}))}/></div>
+                </div>
+              </div>
+              <div className="kf-form-section">
+                <div className="kf-section-label"><span className="kf-dot kf-dot-blue"></span>Investering &amp; finansiering</div>
+                <div className="kf-form-row">
+                  <div className="kf-field"><label>CAPEX, negativt tal (kSEK)</label><input type="number" placeholder="0" value={form.capex} onChange={e=>setForm(f=>({...f,capex:e.target.value}))}/></div>
+                  <div className="kf-field"><label>Externt kapital, netto (kSEK)</label><input type="number" placeholder="0" value={form.externt_kapital} onChange={e=>setForm(f=>({...f,externt_kapital:e.target.value}))}/></div>
+                </div>
+              </div>
+              <div className="kf-netto-row">
+                <div>
+                  <div className="kf-netto-label">Periodens kassaflöde</div>
+                  {formGM!==null && <div className="kf-netto-sub">Bruttomarginal: {formGM}%</div>}
+                </div>
+                <div className={`kf-netto-val ${formNetto>=0?'pos':'neg'}`}>{formNetto>=0?'+':''}{fmtSEK(Math.round(formNetto))} kSEK</div>
+              </div>
+              <button className="kf-btn-primary" onClick={handleSave} disabled={saving}>{saving?'Sparar...':'Spara månad →'}</button>
+            </div>
+            <div className="kf-card kf-info-card">
+              <div className="kf-card-title">Vad registreras?</div>
+              <dl className="kf-info-list">
+                <dt>Inbetald omsättning</dt><dd>Faktiskt kassainflöde — inte fakturerat belopp.</dd>
+                <dt>Produktionskostnader</dt><dd>Direkta leveranskostnader. Används för bruttomarginal.</dd>
+                <dt>Externa kostnader</dt><dd>Konsulter, lokaler, marknadsföring, övriga rörelsekostnader.</dd>
+                <dt>CAPEX</dt><dd>Investeringsutbetalningar — matas in som negativt tal.</dd>
+                <dt>Externt kapital</dt><dd>Nyemission och/eller nettolåneförändring. Positivt = inflöde.</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      )}
 
-                  <button className="btn-primary" onClick={genereraPrognos} disabled={prognosLoading}>
-                    {prognosLoading ? '⏳ Genererar AI-prognos…' : '🤖 Generera AI-prognos'}
-                  </button>
-                </>
-              )}
-
-              {data.prognos && (
-                <div className="kf-prognos-resultat">
-                  <div className="kf-prognos-summary">
-                    <p>{data.prognos.sammanfattning}</p>
-                    {data.prognos.varningar?.length > 0 && (
-                      <div className="kf-alert kf-alert--warning">
-                        {data.prognos.varningar.map((v, i) => <div key={i}>⚠️ {v}</div>)}
-                      </div>
-                    )}
-                  </div>
-
-                  <h4>12-månaders prognos</h4>
-                  <div className="kf-table-wrapper">
-                    <table className="kf-table">
-                      <thead>
-                        <tr><th>Månad</th><th>Prognos netto</th><th>Kassabalans</th><th>Confidence</th></tr>
-                      </thead>
-                      <tbody>
-                        {data.prognos.framtid?.map(m => (
-                          <tr key={m.månad}>
-                            <td>{m.månad}</td>
-                            <td className={m.prognos >= 0 ? 'kf-td--pos' : 'kf-td--neg'}>{formatSEK(m.prognos)}</td>
-                            <td className={m.kassaBalans >= 0 ? '' : 'kf-td--neg'}>{formatSEK(m.kassaBalans)}</td>
-                            <td>{Math.round((m.confidence || 0) * 100)}%</td>
+      {tab==='historik' && (
+        <div className="kf-tab-content">
+          <div className="kf-card">
+            <div className="kf-card-title">Månadshistorik</div>
+            {months.length===0
+              ? <p className="kf-empty-inline">Ingen data. Lägg till en månad eller fyll i exempeldata.</p>
+              : (
+                <div className="kf-table-wrap">
+                  <table className="kf-table">
+                    <thead><tr>
+                      <th>Månad</th>
+                      <th className="num">Omsättning</th>
+                      <th className="num">Rörelseflöde</th>
+                      <th className="num">Bruttomarginal</th>
+                      <th className="num">Rörelsemarginal</th>
+                      <th className="num">Utgående kassa</th>
+                      <th className="num">Status</th>
+                      <th></th>
+                    </tr></thead>
+                    <tbody>
+                      {months.map(d=>{
+                        const k=calcKassa(d), r=calcRorelse(d), gm=calcGM(d), eb=calcEBIT(d);
+                        const st=k<1500?'danger':k<2500?'warn':'ok';
+                        return (
+                          <tr key={d.id}>
+                            <td>{periodLabel(d.period)}</td>
+                            <td className="num">{fmtSEK(d.omsattning)}</td>
+                            <td className={`num ${r>=0?'col-ok':'col-neg'}`}>{fmtSEK(Math.round(r))}</td>
+                            <td className="num">{fmtPct(gm!==null?Math.round(gm):null)}</td>
+                            <td className="num">{fmtPct(eb!==null?Math.round(eb):null)}</td>
+                            <td className="num">{fmtSEK(Math.round(k))}</td>
+                            <td className="num"><span className={`kf-pill kf-pill-${st}`}>{st==='danger'?'Kritisk':st==='warn'?'Observera':'OK'}</span></td>
+                            <td className="num">
+                              {deleteId===d.id
+                                ? <span><button className="kf-link-btn kf-link-danger" onClick={()=>handleDelete(d.id)}>Bekräfta</button>{' / '}<button className="kf-link-btn" onClick={()=>setDeleteId(null)}>Avbryt</button></span>
+                                : <button className="kf-link-btn kf-link-danger" onClick={()=>setDeleteId(d.id)}>Ta bort</button>}
+                            </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="button-row">
-                    <button className="btn-secondary" onClick={() => exporteraPPT(null)} disabled={exportLoading === 'prognos'}>
-                      {exportLoading === 'prognos' ? '⏳ Exporterar…' : '📊 Exportera prognos till PowerPoint'}
-                    </button>
-                  </div>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
-            </div>
-          )}
+          </div>
+        </div>
+      )}
 
-          {/* ── Tab 4: Scenarios ── */}
-          {tab === 'scenarios' && (
-            <div className="kf-scenarios">
-              <h2>Scenarios</h2>
-
-              {!data.prognos ? (
-                <div className="kf-alert kf-alert--info">
-                  Du behöver en basprognos för att skapa scenarios. Gå till Tab 3 och generera en AI-prognos först.
+      {tab==='mal' && (
+        <div className="kf-tab-content">
+          <div className="kf-two-col">
+            <div className="kf-card">
+              <div className="kf-card-title">Målnyckeltal</div>
+              <div className="kf-form-section">
+                <div className="kf-section-label">Beteckning</div>
+                <div className="kf-form-row">
+                  <div className="kf-field" style={{gridColumn:'1/-1'}}>
+                    <label>Namn på budget/plan</label>
+                    <input type="text" placeholder="t.ex. Budget 2026" value={tForm.label} onChange={e=>setTForm(f=>({...f,label:e.target.value}))}/>
+                  </div>
                 </div>
-              ) : (
-                <>
-                  <form onSubmit={skapaScenario} className="kf-scenario-form">
-                    <h4>Skapa nytt scenario</h4>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Scenarionamn *</label>
-                        <input type="text" placeholder="t.ex. Aggressiv tillväxt" value={nyttScenario.namn} onChange={e => setNyttScenario({ ...nyttScenario, namn: e.target.value })} required />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Antal nya anställda</label>
-                        <input type="number" placeholder="0" value={nyttScenario.anställningar} onChange={e => setNyttScenario({ ...nyttScenario, anställningar: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label>Lönekostnad/pers (kr/mån)</label>
-                        <input type="number" placeholder="60000" value={nyttScenario.kostnadPerPerson} onChange={e => setNyttScenario({ ...nyttScenario, kostnadPerPerson: e.target.value })} />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Ökad marknadsföring (kr/mån)</label>
-                        <input type="number" placeholder="0" value={nyttScenario.marknadsföring} onChange={e => setNyttScenario({ ...nyttScenario, marknadsföring: e.target.value })} />
-                      </div>
-                      <div className="form-group">
-                        <label>Ökade intäkter (kr/mån)</label>
-                        <input type="number" placeholder="0" value={nyttScenario.intäktsökning} onChange={e => setNyttScenario({ ...nyttScenario, intäktsökning: e.target.value })} />
-                      </div>
-                    </div>
-                    <div className="button-row">
-                      <button type="submit" className="btn-primary" disabled={scenarioLoading}>
-                        {scenarioLoading ? 'Skapar…' : '➕ Skapa scenario'}
-                      </button>
-                    </div>
-                  </form>
-
-                  {data.scenarios.length > 0 && (
-                    <div className="kf-scenario-list">
-                      <h4>Sparade scenarios ({data.scenarios.length})</h4>
-                      {data.scenarios.map(sc => (
-                        <div key={sc.id} className="kf-scenario-card">
-                          <div className="kf-scenario-header">
-                            <h3>{sc.namn}</h3>
-                            <span className="kf-scenario-date">{sc.skapad}</span>
-                          </div>
-                          <div className="kf-scenario-stats">
-                            <div>
-                              <span className="kf-stat-label">Månadsändring</span>
-                              <span className={`kf-stat-value ${sc.månadsändring >= 0 ? 'kf-td--pos' : 'kf-td--neg'}`}>
-                                {formatSEK(sc.månadsändring)}/mån
-                              </span>
-                            </div>
-                            <div>
-                              <span className="kf-stat-label">Runway</span>
-                              <span className="kf-stat-value">{sc.runway > 0 ? `${sc.runway} mån` : 'Kassan håller'}</span>
-                            </div>
-                            {sc.kapitalbehov > 0 && (
-                              <div>
-                                <span className="kf-stat-label">Kapitalbehov</span>
-                                <span className="kf-stat-value kf-td--neg">{formatSEK(sc.kapitalbehov)}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Jämförelsetabell: bas vs scenario */}
-                          <div className="kf-compare-table-wrapper">
-                            <table className="kf-table kf-table--compact">
-                              <thead>
-                                <tr><th>Månad</th><th>Basprognos</th><th>Scenario</th><th>Diff</th></tr>
-                              </thead>
-                              <tbody>
-                                {sc.framtid.slice(0, 6).map((m, i) => {
-                                  const bas = data.prognos.framtid[i]?.kassaBalans || 0;
-                                  const diff = m.kassaBalans - bas;
-                                  return (
-                                    <tr key={m.månad}>
-                                      <td>{m.månad}</td>
-                                      <td>{formatSEK(bas)}</td>
-                                      <td className={m.kassaBalans >= 0 ? '' : 'kf-td--neg'}>{formatSEK(m.kassaBalans)}</td>
-                                      <td className={diff >= 0 ? 'kf-td--pos' : 'kf-td--neg'}>{diff >= 0 ? '+' : ''}{formatSEK(diff)}</td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-
-                          <div className="kf-scenario-actions">
-                            <button
-                              className="btn-primary"
-                              onClick={() => exporteraPPT(sc.id)}
-                              disabled={exportLoading === sc.id}
-                            >
-                              {exportLoading === sc.id ? '⏳ Exporterar…' : '📊 Exportera till PowerPoint'}
-                            </button>
-                            <button className="btn-secondary" onClick={() => taBortScenario(sc.id)}>Ta bort</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
+              </div>
+              <div className="kf-form-section">
+                <div className="kf-section-label"><span className="kf-dot kf-dot-green"></span>Resultatmål</div>
+                <div className="kf-form-row">
+                  <div className="kf-field"><label>Omsättningstillväxt, mål (%)</label><input type="number" placeholder="t.ex. 20" value={tForm.omsattning_tillvaxt} onChange={e=>setTForm(f=>({...f,omsattning_tillvaxt:e.target.value}))}/></div>
+                  <div className="kf-field"><label>Bruttomarginal, mål (%)</label><input type="number" placeholder="t.ex. 48" value={tForm.bruttomarginal} onChange={e=>setTForm(f=>({...f,bruttomarginal:e.target.value}))}/></div>
+                </div>
+                <div className="kf-form-row">
+                  <div className="kf-field"><label>Rörelsemarginal, mål (%) — negativt OK</label><input type="number" placeholder="t.ex. -10" value={tForm.rorelsemarginal} onChange={e=>setTForm(f=>({...f,rorelsemarginal:e.target.value}))}/></div>
+                </div>
+              </div>
+              <div className="kf-form-section">
+                <div className="kf-section-label"><span className="kf-dot kf-dot-red"></span>Kassaflödesmål</div>
+                <div className="kf-form-row">
+                  <div className="kf-field"><label>Max burn rate (kSEK/mån, negativt)</label><input type="number" placeholder="t.ex. -300" value={tForm.burn_rate_max} onChange={e=>setTForm(f=>({...f,burn_rate_max:e.target.value}))}/></div>
+                  <div className="kf-field"><label>Min runway (månader)</label><input type="number" placeholder="t.ex. 6" value={tForm.runway_min} onChange={e=>setTForm(f=>({...f,runway_min:e.target.value}))}/></div>
+                </div>
+                <div className="kf-form-row">
+                  <div className="kf-field"><label>CAPEX-budget per kvartal (kSEK)</label><input type="number" placeholder="t.ex. 150" value={tForm.capex_budget} onChange={e=>setTForm(f=>({...f,capex_budget:e.target.value}))}/></div>
+                </div>
+              </div>
+              <div className="kf-form-section">
+                <div className="kf-section-label"><span className="kf-dot kf-dot-blue"></span>Prognosparametrar</div>
+                <div className="kf-targets-hint">Används för att bygga automatisk kassaprognos — inte styrmål i sig.</div>
+                <div className="kf-form-row">
+                  <div className="kf-field"><label>Genomsnittlig betalningstid (dagar)</label><input type="number" placeholder="t.ex. 30" value={tForm.betalningstid_dagar} onChange={e=>setTForm(f=>({...f,betalningstid_dagar:e.target.value}))}/></div>
+                  <div className="kf-field"><label>Avskrivningstakt (% av CAPEX/år)</label><input type="number" placeholder="t.ex. 20" value={tForm.avskrivningstakt} onChange={e=>setTForm(f=>({...f,avskrivningstakt:e.target.value}))}/></div>
+                </div>
+                <div className="kf-form-row">
+                  <div className="kf-field"><label>Aktiveringsgrad personalkost (%)</label><input type="number" placeholder="t.ex. 15" value={tForm.aktiveringsgrad} onChange={e=>setTForm(f=>({...f,aktiveringsgrad:e.target.value}))}/></div>
+                </div>
+              </div>
+              <button className="kf-btn-primary" onClick={handleSaveTargets} disabled={savingT}>{savingT?'Sparar...':'Spara mål →'}</button>
             </div>
-          )}
-
+            <div className="kf-card kf-info-card">
+              <div className="kf-card-title">Om målnyckeltal</div>
+              <dl className="kf-info-list">
+                <dt>Resultatmål</dt><dd>Sätts som snitt över 12 månader. Visas som referenslinjer i marginalgrafen och ingår i avvikelseanalysen på översiktsfliken.</dd>
+                <dt>Kassaflödesmål</dt><dd>Burn rate och runway används direkt i flaggningslogiken. Röd varning triggas när runway understiger det minimum du sätter här.</dd>
+                <dt>CAPEX-budget</dt><dd>Jämförs mot faktisk CAPEX per rullande kvartal i avvikelseanalysen.</dd>
+                <dt>Prognosparametrar</dt><dd>Betalningstid påverkar när fakturerad omsättning syns som kassa. Avskrivningstakt och aktiveringsgrad används för framtida utbyggnad av prognosmodellen.</dd>
+              </dl>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
-
-export default Kassaflode;

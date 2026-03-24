@@ -269,6 +269,7 @@ function App() {
 
         {currentView === 'kassaflode' && (
           <Kassaflode
+            companyId="1485df45-910c-43cc-8197-ead8282e357d"
             user={user}
             onBack={() => navigateTo('dashboard')}
           />

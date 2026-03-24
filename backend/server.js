@@ -2077,6 +2077,8 @@ const companiesRouter  = require('./routes/companies');
 const pitchDeckRouter  = require('./routes/pitch_deck');
 app.use('/api/companies', requireAuth, companiesRouter);
 app.use('/api/emissions', requireAuth, pitchDeckRouter);
+const cashflowRoutes = require('./routes/cashflow');
+app.use('/api/cashflow', requireAuth, cashflowRoutes);
 
 // ========================================================================
 //  SERVER START

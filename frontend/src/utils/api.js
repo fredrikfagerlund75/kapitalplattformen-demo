@@ -99,3 +99,19 @@ export const apiPut = async (endpoint, data) => {
 
   return response;
 };
+
+// DELETE request with auth
+export const apiDelete = async (endpoint) => {
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+
+  if (response.status === 401) {
+    clearAuthToken();
+    window.location.reload();
+    throw new Error('Session expired');
+  }
+
+  return response;
+};
