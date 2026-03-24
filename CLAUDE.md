@@ -58,16 +58,49 @@ components/
   Kassaflode.js/css       — Kassaflödesmodul
   Emissionsnyheter.js/css — Nyhetsflöde
   ProspektGenerator.js    — Generera prospekt/IM via AI
+  PitchDeckEditor/
+    PitchDeckEditor.js    — Pitch deck editor: preview (4 slide-typer) + AI-chatt
+    PitchDeckEditor.css   — Styling. Slide renderas internt 420px, skalas med ResizeObserver+transform
   Teckning.js             — Teckningsmodul
   Marknadsföring.js       — Marknadsföringsmodul
   Aktiebok.js             — Aktiebok
   Analytics.js            — Analytics
-  Inställningar.js        — Företagsinställningar
+  Inställningar.js        — Företagsinställningar (inkl. varumärkesprofil med logo/hero-bilder)
 utils/api.js              — Auth-token hantering, apiGet/apiPost/apiPut helpers
 ```
+
+## Filstruktur backend/
+
+```
+server.js                 — Express-app, statisk serving, auth-middleware
+db.js                     — PostgreSQL-anslutning (pg)
+news-aggregator.js        — Nyhetsaggregering
+routes/
+  companies.js            — CRUD för bolag + varumärkesprofil
+  pitch_deck.js           — Pitch deck: generate, chat (PUT), export (.pptx), delete
+utils/
+  brandProfile.js         — getBrandProfile(), validateBrandProfile(), buildBrandContext()
+                            DEFAULTS innehåller hero_images:[], logo_url:'', logo_dark_url:''
+  pitchDeckExport.js      — pptxgenjs-export, LAYOUT_16x9 (10"×5.625"), addLogo() med try/catch
+  prompts.js              — AI-prompt-builders för pitch deck
+```
+
+## Pitch deck — viktiga detaljer
+
+- **Slide-typer:** `cover`, `bullets`, `twocol`, `metrics`
+- **Preview-skalning:** Sliden renderas alltid internt på 420px (matchar pptxgenjs-layout).
+  ResizeObserver mäter canvas-bredden → `transform: scale(s)` appliceras (max 1.5×).
+  Använd INTE `zoom` — det ändrar layout-footprint och ger klippning.
+- **Hero-bilder:** Hämtas från `brand_profile.hero_images[]` i DB. Demobolag måste ha bilder
+  inlagda via Inställningar → "Fyll i exempeldata" → Spara.
+- **Export:** pptxgenjs med `LAYOUT_16x9`. Fungerar — ändra inte layout-konstanten.
 
 ## Vanliga fallgropar
 
 - Sökvägen innehåller mellanslag (`Claude Agent`) — använd alltid citattecken runt sökvägar i shell
 - `CI=true` (Renders default) gör att ESLint-varningar failar bygget — använd alltid `CI=false`
 - In-memory auth: tokens försvinner vid server-restart på Render (free tier sleeps)
+- Cloudflare cachar `index.html` aggressivt — `Cache-Control: no-store` är satt i server.js.
+  Användare behöver Cmd+Shift+R vid cacheproblem efter deploy.
+- `aspect-ratio` på `.pd-slide` + `height: 100%` från `.pd-slide-content` krockar.
+  Lösning: `height: 'auto'` som inline style på twocol/bullets/metrics i SlidePreview.
