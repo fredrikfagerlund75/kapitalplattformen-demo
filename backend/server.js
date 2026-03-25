@@ -2080,6 +2080,47 @@ app.use('/api/emissions', requireAuth, pitchDeckRouter);
 const cashflowRoutes = require('./routes/cashflow');
 app.use('/api/cashflow', requireAuth, cashflowRoutes);
 
+// Auto-migration: skapa kassaflödes-tabeller om de inte finns
+(async () => {
+  const db = require('./db');
+  try {
+    await db.query(`CREATE TABLE IF NOT EXISTS cashflow_months (
+      id               SERIAL PRIMARY KEY,
+      company_id       UUID NOT NULL,
+      period           VARCHAR(7) NOT NULL,
+      omsattning       NUMERIC(12,2) NOT NULL DEFAULT 0,
+      ovrigt_in        NUMERIC(12,2) NOT NULL DEFAULT 0,
+      ing_kassa        NUMERIC(12,2) NOT NULL DEFAULT 0,
+      produktionskost  NUMERIC(12,2) NOT NULL DEFAULT 0,
+      personalkost     NUMERIC(12,2) NOT NULL DEFAULT 0,
+      externa_kost     NUMERIC(12,2) NOT NULL DEFAULT 0,
+      capex            NUMERIC(12,2) NOT NULL DEFAULT 0,
+      externt_kapital  NUMERIC(12,2) NOT NULL DEFAULT 0,
+      created_at       TIMESTAMP DEFAULT NOW(),
+      UNIQUE(company_id, period)
+    )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS cashflow_targets (
+      id                    SERIAL PRIMARY KEY,
+      company_id            UUID NOT NULL,
+      label                 VARCHAR(100) NOT NULL DEFAULT 'Budget 12 mån',
+      omsattning_tillvaxt   NUMERIC(6,2),
+      bruttomarginal        NUMERIC(6,2),
+      rorelsemarginal       NUMERIC(6,2),
+      burn_rate_max         NUMERIC(12,2),
+      runway_min            INTEGER,
+      capex_budget          NUMERIC(12,2),
+      betalningstid_dagar   INTEGER,
+      avskrivningstakt      NUMERIC(6,2),
+      aktiveringsgrad       NUMERIC(6,2),
+      updated_at            TIMESTAMP DEFAULT NOW(),
+      UNIQUE(company_id)
+    )`);
+    console.log('Migrations OK');
+  } catch (err) {
+    console.error('Migration error:', err.message);
+  }
+})();
+
 // ========================================================================
 //  SERVER START
 // ========================================================================
