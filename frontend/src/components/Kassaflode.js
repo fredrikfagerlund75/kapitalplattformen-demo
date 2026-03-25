@@ -209,7 +209,8 @@ export default function Kassaflode({ companyId }) {
     if (!form.period) { notify('Välj en period.','warn'); return; }
     setSaving(true);
     try {
-      await apiPost('/api/cashflow', { company_id:companyId, ...form });
+      const r = await apiPost('/api/cashflow', { company_id:companyId, ...form });
+      if (!r.ok) throw new Error('save failed');
       await loadMonths();
       setForm(EMPTY_FORM);
       setTab('oversikt');
@@ -221,7 +222,8 @@ export default function Kassaflode({ companyId }) {
   async function handleSaveTargets() {
     setSavingT(true);
     try {
-      await apiPost('/api/cashflow/targets', { company_id:companyId, ...tForm });
+      const r = await apiPost('/api/cashflow/targets', { company_id:companyId, ...tForm });
+      if (!r.ok) throw new Error('save failed');
       await loadTargets();
       notify('Mål sparade!','ok');
     } catch { notify('Kunde inte spara mål.','danger'); }
@@ -231,7 +233,8 @@ export default function Kassaflode({ companyId }) {
   async function handleDemo() {
     setLoadingDemo(true);
     try {
-      await apiPost('/api/cashflow/demo', { company_id:companyId });
+      const r = await apiPost('/api/cashflow/demo', { company_id:companyId });
+      if (!r.ok) throw new Error('demo failed');
       await Promise.all([loadMonths(), loadTargets()]);
       setTab('oversikt');
       notify('6 månaders exempeldata + mål inlagda!','ok');
