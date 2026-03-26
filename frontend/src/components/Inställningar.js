@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Inställningar.css';
 import { apiPost, getAuthHeaders } from '../utils/api';
+import { ChevronLeft, Settings, Search, CheckCircle2, Save, Lightbulb, Palette, AlertTriangle, Dices } from 'lucide-react';
 
 // Demo company ID (from DB seed)
 const DEMO_COMPANY_ID = '1485df45-910c-43cc-8197-ead8282e357d';
@@ -210,8 +211,8 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
   return (
     <div className="module-container">
       <div className="module-header">
-        <button className="back-button" onClick={onBack}>← Tillbaka</button>
-        <h1>⚙️ Inställningar</h1>
+        <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+        <h1><Settings size={20} strokeWidth={1.5} /> Inställningar</h1>
       </div>
 
       <div className="settings-content">
@@ -234,7 +235,7 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
                     placeholder="XXXXXX-XXXX"
                   />
                   <button className="btn-secondary" onClick={handleLookup} disabled={loading}>
-                    {loading ? 'Söker...' : '🔍 Hämta info'}
+                    {loading ? 'Söker...' : <><Search size={14} strokeWidth={1.5} /> Hämta info</>}
                   </button>
                 </div>
               </div>
@@ -297,25 +298,25 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
 
           <div className="settings-actions">
             <button className="btn-primary" onClick={handleSave}>
-              {saved ? '✅ Sparat' : '💾 Spara inställningar'}
+              {saved ? <><CheckCircle2 size={14} strokeWidth={1.5} /> Sparat</> : <><Save size={14} strokeWidth={1.5} /> Spara inställningar</>}
             </button>
           </div>
         </div>
 
         <div className="settings-info-box">
-          <p>💡 Informationen som sparas här används som grund i Kapitalrådgivaren, Prospektgeneratorn och övriga moduler.
+          <p><Lightbulb size={14} strokeWidth={1.5} /> Informationen som sparas här används som grund i Kapitalrådgivaren, Prospektgeneratorn och övriga moduler.
           Du kan alltid ändra uppgifterna i respektive modul.</p>
         </div>
 
         <div className="settings-card" style={{ marginTop: '1.5rem' }}>
-          <h2>🎨 Varumärkesprofil</h2>
+          <h2><Palette size={18} strokeWidth={1.5} /> Varumärkesprofil</h2>
           <p className="settings-desc">
             Används av Kampanjmotorn och Pitch Deck-generatorn för att anpassa ton, stil och grafisk profil.
           </p>
 
           {brandStatus && !brandStatus.valid && (
             <div className="brand-status-warning">
-              ⚠ Varumärkesprofilen är ofullständig — pitch deck kan inte genereras.<br />
+              <AlertTriangle size={14} strokeWidth={1.5} /> Varumärkesprofilen är ofullständig — pitch deck kan inte genereras.<br />
               <span>Saknade fält: {(brandStatus.missing || []).join(', ')}</span>
             </div>
           )}
@@ -623,10 +624,10 @@ function Inställningar({ user, companySettings, onSave, onBack }) {
 
           <div className="settings-actions">
             <button className="btn-secondary" onClick={handleBrandDemo}>
-              🎲 Fyll i exempeldata
+              <Dices size={14} strokeWidth={1.5} /> Fyll i exempeldata
             </button>
             <button className="btn-primary" onClick={handleBrandSave}>
-              {brandSaved ? '✅ Sparat' : '💾 Spara varumärkesprofil'}
+              {brandSaved ? <><CheckCircle2 size={14} strokeWidth={1.5} /> Sparat</> : <><Save size={14} strokeWidth={1.5} /> Spara varumärkesprofil</>}
             </button>
           </div>
         </div>

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
+import { ChevronLeft, PenLine, Megaphone, Globe, Zap, RefreshCw, CheckCircle2, FileText, BarChart2, Sparkles, Save, ClipboardList, Folder, Building2, Video } from 'lucide-react';
 import { apiPost } from '../utils/api';
 import Marknadsföring from './Marknadsföring';
 
 function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
   const [activeTab, setActiveTab] = useState('emissionssida');
   const [loading, setLoading] = useState(false);
-  
+
   // Emissionssida state
   const [emissionssidaHtml, setEmissionssidaHtml] = useState('');
   const [emissionssidaStep, setEmissionssidaStep] = useState('generate'); // generate | preview | published
-  
+
   // MAR-PM state
   const [marPmType, setMarPmType] = useState('prospekt');
   const [marPmDraft, setMarPmDraft] = useState('');
@@ -19,8 +20,8 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
     return (
       <div className="module-container">
         <div className="module-header">
-          <button className="back-button" onClick={onBack}>← Tillbaka</button>
-          <h1>✍️ Teckning</h1>
+          <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+          <h1><PenLine size={20} strokeWidth={1.5} /> Teckning</h1>
         </div>
         <div className="empty-state">
           <p>Välj ett emissionsprojekt från Dashboard</p>
@@ -63,8 +64,8 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
     setLoading(true);
     try {
       const url = `https://kapital.demo/${(user.company || 'bolag').toLowerCase().replace(/\s+/g, '-')}-emission`;
-      await onUpdateProject(projekt.id, { 
-        teckning: { ...projekt.teckning, emissionssidaUrl: url, emissionssidaHtml: emissionssidaHtml } 
+      await onUpdateProject(projekt.id, {
+        teckning: { ...projekt.teckning, emissionssidaUrl: url, emissionssidaHtml: emissionssidaHtml }
       });
       setEmissionssidaStep('published');
     } catch (error) {
@@ -105,8 +106,8 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
   return (
     <div className="module-container">
       <div className="module-header">
-        <button className="back-button" onClick={onBack}>← Tillbaka</button>
-        <h1>✍️ Teckning - {projekt.name}</h1>
+        <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+        <h1><PenLine size={20} strokeWidth={1.5} /> Teckning - {projekt.name}</h1>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
           <select
             value={projekt.status || 'active'}
@@ -114,8 +115,8 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
             style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.9rem', cursor: 'pointer' }}
           >
             <option value="active">Aktiv</option>
-            <option value="completed">✅ Slutförd</option>
-            <option value="cancelled">❌ Avbruten</option>
+            <option value="completed">Slutförd</option>
+            <option value="cancelled">Avbruten</option>
           </select>
         </div>
       </div>
@@ -128,7 +129,7 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
           MAR-PM
         </button>
         <button className={`tab ${activeTab === 'marknadsforing' ? 'active' : ''}`} onClick={() => setActiveTab('marknadsforing')}>
-          📢 Marknadsföring
+          <Megaphone size={14} strokeWidth={1.5} /> Marknadsföring
         </button>
         <button className={`tab ${activeTab === 'videoteckning' ? 'active' : ''}`} onClick={() => setActiveTab('videoteckning')}>
           Videoteckning
@@ -145,7 +146,7 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
         {/* ===== EMISSIONSSIDA TAB ===== */}
         {activeTab === 'emissionssida' && (
           <div>
-            <h2>🌐 Publik emissionssida</h2>
+            <h2><Globe size={18} strokeWidth={1.5} /> Publik emissionssida</h2>
             <p>Skapa, granska och publicera emissionssidan.</p>
 
             {effectiveStep === 'generate' && (
@@ -154,7 +155,7 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                   Emissionssidan genereras baserat på projektets data och det innehåll som skapades i Prospekt/IM-steget.
                 </p>
                 <button className="btn-primary" onClick={handleCreateEmissionssida} disabled={loading}>
-                  {loading ? 'Genererar emissionssida...' : '🌐 Skapa emissionssida'}
+                  {loading ? 'Genererar emissionssida...' : <><Globe size={14} strokeWidth={1.5} /> Skapa emissionssida</>}
                 </button>
               </div>
             )}
@@ -162,8 +163,8 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
             {effectiveStep === 'preview' && (
               <div style={{marginTop: '16px'}}>
                 <div style={{
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
+                  display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                   marginBottom: '12px',
                   padding: '12px 16px',
@@ -171,9 +172,9 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                   borderRadius: '8px',
                   border: '1px solid #ffe082'
                 }}>
-                  <span><strong>⚡ Förhandsvisning</strong> — Granska sidan innan publicering. I demo räcker det att klicka på Publicera.</span>
+                  <span><strong><Zap size={14} strokeWidth={1.5} /> Förhandsvisning</strong> — Granska sidan innan publicering. I demo räcker det att klicka på Publicera.</span>
                 </div>
-                
+
                 <div style={{
                   border: '2px solid #ddd',
                   borderRadius: '12px',
@@ -196,7 +197,7 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                     <span style={{width:'12px', height:'12px', borderRadius:'50%', background:'#27c93f', display:'inline-block'}}></span>
                     <span style={{marginLeft: '12px'}}>Emissionssida — förhandsvisning</span>
                   </div>
-                  <iframe 
+                  <iframe
                     srcDoc={emissionssidaHtml}
                     title="Emissionssida preview"
                     style={{
@@ -210,10 +211,10 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
 
                 <div style={{display: 'flex', gap: '12px'}}>
                   <button className="btn-primary btn-large" onClick={handlePublishEmissionssida} disabled={loading}>
-                    {loading ? 'Publicerar...' : '🚀 Publicera emissionssidan'}
+                    {loading ? 'Publicerar...' : <><Zap size={14} strokeWidth={1.5} /> Publicera emissionssidan</>}
                   </button>
                   <button className="btn-secondary" onClick={handleCreateEmissionssida} disabled={loading}>
-                    🔄 Generera om
+                    <RefreshCw size={14} strokeWidth={1.5} /> Generera om
                   </button>
                 </div>
               </div>
@@ -228,7 +229,7 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                   padding: '20px',
                   marginBottom: '16px'
                 }}>
-                  <p style={{margin: '0 0 8px', fontWeight: '600', color: '#166534'}}>✅ Emissionssidan är publicerad</p>
+                  <p style={{margin: '0 0 8px', fontWeight: '600', color: '#166534'}}><CheckCircle2 size={16} strokeWidth={1.5} /> Emissionssidan är publicerad</p>
                   <p style={{margin: 0, color: '#555'}}>
                     <strong>URL:</strong> {projekt.teckning?.emissionssidaUrl}
                   </p>
@@ -249,7 +250,7 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                     }}>
                       Publicerad emissionssida
                     </div>
-                    <iframe 
+                    <iframe
                       srcDoc={emissionssidaHtml}
                       title="Publicerad emissionssida"
                       style={{ width: '100%', height: '500px', border: 'none' }}
@@ -265,30 +266,30 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
         {/* ===== MAR-PM TAB ===== */}
         {activeTab === 'mar-pm' && (
           <div>
-            <h2>📄 Generera MAR-PM</h2>
+            <h2><FileText size={18} strokeWidth={1.5} /> Generera MAR-PM</h2>
             <p>Skapa MAR-kompatibla pressmeddelanden för olika skeden av emissionen.</p>
 
             <div style={{marginTop: '16px', marginBottom: '16px'}}>
               <label style={{display: 'block', marginBottom: '8px', fontWeight: '500'}}>Välj typ av MAR-PM:</label>
               <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                <button 
+                <button
                   className={marPmType === 'prospekt' ? 'btn-primary' : 'btn-secondary'}
                   onClick={() => setMarPmType('prospekt')}
                 >
-                  📄 Prospekt offentliggjort
+                  <FileText size={14} strokeWidth={1.5} /> Prospekt offentliggjort
                 </button>
-                <button 
+                <button
                   className={marPmType === 'utfall' ? 'btn-primary' : 'btn-secondary'}
                   onClick={() => setMarPmType('utfall')}
                 >
-                  📊 Emissionsutfall
+                  <BarChart2 size={14} strokeWidth={1.5} /> Emissionsutfall
                 </button>
               </div>
             </div>
 
             {!marPmDraft ? (
               <button className="btn-primary" onClick={handleGenerateMarPM} disabled={loading}>
-                {loading ? 'Genererar...' : `🤖 Generera MAR-PM (${marPmType === 'prospekt' ? 'prospekt offentliggjort' : 'emissionsutfall'})`}
+                {loading ? 'Genererar...' : <><Sparkles size={14} strokeWidth={1.5} /> Generera MAR-PM ({marPmType === 'prospekt' ? 'prospekt offentliggjort' : 'emissionsutfall'})</>}
               </button>
             ) : (
               <div>
@@ -320,10 +321,10 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                 />
                 <div style={{display: 'flex', gap: '8px', marginTop: '12px'}}>
                   <button className="btn-primary" onClick={() => setMarPmSaved(true)}>
-                    {marPmSaved ? '✅ Utkast sparat' : '💾 Spara utkast'}
+                    {marPmSaved ? <><CheckCircle2 size={14} strokeWidth={1.5} /> Utkast sparat</> : <><Save size={14} strokeWidth={1.5} /> Spara utkast</>}
                   </button>
                   <button className="btn-secondary" onClick={handleGenerateMarPM} disabled={loading}>
-                    🔄 Generera om
+                    <RefreshCw size={14} strokeWidth={1.5} /> Generera om
                   </button>
                   <button className="btn-secondary" onClick={() => { setMarPmDraft(''); setMarPmSaved(false); }}>
                     Ny typ
@@ -342,8 +343,8 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
         {/* ===== VIDEOTECKNING TAB ===== */}
         {activeTab === 'videoteckning' && (
           <div className="placeholder-content">
-            <h2>🎥 Videoteckning</h2>
-            <p>🚧 Work in progress — Kommer i framtida version</p>
+            <h2><Video size={18} strokeWidth={1.5} /> Videoteckning</h2>
+            <p>Work in progress — Kommer i framtida version</p>
             <p>Funktionalitet: Live OD-session för att verifiera tecknare</p>
           </div>
         )}
@@ -351,9 +352,9 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
         {/* ===== TILLDELNING TAB ===== */}
         {activeTab === 'tilldelning' && (
           <div>
-            <h2>📋 Tilldelning</h2>
+            <h2><ClipboardList size={18} strokeWidth={1.5} /> Tilldelning</h2>
             <p>Ladda upp tilldelningsförslag från emissionsinstitutet.</p>
-            
+
             <div style={{
               marginTop: '16px',
               padding: '32px',
@@ -362,7 +363,9 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
               textAlign: 'center',
               background: '#fafafa'
             }}>
-              <div style={{fontSize: '40px', marginBottom: '12px'}}>📁</div>
+              <div style={{display: 'flex', justifyContent: 'center', marginBottom: '12px'}}>
+                <Folder size={40} strokeWidth={1.5} style={{color: '#999'}} />
+              </div>
               <p style={{margin: '0 0 16px', color: '#555'}}>Dra och släpp fil här, eller klicka för att välja</p>
               <input type="file" id="tilldelning-upload" style={{display: 'none'}} />
               <label htmlFor="tilldelning-upload" className="btn-primary" style={{cursor: 'pointer', display: 'inline-block'}}>
@@ -378,7 +381,7 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                 padding: '20px',
                 marginTop: '16px'
               }}>
-                <p style={{margin: '0 0 12px', fontWeight: '600'}}>✅ Tilldelningsförslag uppladdat</p>
+                <p style={{margin: '0 0 12px', fontWeight: '600'}}><CheckCircle2 size={16} strokeWidth={1.5} /> Tilldelningsförslag uppladdat</p>
                 <button className="btn-primary" onClick={async () => {
                   setLoading(true);
                   try {
@@ -397,7 +400,7 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                   }
                   setLoading(false);
                 }} disabled={loading}>
-                  📋 Generera styrelseprotokoll för tilldelning
+                  <ClipboardList size={14} strokeWidth={1.5} /> Generera styrelseprotokoll för tilldelning
                 </button>
               </div>
             )}
@@ -407,15 +410,15 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
         {/* ===== BOLAGSVERKET TAB ===== */}
         {activeTab === 'bolagsverket' && (
           <div>
-            <h2>🏛️ Bolagsverket-registrering</h2>
+            <h2><Building2 size={18} strokeWidth={1.5} /> Bolagsverket-registrering</h2>
             <p>Förbered underlag för registrering hos Bolagsverket.</p>
-            
+
             <div style={{marginTop: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap'}}>
               <button className="btn-primary" onClick={() => alert('Demo: Underlag genererat!')} disabled={loading}>
                 Generera registreringsunderlag
               </button>
             </div>
-            
+
             {projekt.teckning?.registreradBolagsverket && (
               <div style={{
                 background: '#f0fdf4',
@@ -424,7 +427,7 @@ function Teckning({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                 padding: '20px',
                 marginTop: '16px'
               }}>
-                <p style={{margin: 0}}>✅ Registrerad hos Bolagsverket</p>
+                <p style={{margin: 0}}><CheckCircle2 size={16} strokeWidth={1.5} /> Registrerad hos Bolagsverket</p>
               </div>
             )}
           </div>

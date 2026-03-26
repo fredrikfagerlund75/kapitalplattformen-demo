@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './Aktiebok.css';
 import { apiPost } from '../utils/api';
+import { ChevronLeft, ClipboardList, Plus, Users, TrendingUp, Mail, Smartphone, Briefcase, FileText, Link, RefreshCw, X } from 'lucide-react';
 
 // Mock database - aktieägare
 const MOCK_SHAREHOLDERS = [
@@ -180,14 +181,14 @@ function Aktiebok({ user, onBack }) {
       <div className="overview-header">
         <h2>Aktiebok - Översikt</h2>
         <button className="btn-primary" onClick={() => setActiveTab('import')}>
-          ➕ Importera data
+          <Plus size={14} strokeWidth={1.5} /> Importera data
         </button>
       </div>
 
       {/* Key Metrics */}
       <div className="metrics-grid">
         <div className="metric-card">
-          <div className="metric-icon">📊</div>
+          <div className="metric-icon"><Users size={24} strokeWidth={1.5} /></div>
           <div className="metric-content">
             <h3>Totalt antal aktieägare</h3>
             <div className="metric-value">{totalShareholders}</div>
@@ -195,7 +196,7 @@ function Aktiebok({ user, onBack }) {
         </div>
 
         <div className="metric-card">
-          <div className="metric-icon">📈</div>
+          <div className="metric-icon"><TrendingUp size={24} strokeWidth={1.5} /></div>
           <div className="metric-content">
             <h3>Utestående aktier</h3>
             <div className="metric-value">{totalShares.toLocaleString('sv-SE')}</div>
@@ -203,7 +204,7 @@ function Aktiebok({ user, onBack }) {
         </div>
 
         <div className="metric-card">
-          <div className="metric-icon">✉️</div>
+          <div className="metric-icon"><Mail size={24} strokeWidth={1.5} /></div>
           <div className="metric-content">
             <h3>Email opt-in</h3>
             <div className="metric-value">{optInEmailCount} ({Math.round((optInEmailCount/totalShareholders)*100)}%)</div>
@@ -211,7 +212,7 @@ function Aktiebok({ user, onBack }) {
         </div>
 
         <div className="metric-card">
-          <div className="metric-icon">📱</div>
+          <div className="metric-icon"><Smartphone size={24} strokeWidth={1.5} /></div>
           <div className="metric-content">
             <h3>SMS opt-in</h3>
             <div className="metric-value">{optInSMSCount} ({Math.round((optInSMSCount/totalShareholders)*100)}%)</div>
@@ -264,9 +265,9 @@ function Aktiebok({ user, onBack }) {
                   <td>{sh.ownershipPercent}%</td>
                   <td><span className={`type-badge type-${sh.investorType.toLowerCase().replace(/\s/g, '-')}`}>{sh.investorType}</span></td>
                   <td>
-                    {sh.optInEmail && <span className="contact-badge">✉️</span>}
-                    {sh.optInSMS && <span className="contact-badge">📱</span>}
-                    {sh.linkedInProfile && <span className="contact-badge">💼</span>}
+                    {sh.optInEmail && <span className="contact-badge"><Mail size={14} strokeWidth={1.5} /></span>}
+                    {sh.optInSMS && <span className="contact-badge"><Smartphone size={14} strokeWidth={1.5} /></span>}
+                    {sh.linkedInProfile && <span className="contact-badge"><Briefcase size={14} strokeWidth={1.5} /></span>}
                   </td>
                 </tr>
               ))}
@@ -321,9 +322,9 @@ function Aktiebok({ user, onBack }) {
               <td><span className={`type-badge type-${sh.investorType.toLowerCase().replace(/\s/g, '-')}`}>{sh.investorType}</span></td>
               <td>{sh.acquisitionDate}</td>
               <td>
-                {sh.optInEmail && <span className="contact-badge" title="Email opt-in">✉️</span>}
-                {sh.optInSMS && <span className="contact-badge" title="SMS opt-in">📱</span>}
-                {sh.linkedInProfile && <span className="contact-badge" title="LinkedIn">💼</span>}
+                {sh.optInEmail && <span className="contact-badge" title="Email opt-in"><Mail size={14} strokeWidth={1.5} /></span>}
+                {sh.optInSMS && <span className="contact-badge" title="SMS opt-in"><Smartphone size={14} strokeWidth={1.5} /></span>}
+                {sh.linkedInProfile && <span className="contact-badge" title="LinkedIn"><Briefcase size={14} strokeWidth={1.5} /></span>}
               </td>
               <td>
                 <button className="btn-secondary btn-small" onClick={() => setSelectedShareholder(sh)}>
@@ -348,7 +349,7 @@ function Aktiebok({ user, onBack }) {
 
       <div className="import-methods">
         <div className="import-card">
-          <div className="import-icon">📄</div>
+          <div className="import-icon"><FileText size={24} strokeWidth={1.5} /></div>
           <h3>CSV/Excel-import</h3>
           <p>Ladda upp en fil med aktieägare från er bokföring eller depå.</p>
           <button className="btn-primary">Välj fil</button>
@@ -356,14 +357,14 @@ function Aktiebok({ user, onBack }) {
         </div>
 
         <div className="import-card">
-          <div className="import-icon">🔗</div>
+          <div className="import-icon"><Link size={24} strokeWidth={1.5} /></div>
           <h3>Euroclear API (Coming soon)</h3>
           <p>Automatisk synkronisering med Euroclear Sverige för VP-konto.</p>
           <button className="btn-secondary" disabled>Konfigurera</button>
         </div>
 
         <div className="import-card">
-          <div className="import-icon">📧</div>
+          <div className="import-icon"><Mail size={24} strokeWidth={1.5} /></div>
           <h3>Nyhetsbrev-prenumeranter</h3>
           <p>Importera opt-in kontakter från er webbplats eller IR-system.</p>
           <button className="btn-primary">Välj fil</button>
@@ -371,7 +372,7 @@ function Aktiebok({ user, onBack }) {
         </div>
 
         <div className="import-card">
-          <div className="import-icon">🔄</div>
+          <div className="import-icon"><RefreshCw size={24} strokeWidth={1.5} /></div>
           <h3>Synkronisera till Brevo</h3>
           <p>Exportera kontakter till Brevo för email-kampanjer.</p>
           <button className="btn-primary" onClick={handleSyncToBrevo} disabled={syncing}>
@@ -401,7 +402,7 @@ function Aktiebok({ user, onBack }) {
         <div className="modal-content" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <h2>{selectedShareholder.name}</h2>
-            <button className="close-button" onClick={() => setSelectedShareholder(null)}>✕</button>
+            <button className="close-button" onClick={() => setSelectedShareholder(null)}><X size={16} strokeWidth={1.5} /></button>
           </div>
 
           <div className="detail-section">
@@ -444,15 +445,15 @@ function Aktiebok({ user, onBack }) {
             <h3>Kommunikationsinställningar</h3>
             <div className="opt-in-status">
               <div className={`opt-in-item ${selectedShareholder.optInEmail ? 'active' : 'inactive'}`}>
-                <span className="opt-in-icon">✉️</span>
+                <span className="opt-in-icon"><Mail size={16} strokeWidth={1.5} /></span>
                 <span>Email: {selectedShareholder.optInEmail ? 'Opt-in' : 'Opt-out'}</span>
               </div>
               <div className={`opt-in-item ${selectedShareholder.optInSMS ? 'active' : 'inactive'}`}>
-                <span className="opt-in-icon">📱</span>
+                <span className="opt-in-icon"><Smartphone size={16} strokeWidth={1.5} /></span>
                 <span>SMS: {selectedShareholder.optInSMS ? 'Opt-in' : 'Opt-out'}</span>
               </div>
               <div className={`opt-in-item ${selectedShareholder.linkedInProfile ? 'active' : 'inactive'}`}>
-                <span className="opt-in-icon">💼</span>
+                <span className="opt-in-icon"><Briefcase size={16} strokeWidth={1.5} /></span>
                 <span>LinkedIn: {selectedShareholder.linkedInProfile ? 'Tillgänglig' : 'Ej tillgänglig'}</span>
               </div>
             </div>
@@ -477,8 +478,8 @@ function Aktiebok({ user, onBack }) {
   return (
     <div className="aktiebok-module">
       <div className="module-header">
-        <button className="back-button" onClick={onBack}>← Tillbaka</button>
-        <h1>📊 Aktiebok</h1>
+        <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+        <h1><ClipboardList size={20} strokeWidth={1.5} /> Aktiebok</h1>
       </div>
 
       <div className="module-tabs">

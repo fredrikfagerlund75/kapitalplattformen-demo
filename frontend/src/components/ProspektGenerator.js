@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import './ProspektGenerator.css';
 import { apiPost, getAuthHeaders } from '../utils/api';
 import PitchDeckEditor from './PitchDeckEditor/PitchDeckEditor';
+import { ChevronLeft, ChevronRight, FileText, CheckCircle2, ClipboardList, Sparkles, Download, AlertTriangle, Lightbulb, Save, Plus, X, Dices } from 'lucide-react';
 
 const DEMO_EMISSION_ID = '83ed09ce-cd14-46e0-bcc9-5141d6aa70c3';
 const DEMO_COMPANY_ID  = '1485df45-910c-43cc-8197-ead8282e357d';
@@ -166,8 +167,8 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
     return (
       <div className="module-container">
         <div className="module-header">
-          <button className="back-button" onClick={onBack}>← Tillbaka</button>
-          <h1>📄 Prospekt/IM Generator</h1>
+          <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+          <h1><FileText size={20} strokeWidth={1.5} /> Prospekt/IM Generator</h1>
         </div>
         <div className="empty-state">
           <p>Välj ett emissionsprojekt från Dashboard för att skapa Prospekt/IM</p>
@@ -351,8 +352,8 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
   return (
     <div className="module-container">
       <div className="module-header">
-        <button className="back-button" onClick={onBack}>← Tillbaka</button>
-        <h1>📄 Prospekt/IM Generator</h1>
+        <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+        <h1><FileText size={20} strokeWidth={1.5} /> Prospekt/IM Generator</h1>
       </div>
 
       {/* Progress bar */}
@@ -375,7 +376,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
               setStep(7);
             }}
           >
-            Testa Pitch Deck direkt (dev) →
+            Testa Pitch Deck direkt (dev) <ChevronRight size={14} strokeWidth={1.5} />
           </button>
         </div>
       )}
@@ -383,7 +384,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
       <div className="module-content">
         {/* Show emission details at top */}
         <div className="emission-details-banner">
-          <h3>✅ Emissionsvillkor (från projektet)</h3>
+          <h3><CheckCircle2 size={16} strokeWidth={1.5} /> Emissionsvillkor (från projektet)</h3>
           <div className="details-grid">
             <div><strong>Typ:</strong> {projekt.emissionsvillkor.typ}</div>
             <div><strong>Teckningskurs:</strong> {projekt.emissionsvillkor.teckningskurs} SEK</div>
@@ -439,7 +440,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
 
                 <button className="btn-primary" onClick={handleQualification}
                   disabled={!qualificationForm.market || !qualificationForm.emissionSizeSEK || !qualificationForm.audience || loading}>
-                  {loading ? 'Analyserar...' : 'Analysera →'}
+                  {loading ? 'Analyserar...' : <>Analysera <ChevronRight size={14} strokeWidth={1.5} /></>}
                 </button>
               </>
             ) : (
@@ -449,7 +450,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
                   border: `2px solid ${qualification.recommendedType === 'PROSPEKT' ? '#fc8181' : '#48bb78'}`,
                   borderRadius: '12px', padding: '1.5rem', marginBottom: '1.5rem'
                 }}>
-                  <h3>{qualification.recommendedType === 'PROSPEKT' ? '📋 Prospekt krävs' : '📄 Informationsmemorandum rekommenderas'}</h3>
+                  <h3>{qualification.recommendedType === 'PROSPEKT' ? <><ClipboardList size={16} strokeWidth={1.5} /> Prospekt krävs</> : <><FileText size={16} strokeWidth={1.5} /> Informationsmemorandum rekommenderas</>}</h3>
                   <p>{qualification.reasoning}</p>
                   <p style={{marginTop: '0.5rem', fontSize: '0.9rem', color: '#718096'}}>
                     <strong>Emissionsstorlek:</strong> ~€{(qualification.emissionSizeEUR || 0).toLocaleString('sv-SE')}
@@ -460,7 +461,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
                   display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem'
                 }}>
                   <div style={{background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.25rem'}}>
-                    <h4>📄 Informationsmemorandum</h4>
+                    <h4><FileText size={16} strokeWidth={1.5} /> Informationsmemorandum</h4>
                     <ul style={{marginLeft: '1rem', fontSize: '0.9rem', lineHeight: '1.8'}}>
                       <li>✓ Snabbare att producera (3-5 dagar)</li>
                       <li>✓ Lägre kostnad (frivilligt format)</li>
@@ -469,7 +470,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
                     </ul>
                   </div>
                   <div style={{background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.25rem'}}>
-                    <h4>📋 Prospekt</h4>
+                    <h4><ClipboardList size={16} strokeWidth={1.5} /> Prospekt</h4>
                     <ul style={{marginLeft: '1rem', fontSize: '0.9rem', lineHeight: '1.8'}}>
                       <li>✓ FI-godkänt (högre trovärdighet)</li>
                       <li>✓ Nödvändigt för allmänna erbjudanden ≥€8M</li>
@@ -481,10 +482,10 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
 
                 <div style={{display: 'flex', gap: '8px'}}>
                   <button className="btn-primary" onClick={() => setStep(1)}>
-                    Fortsätt med {qualification.recommendedType === 'PROSPEKT' ? 'Prospekt' : 'Informationsmemorandum'} →
+                    Fortsätt med {qualification.recommendedType === 'PROSPEKT' ? 'Prospekt' : 'Informationsmemorandum'} <ChevronRight size={14} strokeWidth={1.5} />
                   </button>
                   <button className="btn-secondary" onClick={() => { setQualification(null); }}>
-                    ← Ändra mina svar
+                    <ChevronLeft size={16} strokeWidth={1.5} /> Ändra mina svar
                   </button>
                 </div>
               </>
@@ -499,7 +500,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
             <p>Grundläggande information om bolaget</p>
 
             <button className="btn-secondary" onClick={() => handleResearch('bolagsinfo')} disabled={loadingResearch} style={{marginBottom: '16px'}}>
-              {loadingResearch ? 'Söker...' : '🤖 Fyll i med AI'}
+              {loadingResearch ? 'Söker...' : <><Sparkles size={14} strokeWidth={1.5} /> Fyll i med AI</>}
             </button>
 
             <div className="form-group">
@@ -560,7 +561,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
             <h2>Steg 2: Strategi & Marknad</h2>
 
             <button className="btn-secondary" onClick={() => handleResearch('strategi_marknad')} disabled={loadingResearch} style={{marginBottom: '16px'}}>
-              {loadingResearch ? 'Söker...' : '🤖 Hämta med AI'}
+              {loadingResearch ? 'Söker...' : <><Sparkles size={14} strokeWidth={1.5} /> Hämta med AI</>}
             </button>
 
             <div className="form-group">
@@ -603,7 +604,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
 
             <div style={{display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap'}}>
               <button className="btn-secondary" onClick={() => handleResearch('finansiellt')} disabled={loadingResearch}>
-                {loadingResearch ? 'Söker...' : '🤖 Hämta med AI'}
+                {loadingResearch ? 'Söker...' : <><Sparkles size={14} strokeWidth={1.5} /> Hämta med AI</>}
               </button>
               {projekt?.finansiellData && (
                 <button className="btn-primary" onClick={() => {
@@ -619,16 +620,16 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
                       år: fd.period ? parseInt(fd.period.match(/\d{4}/)?.[0]) || prev.finansiellt.år : prev.finansiellt.år
                     }
                   }));
-                  alert('✅ Data importerad från Kapitalrådgivaren!');
+                  alert('Data importerad från Kapitalrådgivaren!');
                 }}>
-                  📥 Importera från Kapitalrådgivaren
+                  <Download size={14} strokeWidth={1.5} /> Importera från Kapitalrådgivaren
                 </button>
               )}
             </div>
             <div className="info-box" style={{marginBottom: '16px', background: '#fff8e1', borderColor: '#ffe082'}}>
-              <p>⚠️ AI-hämtad finansiell data bör verifieras mot bolagets årsredovisning eller kvartalsrapporter.</p>
+              <p><AlertTriangle size={14} strokeWidth={1.5} /> AI-hämtad finansiell data bör verifieras mot bolagets årsredovisning eller kvartalsrapporter.</p>
               {projekt?.finansiellData && (
-                <p style={{marginTop: '8px'}}>💡 Du har finansiell data från Kapitalrådgivaren — klicka "Importera" ovan för att använda den.</p>
+                <p style={{marginTop: '8px'}}><Lightbulb size={14} strokeWidth={1.5} /> Du har finansiell data från Kapitalrådgivaren — klicka "Importera" ovan för att använda den.</p>
               )}
             </div>
 
@@ -677,7 +678,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
             <h2>Steg 4: Ledning & Styrelse</h2>
 
             <button className="btn-secondary" onClick={() => handleResearch('ledning')} disabled={loadingResearch} style={{marginBottom: '16px'}}>
-              {loadingResearch ? 'Söker...' : '🤖 Hämta med AI'}
+              {loadingResearch ? 'Söker...' : <><Sparkles size={14} strokeWidth={1.5} /> Hämta med AI</>}
             </button>
 
             {formData.team.map((member, index) => (
@@ -686,7 +687,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
                   <h4>Person {index + 1}</h4>
                   {formData.team.length > 1 && (
                     <button className="btn-remove" onClick={() => removeTeamMember(index)}>
-                      ✕ Ta bort
+                      <X size={14} strokeWidth={1.5} /> Ta bort
                     </button>
                   )}
                 </div>
@@ -725,7 +726,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
             ))}
 
             <button className="btn-secondary" onClick={addTeamMember}>
-              ➕ Lägg till person
+              <Plus size={14} strokeWidth={1.5} /> Lägg till person
             </button>
           </div>
         )}
@@ -758,7 +759,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
             <h2>Granska och generera</h2>
 
             <div className="preview-section">
-              <h3>📄 Prospekt/IM innehåll</h3>
+              <h3><FileText size={16} strokeWidth={1.5} /> Prospekt/IM innehåll</h3>
               
               <div className="preview-card">
                 <h4>Verksamhet och Strategi</h4>
@@ -833,7 +834,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
                 }}
                 style={{width: '100%'}}
               >
-                💾 Spara ändringar
+                <Save size={14} strokeWidth={1.5} /> Spara ändringar
               </button>
               <button
                 className="btn-secondary"
@@ -847,7 +848,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
                 onClick={handleGeneratePDF}
                 style={{width: '100%'}}
               >
-                📄 Generera PDF och gå vidare till Teckning
+                <FileText size={14} strokeWidth={1.5} /> Generera PDF och gå vidare till Teckning
               </button>
               <button
                 className="btn-secondary"
@@ -861,7 +862,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
                 }}
                 style={{width: '100%'}}
               >
-                ◈ Skapa Pitch Deck / Teaser
+                <Sparkles size={14} strokeWidth={1.5} /> Skapa Pitch Deck / Teaser
               </button>
             </div>
           </div>
@@ -870,8 +871,8 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
         {step === 7 && (
           <div className="wizard-step">
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
-              <button className="btn-secondary" onClick={() => setStep(6)}>← Tillbaka till Prospekt/IM</button>
-              <h2 style={{ margin: 0 }}>◈ Pitch Deck / Teaser</h2>
+              <button className="btn-secondary" onClick={() => setStep(6)}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka till Prospekt/IM</button>
+              <h2 style={{ margin: 0 }}><Sparkles size={16} strokeWidth={1.5} /> Pitch Deck / Teaser</h2>
             </div>
             <PitchDeckEditor
               emissionId={DEMO_EMISSION_ID}
@@ -885,25 +886,25 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
           <div className="wizard-navigation">
             {step > 1 ? (
               <button className="btn-secondary" onClick={() => setStep(step - 1)}>
-                ← Föregående
+                <ChevronLeft size={16} strokeWidth={1.5} /> Föregående
               </button>
             ) : (
               <button className="btn-secondary" onClick={() => setStep(0)}>
-                ← Tillbaka till kvalifikation
+                <ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka till kvalifikation
               </button>
             )}
             {step < 5 && (
               <button className="btn-primary" onClick={() => setStep(step + 1)}>
-                Nästa →
+                Nästa <ChevronRight size={14} strokeWidth={1.5} />
               </button>
             )}
             {step === 5 && (
-              <button 
+              <button
                 className="btn-primary"
                 onClick={handleGenerateContent}
                 disabled={loading}
               >
-                {loading ? 'Genererar utkast...' : '🤖 Generera utkast till Prospekt/IM'}
+                {loading ? 'Genererar utkast...' : <><Sparkles size={14} strokeWidth={1.5} /> Generera utkast till Prospekt/IM</>}
               </button>
             )}
           </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './Kapitalrådgivaren.css';
 import { apiPost, apiGet } from '../utils/api';
+import { ChevronLeft, ChevronRight, Target, CheckCircle2, FileText, Trash2, Loader, AlertTriangle, Lightbulb, BarChart2, TrendingUp, TrendingDown, ArrowRight, ClipboardList, Zap, Building2, SlidersHorizontal, Sparkles, Search, RefreshCw, Save } from 'lucide-react';
 
 function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreateProject, onUpdateProject, onNavigate }) {
   const [step, setStep] = useState(projekt ? 'overview' : 'upload');
@@ -449,13 +450,13 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
         teckningsrätter: rekommenderadeTeckningsrätter
       });
       
-      alert(data.demo ? 
-        '✅ Demo börsdata hämtad (Yahoo Finance offline)' : 
-        `✅ Börsdata hämtad för ${data.ticker}!`
+      alert(data.demo ?
+        'Demo börsdata hämtad (Yahoo Finance offline)' :
+        `Börsdata hämtad för ${data.ticker}!`
       );
     } catch (error) {
       console.error('Stock fetch failed:', error);
-      alert('⚠️ Kunde inte hämta börsdata. Kontrollera ticker-symbol eller fortsätt manuellt.');
+      alert('Kunde inte hämta börsdata. Kontrollera ticker-symbol eller fortsätt manuellt.');
     }
     setFetchingStock(false);
   };
@@ -484,7 +485,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
     });
     
     if (spädning > emissionsParametrar.maxSpädning) {
-      alert(`⚠️ Varning: Beräknad spädning (${spädning.toFixed(1)}%) överstiger ert mål (${emissionsParametrar.maxSpädning}%)`);
+      alert(`Varning: Beräknad spädning (${spädning.toFixed(1)}%) överstiger ert mål (${emissionsParametrar.maxSpädning}%)`);
     }
   };
 
@@ -518,8 +519,8 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
     return (
       <div className="module-container">
         <div className="module-header">
-          <button className="back-button" onClick={onBack}>← Tillbaka</button>
-          <h1>🎯 Kapitalrådgivaren</h1>
+          <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+          <h1><Target size={20} strokeWidth={1.5} /> Kapitalrådgivaren</h1>
         </div>
         <div className="module-content">
           <div className="project-overview">
@@ -538,37 +539,37 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             
             <div className="actions-section">
               <button className="btn-secondary" onClick={() => setStep('upload')} style={{marginBottom: '1.5rem'}}>
-                🎯 Starta ny analys (nytt emissionsprojekt)
+                <Target size={14} strokeWidth={1.5} /> Starta ny analys (nytt emissionsprojekt)
               </button>
               <h3>Tillgängliga åtgärder</h3>
               <div style={{display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px'}}>
                 <button className="btn-primary" onClick={() => handleGenerateMarPM('beslut')} disabled={loading}>
-                  📄 MAR-PM: Styrelsebeslut
+                  <ClipboardList size={14} strokeWidth={1.5} /> MAR-PM: Styrelsebeslut
                 </button>
                 <button className="btn-primary" onClick={() => handleGenerateMarPM('prospekt')} disabled={loading}>
-                  📄 MAR-PM: Prospekt godkänt
+                  <ClipboardList size={14} strokeWidth={1.5} /> MAR-PM: Prospekt godkänt
                 </button>
                 <button className="btn-primary" onClick={() => handleGenerateMarPM('utfall')} disabled={loading}>
-                  📄 MAR-PM: Utfall emission
+                  <ClipboardList size={14} strokeWidth={1.5} /> MAR-PM: Utfall emission
                 </button>
               </div>
               <button className="btn-secondary" onClick={handleGenerateProtokoll} disabled={loading}>
-                📋 Generera styrelseprotokoll
+                <ClipboardList size={14} strokeWidth={1.5} /> Generera styrelseprotokoll
               </button>
               <button className="btn-secondary" onClick={() => alert('Påminnelse: Kom ihåg att föra insynslogg!')} style={{marginLeft:'8px'}}>
-                ⚠️ Påminn om insynslogg
+                <AlertTriangle size={14} strokeWidth={1.5} /> Påminn om insynslogg
               </button>
 
               {marPmResult && (
                 <div className="generated-content" style={{marginTop:'16px'}}>
-                  <h3>📄 Genererat MAR-PM</h3>
+                  <h3><ClipboardList size={16} strokeWidth={1.5} /> Genererat MAR-PM</h3>
                   <pre style={{whiteSpace:'pre-wrap',background:'#f8f9fa',padding:'16px',borderRadius:'8px',fontSize:'14px'}}>{marPmResult}</pre>
                 </div>
               )}
 
               {protokollResult && (
                 <div className="generated-content" style={{marginTop:'16px'}}>
-                  <h3>📋 Genererat Styrelseprotokoll</h3>
+                  <h3><ClipboardList size={16} strokeWidth={1.5} /> Genererat Styrelseprotokoll</h3>
                   <pre style={{whiteSpace:'pre-wrap',background:'#f8f9fa',padding:'16px',borderRadius:'8px',fontSize:'14px'}}>{protokollResult}</pre>
                 </div>
               )}
@@ -582,8 +583,8 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
   return (
     <div className="module-container">
       <div className="module-header">
-        <button className="back-button" onClick={onBack}>← Tillbaka</button>
-        <h1>🎯 Kapitalrådgivaren</h1>
+        <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+        <h1><Target size={20} strokeWidth={1.5} /> Kapitalrådgivaren</h1>
       </div>
 
       <div className="wizard-steps">
@@ -614,7 +615,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     border: `2px solid ${hasData ? '#48bb78' : '#e2e8f0'}`,
                     color: hasData ? '#276749' : '#a0aec0'
                   }}>
-                    {label} {hasData ? '✅' : '—'}
+                    {label} {hasData ? <CheckCircle2 size={14} strokeWidth={1.5} /> : '—'}
                   </div>
                 );
               })}
@@ -652,7 +653,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
               >
                 {uploadedFiles.length > 0 ? (
                   <>
-                    <div className="upload-icon">✅</div>
+                    <div className="upload-icon"><CheckCircle2 size={24} strokeWidth={1.5} /></div>
                     <div className="upload-text">
                       <strong>{uploadedFiles.length} fil{uploadedFiles.length > 1 ? 'er' : ''} uppladdade</strong>
                       <p style={{fontSize: '0.85rem', opacity: 0.8}}>{uploadedFiles.join(', ')}</p>
@@ -661,7 +662,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                   </>
                 ) : (
                   <>
-                    <div className="upload-icon">📄</div>
+                    <div className="upload-icon"><FileText size={24} strokeWidth={1.5} /></div>
                     <div className="upload-text">
                       <strong>Dra och släpp PDF här</strong>
                       <p>eller klicka för att välja fil</p>
@@ -688,7 +689,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     if (input) input.value = '';
                   }}
                 >
-                  🗑️ Ta bort alla uppladdade filer
+                  <Trash2 size={14} strokeWidth={1.5} /> Ta bort alla uppladdade filer
                 </button>
               )}
               
@@ -703,10 +704,10 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                   {uploadProgress.map((item, i) => (
                     <div key={i} className={`progress-item progress-${item.status}`}>
                       <span className="progress-icon">
-                        {item.status === 'waiting' && '⏳'}
+                        {item.status === 'waiting' && <Loader size={14} strokeWidth={1.5} />}
                         {item.status === 'processing' && '⚙️'}
-                        {item.status === 'done' && '✅'}
-                        {item.status === 'error' && '⚠️'}
+                        {item.status === 'done' && <CheckCircle2 size={14} strokeWidth={1.5} />}
+                        {item.status === 'error' && <AlertTriangle size={14} strokeWidth={1.5} />}
                       </span>
                       <span className="progress-name">{item.name}</span>
                       <span className="progress-status">
@@ -728,7 +729,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             </div>
 
             <div className="info-box" style={{background: '#f0f7ff', border: '1px solid #c8ddf5', borderRadius: '8px', padding: '24px', marginBottom: '24px'}}>
-              <p><strong>💡 Tips:</strong> Ladda upp en rapport i taget. Systemet behåller data från tidigare uppladdade kvartal.</p>
+              <p><strong><Lightbulb size={14} strokeWidth={1.5} /> Tips:</strong> Ladda upp en rapport i taget. Systemet behåller data från tidigare uppladdade kvartal.</p>
               <p>AI extraherar automatiskt:</p>
               <ul style={{marginLeft: '1.5rem', marginTop: '0.5rem'}}>
                 <li>Omsättning (senaste 4 kvartalen)</li>
@@ -743,7 +744,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                 className="btn-secondary"
                 onClick={() => setStep('granska-data')}
               >
-                Ange data manuellt →
+                Ange data manuellt <ChevronRight size={14} strokeWidth={1.5} />
               </button>
             </div>
           </div>
@@ -755,7 +756,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             <p>AI har extraherat data. Granska och justera vid behov.</p>
 
             <div className="data-section">
-              <h3>📊 Resultaträkning (senaste 4 kvartalen)</h3>
+              <h3><BarChart2 size={16} strokeWidth={1.5} /> Resultaträkning (senaste 4 kvartalen)</h3>
               <div className="quarterly-data">
                 {finansiellData.quarters.map((slot, index) => {
                   const label = formatQL(slot.q, slot.year);
@@ -865,12 +866,12 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                   </div>
                   <div style={{fontSize: '0.8rem', opacity: 0.8, marginTop: '0.5rem'}}>
                     Viktad snitt av {analysData.companyData.quartersUsed || '-'} kvartal / 3 mån
-                    {analysData.companyData.burnRateTrend === 'increasing' && 
-                      <span style={{color: '#ff6b6b', marginLeft: '0.5rem'}}>📈 Ökande trend</span>}
-                    {analysData.companyData.burnRateTrend === 'decreasing' && 
-                      <span style={{color: '#51cf66', marginLeft: '0.5rem'}}>📉 Minskande trend</span>}
-                    {analysData.companyData.burnRateTrend === 'stable' && 
-                      <span style={{color: '#ffd43b', marginLeft: '0.5rem'}}>➡️ Stabil</span>}
+                    {analysData.companyData.burnRateTrend === 'increasing' &&
+                      <span style={{color: '#ff6b6b', marginLeft: '0.5rem'}}><TrendingUp size={14} strokeWidth={1.5} /> Ökande trend</span>}
+                    {analysData.companyData.burnRateTrend === 'decreasing' &&
+                      <span style={{color: '#51cf66', marginLeft: '0.5rem'}}><TrendingDown size={14} strokeWidth={1.5} /> Minskande trend</span>}
+                    {analysData.companyData.burnRateTrend === 'stable' &&
+                      <span style={{color: '#ffd43b', marginLeft: '0.5rem'}}><ArrowRight size={14} strokeWidth={1.5} /> Stabil</span>}
                   </div>
                 </div>
                 <div className="metric-card">
@@ -888,8 +889,8 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                   </div>
                   <div style={{fontSize: '0.8rem', opacity: 0.8, marginTop: '0.5rem'}}>
                     Kassa / Viktad burn rate
-                    {analysData.companyData.runway && parseFloat(analysData.companyData.runway) < 6 && 
-                      ' ⚠️ Kritiskt låg'}
+                    {analysData.companyData.runway && parseFloat(analysData.companyData.runway) < 6 &&
+                      <> <AlertTriangle size={14} strokeWidth={1.5} /> Kritiskt låg</>}
                   </div>
                 </div>
               </div>
@@ -897,10 +898,10 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             <div className="button-row">
               <button className="btn-secondary" onClick={() => setStep('upload')}>
-                ← Tillbaka
+                <ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka
               </button>
               <button className="btn-primary" onClick={() => setStep('prognoser')}>
-                Data ser bra ut, fortsätt →
+                Data ser bra ut, fortsätt <ChevronRight size={14} strokeWidth={1.5} />
               </button>
             </div>
           </div>
@@ -912,7 +913,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             <p>Välj vilka delar du vill komplettera. AI anpassar analysen efter tillgänglig data.</p>
 
             <div className="section-selector">
-              <h3>📋 Välj vad du vill komplettera</h3>
+              <h3><ClipboardList size={16} strokeWidth={1.5} /> Välj vad du vill komplettera</h3>
               <p className="selector-subtitle">
                 Bocka i de sektioner du har information om. Resten kan hoppas över.
               </p>
@@ -928,7 +929,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     })}
                   />
                   <div className="checkbox-content">
-                    <div className="checkbox-icon">📈</div>
+                    <div className="checkbox-icon"><TrendingUp size={20} strokeWidth={1.5} /></div>
                     <div className="checkbox-label">
                       <strong>Intäkts- och kostnadsprognoser</strong>
                       <span>Förväntad tillväxt, anställningar, investeringar</span>
@@ -946,7 +947,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     })}
                   />
                   <div className="checkbox-content">
-                    <div className="checkbox-icon">🚀</div>
+                    <div className="checkbox-icon"><Zap size={20} strokeWidth={1.5} /></div>
                     <div className="checkbox-label">
                       <strong>Strategiska initiativ</strong>
                       <span>Expansion, förvärv, produktlansering</span>
@@ -964,7 +965,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     })}
                   />
                   <div className="checkbox-content">
-                    <div className="checkbox-icon">🏦</div>
+                    <div className="checkbox-icon"><Building2 size={20} strokeWidth={1.5} /></div>
                     <div className="checkbox-label">
                       <strong>Finansiella åtaganden</strong>
                       <span>Lån, konvertibler, återbetalningar</span>
@@ -982,7 +983,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     })}
                   />
                   <div className="checkbox-content">
-                    <div className="checkbox-icon">🎯</div>
+                    <div className="checkbox-icon"><Target size={20} strokeWidth={1.5} /></div>
                     <div className="checkbox-label">
                       <strong>Milestones & Triggers</strong>
                       <span>Break-even, produktlansering, runway-mål</span>
@@ -1000,7 +1001,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     })}
                   />
                   <div className="checkbox-content">
-                    <div className="checkbox-icon">⚠️</div>
+                    <div className="checkbox-icon"><AlertTriangle size={20} strokeWidth={1.5} /></div>
                     <div className="checkbox-label">
                       <strong>Riskfaktorer</strong>
                       <span>Kundkoncentration, säkerhetsbuffert</span>
@@ -1018,7 +1019,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     })}
                   />
                   <div className="checkbox-content">
-                    <div className="checkbox-icon">📊</div>
+                    <div className="checkbox-icon"><BarChart2 size={20} strokeWidth={1.5} /></div>
                     <div className="checkbox-label">
                       <strong>Generell intäkts- och kostnadsprognos</strong>
                       <span>Övergripande förväntningar på intäkter, kostnader och lönsamhet</span>
@@ -1030,7 +1031,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             {analysData.aktivaSektioner.prognoser && (
               <div className="prognos-section">
-                <h3>📈 Intäkts- och kostnadsprognoser</h3>
+                <h3><TrendingUp size={16} strokeWidth={1.5} /> Intäkts- och kostnadsprognoser</h3>
                 
                 <div className="form-group">
                   <label>Förväntad omsättningstillväxt per kvartal (%)</label>
@@ -1100,7 +1101,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             {analysData.aktivaSektioner.initiativ && (
               <div className="prognos-section">
-                <h3>🚀 Strategiska initiativ</h3>
+                <h3><Zap size={16} strokeWidth={1.5} /> Strategiska initiativ</h3>
                 
                 <div className="form-group">
                   <label>Internationalisering / Expansion</label>
@@ -1145,7 +1146,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             {analysData.aktivaSektioner.åtaganden && (
               <div className="prognos-section">
-                <h3>🏦 Finansiella åtaganden</h3>
+                <h3><Building2 size={16} strokeWidth={1.5} /> Finansiella åtaganden</h3>
                 
                 <div className="form-row">
                   <div className="form-group">
@@ -1189,7 +1190,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             {analysData.aktivaSektioner.milestones && (
               <div className="prognos-section">
-                <h3>🎯 Milestones & Triggers</h3>
+                <h3><Target size={16} strokeWidth={1.5} /> Milestones & Triggers</h3>
                 
                 <div className="form-group">
                   <label>När når ni break-even?</label>
@@ -1220,7 +1221,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             {analysData.aktivaSektioner.risk && (
               <div className="prognos-section">
-                <h3>⚠️ Riskfaktorer</h3>
+                <h3><AlertTriangle size={16} strokeWidth={1.5} /> Riskfaktorer</h3>
                 
                 <div className="form-row">
                   <div className="form-group">
@@ -1252,7 +1253,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             {analysData.aktivaSektioner.generellPrognos && (
               <div className="prognos-section">
-                <h3>📊 Generell intäkts- och kostnadsprognos</h3>
+                <h3><BarChart2 size={16} strokeWidth={1.5} /> Generell intäkts- och kostnadsprognos</h3>
                 <p className="section-description">
                   Beskriv er förväntade intäkts- och kostnadsutveckling i generella termer.
                 </p>
@@ -1289,12 +1290,12 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             <div className="selected-sections-summary">
               <h4>Valt att komplettera:</h4>
               <div className="summary-tags">
-                {analysData.aktivaSektioner.prognoser && <span className="tag">📈 Prognoser</span>}
-                {analysData.aktivaSektioner.initiativ && <span className="tag">🚀 Initiativ</span>}
-                {analysData.aktivaSektioner.åtaganden && <span className="tag">🏦 Åtaganden</span>}
-                {analysData.aktivaSektioner.milestones && <span className="tag">🎯 Milestones</span>}
-                {analysData.aktivaSektioner.risk && <span className="tag">⚠️ Risk</span>}
-                {analysData.aktivaSektioner.generellPrognos && <span className="tag">📊 Generell prognos</span>}
+                {analysData.aktivaSektioner.prognoser && <span className="tag"><TrendingUp size={12} strokeWidth={1.5} /> Prognoser</span>}
+                {analysData.aktivaSektioner.initiativ && <span className="tag"><Zap size={12} strokeWidth={1.5} /> Initiativ</span>}
+                {analysData.aktivaSektioner.åtaganden && <span className="tag"><Building2 size={12} strokeWidth={1.5} /> Åtaganden</span>}
+                {analysData.aktivaSektioner.milestones && <span className="tag"><Target size={12} strokeWidth={1.5} /> Milestones</span>}
+                {analysData.aktivaSektioner.risk && <span className="tag"><AlertTriangle size={12} strokeWidth={1.5} /> Risk</span>}
+                {analysData.aktivaSektioner.generellPrognos && <span className="tag"><BarChart2 size={12} strokeWidth={1.5} /> Generell prognos</span>}
                 {!Object.values(analysData.aktivaSektioner).some(v => v) && (
                   <span className="tag tag-empty">
                     Ingen sektion vald — AI baserar analys endast på finansiell data
@@ -1305,10 +1306,10 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             <div className="button-row">
               <button className="btn-secondary" onClick={() => setStep('granska-data')}>
-                ← Tillbaka
+                <ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka
               </button>
               <button className="btn-primary" onClick={() => setStep('börsdata')}>
-                Fortsätt till Börsdata →
+                Fortsätt till Börsdata <ChevronRight size={14} strokeWidth={1.5} />
               </button>
             </div>
           </div>
@@ -1316,11 +1317,11 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
         {step === 'analys' && (
           <div className="analys-form">
-            <h2>🤖 AI Kapitalbehovsanalys</h2>
+            <h2><Sparkles size={18} strokeWidth={1.5} /> AI Kapitalbehovsanalys</h2>
             <p>AI analyserar era förutsättningar och ger en skräddarsydd emissionsrekommendation.</p>
 
             <div className="data-summary" style={{background: '#f7fafc', border: '2px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', margin: '1.5rem 0'}}>
-              <h3>📋 Finansiell data som skickas till AI</h3>
+              <h3><ClipboardList size={16} strokeWidth={1.5} /> Finansiell data som skickas till AI</h3>
               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem'}}>
                 <div><strong>Kassa:</strong> {finansiellData.kassa || '-'} TSEK</div>
                 <div><strong>Burn rate:</strong> {analysData.companyData.burnRate || '-'} TSEK/mån</div>
@@ -1338,26 +1339,26 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                 disabled={loading}
                 style={{width: '100%', marginBottom: '1.5rem'}}
               >
-                {loading ? '⏳ AI analyserar...' : '🤖 Generera AI-analys'}
+                {loading ? <><Loader size={14} strokeWidth={1.5} /> AI analyserar...</> : <><Sparkles size={14} strokeWidth={1.5} /> Generera AI-analys</>}
               </button>
             )}
 
             {generatedAnalys && (
               <div className="generated-content">
-                <h3>📊 AI Analysresultat</h3>
+                <h3><BarChart2 size={16} strokeWidth={1.5} /> AI Analysresultat</h3>
                 <div className="analys-text">{generatedAnalys}</div>
                 <button 
                   className="btn-secondary" 
                   onClick={() => { setGeneratedAnalys(''); }}
                   style={{marginTop: '1rem'}}
                 >
-                  🔄 Generera ny analys
+                  <RefreshCw size={14} strokeWidth={1.5} /> Generera ny analys
                 </button>
               </div>
             )}
             
             <div className="button-row">
-              <button className="btn-secondary" onClick={() => setStep('börsdata')}>← Tillbaka</button>
+              <button className="btn-secondary" onClick={() => setStep('börsdata')}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
               <button
                 className="btn-primary"
                 onClick={() => {
@@ -1365,7 +1366,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                   setStep('villkor');
                 }}
               >
-                Fortsätt till Emissionsvillkor →
+                Fortsätt till Emissionsvillkor <ChevronRight size={14} strokeWidth={1.5} />
               </button>
             </div>
           </div>
@@ -1377,7 +1378,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             <p>Hämta automatisk börsdata för att optimera emissionsvillkoren</p>
 
             <div className="ticker-section">
-              <h3>📊 Hämta börsdata</h3>
+              <h3><BarChart2 size={16} strokeWidth={1.5} /> Hämta börsdata</h3>
               <div className="form-row">
                 <div className="form-group" style={{flex: 2}}>
                   <label>Ticker-symbol (Spotlight/Nordic SME)</label>
@@ -1397,7 +1398,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     onClick={handleFetchStockData}
                     disabled={fetchingStock || !ticker}
                   >
-                    {fetchingStock ? 'Hämtar...' : '🔍 Hämta börsdata'}
+                    {fetchingStock ? 'Hämtar...' : <><Search size={14} strokeWidth={1.5} /> Hämta börsdata</>}
                   </button>
                 </div>
               </div>
@@ -1405,7 +1406,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             {stockData && (
               <div className="stock-data-display">
-                <h3>✅ Börsdata hämtad {stockData.demo && '(Demo)'}</h3>
+                <h3><CheckCircle2 size={16} strokeWidth={1.5} /> Börsdata hämtad {stockData.demo && '(Demo)'}</h3>
                 
                 <div className="stock-metrics">
                   <div className="stock-metric-card">
@@ -1446,7 +1447,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                 </div>
 
                 <div className="ai-recommendations">
-                  <h3>🤖 AI-rekommendationer</h3>
+                  <h3><Sparkles size={16} strokeWidth={1.5} /> AI-rekommendationer</h3>
                   <p>Baserat på ert kapitalbehov och bolagets börsvärde</p>
 
                   <div className="recommendation-grid">
@@ -1460,7 +1461,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     </div>
 
                     <div className="recommendation-card">
-                      <div className="rec-icon">📊</div>
+                      <div className="rec-icon"><BarChart2 size={20} strokeWidth={1.5} /></div>
                       <div className="rec-content">
                         <strong>Rekommenderad max spädning</strong>
                         <div className="rec-value">{emissionsParametrar.maxSpädning}%</div>
@@ -1473,7 +1474,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     </div>
 
                     <div className="recommendation-card">
-                      <div className="rec-icon">🎯</div>
+                      <div className="rec-icon"><Target size={20} strokeWidth={1.5} /></div>
                       <div className="rec-content">
                         <strong>Rekommenderade teckningsrätter</strong>
                         <div className="rec-value">{emissionsParametrar.teckningsrätter}</div>
@@ -1484,7 +1485,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                 </div>
 
                 <div className="adjust-parameters">
-                  <h3>🎛️ Justera parametrar (valfritt)</h3>
+                  <h3><SlidersHorizontal size={16} strokeWidth={1.5} /> Justera parametrar (valfritt)</h3>
                   <p>AI-rekommendationerna förifyllda. Justera om ni vill.</p>
 
                   <div className="form-row">
@@ -1540,7 +1541,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             {!stockData && (
               <div className="info-box" style={{background: '#f0f7ff', border: '1px solid #c8ddf5', borderRadius: '8px', padding: '24px', marginBottom: '24px'}}>
-                <p><strong>💡 Varför hämta börsdata?</strong></p>
+                <p><strong><Lightbulb size={14} strokeWidth={1.5} /> Varför hämta börsdata?</strong></p>
                 <p>Med börsdata kan AI automatiskt:</p>
                 <ul style={{marginLeft: '1.5rem', marginTop: '0.5rem'}}>
                   <li>Föreslå optimal teckningskurs (med lämplig rabatt)</li>
@@ -1613,10 +1614,10 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                   if (ratio > 1.5) { rabatt = 25; spädning = 45; tr = '1:1'; }
                   else if (ratio < 0.5) { rabatt = 15; spädning = 30; tr = '1:4'; }
                   setEmissionsParametrar({ rabatt, maxSpädning: spädning, teckningsrätter: tr });
-                  alert('✅ Manuella värden sparade!');
+                  alert('Manuella värden sparade!');
                 }}
               >
-                ✅ Använd manuella värden
+                <CheckCircle2 size={14} strokeWidth={1.5} /> Använd manuella värden
               </button>
             </div>
 
@@ -1636,7 +1637,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                   border: `2px solid ${räcker ? '#48bb78' : '#f56565'}`,
                   borderRadius: '8px', padding: '1rem', marginBottom: '1.5rem'
                 }}>
-                  <strong>{räcker ? '✅ Bemyndigandet räcker' : '⚠️ Bemyndigandet räcker INTE'}</strong>
+                  <strong>{räcker ? <><CheckCircle2 size={14} strokeWidth={1.5} /> Bemyndigandet räcker</> : <><AlertTriangle size={14} strokeWidth={1.5} /> Bemyndigandet räcker INTE</>}</strong>
                   <div style={{marginTop: '0.5rem', fontSize: '0.9rem'}}>
                     <div>Beräknat behov: ~{behovdaAktier.toLocaleString('sv-SE')} nya aktier (vid 20% rabatt)</div>
                     <div>Bemyndigande: {mandatAktier.toLocaleString('sv-SE')} aktier</div>
@@ -1650,13 +1651,13 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             <div className="button-row">
               <button className="btn-secondary" onClick={() => setStep('prognoser')}>
-                ← Tillbaka
+                <ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka
               </button>
               <button
                 className="btn-primary"
                 onClick={() => setStep('analys')}
               >
-                {stockData ? 'Fortsätt till AI-analys →' : 'Hoppa över börsdata →'}
+                {stockData ? <>Fortsätt till AI-analys <ChevronRight size={14} strokeWidth={1.5} /></> : <>Hoppa över börsdata <ChevronRight size={14} strokeWidth={1.5} /></>}
               </button>
             </div>
           </div>
@@ -1667,7 +1668,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             <h2>Emissionsvillkor</h2>
             {generatedAnalys && (
               <div className="generated-content">
-                <h3>📊 Analysresultat</h3>
+                <h3><BarChart2 size={16} strokeWidth={1.5} /> Analysresultat</h3>
                 <div className="analys-text">{generatedAnalys}</div>
               </div>
             )}
@@ -1732,13 +1733,13 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             )}
 
             <div className="button-row">
-              <button className="btn-secondary" onClick={() => setStep('analys')}>← Tillbaka</button>
+              <button className="btn-secondary" onClick={() => setStep('analys')}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
               <button
                 className="btn-primary"
                 onClick={handleCreateProject}
                 disabled={!emissionsvillkor.teckningskurs || !emissionsvillkor.antalNyaAktier}
               >
-                Skapa emissionsprojekt →
+                Skapa emissionsprojekt <ChevronRight size={14} strokeWidth={1.5} />
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './Emissionsnyheter.css';
 import { apiGet } from '../utils/api';
+import { ChevronLeft, ChevronRight, Newspaper, X } from 'lucide-react';
 
 const KATEGORIER = [
   { id: 'alla', label: 'Alla' },
@@ -88,8 +89,8 @@ function Emissionsnyheter({ user, onBack }) {
     <div className="en-container module-container">
       {/* Header */}
       <div className="module-header">
-        <button className="back-button" onClick={onBack}>←</button>
-        <h1>📰 Emissionsnyheter</h1>
+        <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /></button>
+        <h1><Newspaper size={20} strokeWidth={1.5} /> Emissionsnyheter</h1>
       </div>
 
       {/* Sök */}
@@ -102,7 +103,7 @@ function Emissionsnyheter({ user, onBack }) {
           onChange={e => handleSok(e.target.value)}
         />
         {sokResultat !== null && (
-          <button className="en-clear-search" onClick={() => { setSok(''); setSokResultat(null); }}>✕ Rensa</button>
+          <button className="en-clear-search" onClick={() => { setSok(''); setSokResultat(null); }}><X size={14} strokeWidth={1.5} /> Rensa</button>
         )}
       </div>
 
@@ -140,7 +141,7 @@ function Emissionsnyheter({ user, onBack }) {
       {/* Tom state */}
       {!loading && visaNyheter.length === 0 && !error && (
         <div className="empty-state">
-          <div className="empty-icon">📰</div>
+          <div className="empty-icon"><Newspaper size={48} strokeWidth={1.5} /></div>
           <h3>{sokResultat !== null ? 'Inga träffar' : 'Inga nyheter ännu'}</h3>
           <p>{sokResultat !== null ? 'Prova ett annat sökord.' : 'Nyheter hämtas var 15:e minut. Kom tillbaka snart!'}</p>
         </div>
@@ -172,7 +173,7 @@ function Emissionsnyheter({ user, onBack }) {
                   rel="noopener noreferrer"
                   className="en-read-more"
                 >
-                  Läs mer →
+                  Läs mer <ChevronRight size={14} strokeWidth={1.5} />
                 </a>
               </div>
             </div>
@@ -188,7 +189,7 @@ function Emissionsnyheter({ user, onBack }) {
             onClick={() => laddaNyheter(kategori, skip, false)}
             disabled={loadingMore}
           >
-            {loadingMore ? 'Laddar…' : 'Ladda fler →'}
+            {loadingMore ? 'Laddar…' : <>Ladda fler <ChevronRight size={14} strokeWidth={1.5} /></>}
           </button>
         </div>
       )}

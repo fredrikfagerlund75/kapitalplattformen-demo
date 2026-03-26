@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './ProjektVy.css';
 import { apiPost } from '../utils/api';
+import { ChevronLeft, ChevronRight, ClipboardList, CheckCircle2, AlertTriangle, FileText, Bot, Save, RefreshCw, SkipForward, Calendar } from 'lucide-react';
 
 function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
   const [activeTab, setActiveTab] = useState('oversikt');
@@ -18,8 +19,8 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
     return (
       <div className="module-container">
         <div className="module-header">
-          <button className="back-button" onClick={onBack}>← Tillbaka</button>
-          <h1>📋 Projektvy</h1>
+          <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+          <h1><ClipboardList size={20} strokeWidth={1.5} /> Projektvy</h1>
         </div>
         <div className="empty-state">
           <p>Välj ett emissionsprojekt från Dashboard</p>
@@ -76,8 +77,8 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
   return (
     <div className="module-container">
       <div className="module-header">
-        <button className="back-button" onClick={onBack}>← Tillbaka</button>
-        <h1>📋 Projektvy — {projekt.name}</h1>
+        <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+        <h1><ClipboardList size={20} strokeWidth={1.5} /> Projektvy — {projekt.name}</h1>
       </div>
 
       <div className="module-tabs">
@@ -140,7 +141,7 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
               <div className={`atgard-card ${insynsloggKvitterad ? 'completed' : ''}`}>
                 <div className="atgard-header">
                   <div className="atgard-status">
-                    {insynsloggKvitterad ? '✅' : '⚠️'}
+                    {insynsloggKvitterad ? <CheckCircle2 size={16} strokeWidth={1.5} /> : <AlertTriangle size={16} strokeWidth={1.5} />}
                   </div>
                   <div className="atgard-info">
                     <h3>Öppna insynslogg</h3>
@@ -163,7 +164,7 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
               <div className={`atgard-card ${marPmDraft || marPmSkipped ? 'completed' : ''}`}>
                 <div className="atgard-header">
                   <div className="atgard-status">
-                    {marPmDraft ? '✅' : marPmSkipped ? '⏩' : '📄'}
+                    {marPmDraft ? <CheckCircle2 size={16} strokeWidth={1.5} /> : marPmSkipped ? <SkipForward size={16} strokeWidth={1.5} /> : <FileText size={16} strokeWidth={1.5} />}
                   </div>
                   <div className="atgard-info">
                     <h3>Ta fram utkast till pressmeddelande (MAR)</h3>
@@ -174,7 +175,7 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                   {!marPmSkipped && !marPmDraft ? (
                     <>
                       <button className="btn-primary" onClick={handleGenerateMarPM} disabled={loadingMarPm}>
-                        {loadingMarPm ? 'Genererar...' : '🤖 Generera MAR-PM med AI'}
+                        {loadingMarPm ? 'Genererar...' : <><Bot size={14} strokeWidth={1.5} /> Generera MAR-PM med AI</>}
                       </button>
                       <label className="checkbox-label" style={{marginTop: '0.75rem', color: '#718096'}}>
                         <input 
@@ -187,7 +188,7 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                     </>
                   ) : marPmSkipped && !marPmDraft ? (
                     <div style={{color: '#718096', fontStyle: 'italic'}}>
-                      <p>⏩ Överhoppad</p>
+                      <p><SkipForward size={14} strokeWidth={1.5} /> Överhoppad</p>
                       <button className="btn-secondary" onClick={() => setMarPmSkipped(false)} style={{marginTop: '0.5rem'}}>
                         Ångra — generera ändå
                       </button>
@@ -203,10 +204,10 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                       />
                       <div className="draft-buttons">
                         <button className="btn-secondary" onClick={() => { setMarPmSaved(true); }}>
-                          {marPmSaved ? '✅ Utkast sparat' : '💾 Spara utkast'}
+                          {marPmSaved ? <><CheckCircle2 size={14} strokeWidth={1.5} /> Utkast sparat</> : <><Save size={14} strokeWidth={1.5} /> Spara utkast</>}
                         </button>
                         <button className="btn-secondary" onClick={handleGenerateMarPM} disabled={loadingMarPm}>
-                          🔄 Generera om
+                          <RefreshCw size={14} strokeWidth={1.5} /> Generera om
                         </button>
                       </div>
                     </div>
@@ -218,7 +219,7 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
               <div className={`atgard-card ${protokollDraft || protokollSkipped ? 'completed' : ''}`}>
                 <div className="atgard-header">
                   <div className="atgard-status">
-                    {protokollDraft ? '✅' : protokollSkipped ? '⏩' : '📋'}
+                    {protokollDraft ? <CheckCircle2 size={16} strokeWidth={1.5} /> : protokollSkipped ? <SkipForward size={16} strokeWidth={1.5} /> : <ClipboardList size={16} strokeWidth={1.5} />}
                   </div>
                   <div className="atgard-info">
                     <h3>Skapa styrelseprotokoll för beslut</h3>
@@ -229,7 +230,7 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                   {!protokollSkipped && !protokollDraft ? (
                     <>
                       <button className="btn-primary" onClick={handleGenerateProtokoll} disabled={loadingProtokoll}>
-                        {loadingProtokoll ? 'Genererar...' : '🤖 Generera styrelseprotokoll med AI'}
+                        {loadingProtokoll ? 'Genererar...' : <><Bot size={14} strokeWidth={1.5} /> Generera styrelseprotokoll med AI</>}
                       </button>
                       <label className="checkbox-label" style={{marginTop: '0.75rem', color: '#718096'}}>
                         <input 
@@ -242,7 +243,7 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                     </>
                   ) : protokollSkipped && !protokollDraft ? (
                     <div style={{color: '#718096', fontStyle: 'italic'}}>
-                      <p>⏩ Överhoppad</p>
+                      <p><SkipForward size={14} strokeWidth={1.5} /> Överhoppad</p>
                       <button className="btn-secondary" onClick={() => setProtokollSkipped(false)} style={{marginTop: '0.5rem'}}>
                         Ångra — generera ändå
                       </button>
@@ -258,10 +259,10 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                       />
                       <div className="draft-buttons">
                         <button className="btn-secondary" onClick={() => { setProtokollSaved(true); }}>
-                          {protokollSaved ? '✅ Utkast sparat' : '💾 Spara utkast'}
+                          {protokollSaved ? <><CheckCircle2 size={14} strokeWidth={1.5} /> Utkast sparat</> : <><Save size={14} strokeWidth={1.5} /> Spara utkast</>}
                         </button>
                         <button className="btn-secondary" onClick={handleGenerateProtokoll} disabled={loadingProtokoll}>
-                          🔄 Generera om
+                          <RefreshCw size={14} strokeWidth={1.5} /> Generera om
                         </button>
                       </div>
                     </div>
@@ -280,7 +281,7 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                 disabled={!canProceed}
                 onClick={() => onNavigate('prospekt', projekt)}
               >
-                Gå vidare till Prospekt/IM →
+                Gå vidare till Prospekt/IM <ChevronRight size={16} strokeWidth={1.5} />
               </button>
             </div>
           </div>
@@ -288,7 +289,7 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
 
         {activeTab === 'tidsplan' && (
           <div className="projektvy-tidsplan">
-            <h2>📅 Tidsplan</h2>
+            <h2><Calendar size={18} strokeWidth={1.5} /> Tidsplan</h2>
             <p>Automatiskt genererad tidsplan baserad på projektets startdatum.</p>
 
             {projekt.tidsplan && projekt.tidsplan.length > 0 ? (
@@ -296,7 +297,7 @@ function ProjektVy({ user, projekt, onBack, onUpdateProject, onNavigate }) {
                 {projekt.tidsplan.map((milestone, index) => (
                   <div key={index} className={`tidsplan-item ${milestone.completed ? 'completed' : ''}`}>
                     <div className="tidsplan-dot">
-                      {milestone.completed ? '✅' : <span className="dot-number">{index + 1}</span>}
+                      {milestone.completed ? <CheckCircle2 size={16} strokeWidth={1.5} /> : <span className="dot-number">{index + 1}</span>}
                     </div>
                     <div className="tidsplan-content">
                       <div className="tidsplan-date">{milestone.datum}</div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BarChart2, PenLine, AlertTriangle, Globe, Mail, Target, ChevronLeft } from 'lucide-react';
 import { apiPost } from '../utils/api';
 
 function Analytics({ user, projekt, onBack, onUpdateProject }) {
@@ -12,8 +13,8 @@ function Analytics({ user, projekt, onBack, onUpdateProject }) {
     return (
       <div className="module-container">
         <div className="module-header">
-          <button className="back-button" onClick={onBack}>← Tillbaka</button>
-          <h1>📊 Analytics</h1>
+          <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+          <h1><BarChart2 size={20} strokeWidth={1.5} /> Analytics</h1>
         </div>
         <div className="empty-state">
           <p>Välj ett emissionsprojekt från Dashboard</p>
@@ -28,8 +29,8 @@ function Analytics({ user, projekt, onBack, onUpdateProject }) {
   return (
     <div className="module-container">
       <div className="module-header">
-        <button className="back-button" onClick={onBack}>← Tillbaka</button>
-        <h1>📊 Analytics - {projekt.name}</h1>
+        <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+        <h1><BarChart2 size={20} strokeWidth={1.5} /> Analytics - {projekt.name}</h1>
       </div>
 
       <div className="module-content">
@@ -37,7 +38,7 @@ function Analytics({ user, projekt, onBack, onUpdateProject }) {
         
         {/* Teckning Status */}
         <div className="analytics-section">
-          <h3>✍️ Teckningsstatus</h3>
+          <h3><PenLine size={16} strokeWidth={1.5} /> Teckningsstatus</h3>
           <div className="big-metric">
             <div className="metric-value">{percent.toFixed(1)}%</div>
             <div className="metric-label">Tecknat av målvolym</div>
@@ -59,7 +60,7 @@ function Analytics({ user, projekt, onBack, onUpdateProject }) {
           </div>
 
           <div className="info-box">
-            <p><strong>⚠️ Utmaning:</strong> Realtidsdata från förvaltare</p>
+            <p><strong><AlertTriangle size={14} strokeWidth={1.5} /> Utmaning:</strong> Realtidsdata från förvaltare</p>
             <p>Förvaltare (Avanza, Nordnet, banker) lämnar vanligtvis bara slutgiltiga siffror.</p>
             <p><strong>Lösning:</strong> Manuell upload från emissionsinstitut</p>
           </div>
@@ -118,7 +119,7 @@ function Analytics({ user, projekt, onBack, onUpdateProject }) {
 
         {/* Emissionssida Stats */}
         <div className="analytics-section">
-          <h3>🌐 Emissionssida</h3>
+          <h3><Globe size={16} strokeWidth={1.5} /> Emissionssida</h3>
           <div className="stats-row">
             <div className="stat-card">
               <div className="stat-value">{projekt.analytics.emissionssida.visits}</div>
@@ -133,7 +134,7 @@ function Analytics({ user, projekt, onBack, onUpdateProject }) {
 
         {/* Email Stats */}
         <div className="analytics-section">
-          <h3>📧 Email-kampanjer</h3>
+          <h3><Mail size={16} strokeWidth={1.5} /> Email-kampanjer</h3>
           <div className="stats-row">
             <div className="stat-card">
               <div className="stat-value">{projekt.analytics.email.sent}</div>
@@ -156,7 +157,7 @@ function Analytics({ user, projekt, onBack, onUpdateProject }) {
 
         {/* Ads Stats */}
         <div className="analytics-section">
-          <h3>🎯 Annonsering</h3>
+          <h3><Target size={16} strokeWidth={1.5} /> Annonsering</h3>
           <div className="stats-row">
             <div className="stat-card">
               <div className="stat-value">{projekt.analytics.ads.impressions.toLocaleString('sv-SE')}</div>

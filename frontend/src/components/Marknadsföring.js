@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './Marknadsföring.css';
 import { apiPost, apiGet } from '../utils/api';
+import { ChevronLeft, Megaphone, Globe, Mail, MailCheck, Target, BarChart2, Palette, Bot, CheckCircle2, RefreshCw, Send, Download, Clipboard, PenLine, MailOpen } from 'lucide-react';
 
 function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
   const [activeTab, setActiveTab] = useState(embedded ? 'email' : 'landing');
@@ -33,8 +34,8 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
     return (
       <div className="module-container">
         <div className="module-header">
-          <button className="back-button" onClick={onBack}>← Tillbaka</button>
-          <h1>📢 Marknadsföring</h1>
+          <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+          <h1><Megaphone size={20} strokeWidth={1.5} /> Marknadsföring</h1>
         </div>
         <div className="empty-state">
           <p>Välj ett emissionsprojekt från Dashboard</p>
@@ -213,31 +214,31 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
     <div className={embedded ? 'embedded-module' : 'module-container'}>
       {!embedded && (
         <div className="module-header">
-          <button className="back-button" onClick={onBack}>← Tillbaka</button>
-          <h1>📢 Marknadsföring - {projekt.name}</h1>
+          <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
+          <h1><Megaphone size={20} strokeWidth={1.5} /> Marknadsföring - {projekt.name}</h1>
         </div>
       )}
 
       <div className="module-tabs">
         {!embedded && (
           <button className={`tab ${activeTab === 'landing' ? 'active' : ''}`} onClick={() => setActiveTab('landing')}>
-            🌐 Landing Page
+            <Globe size={16} strokeWidth={1.5} /> Landing Page
           </button>
         )}
         <button className={`tab ${activeTab === 'email' ? 'active' : ''}`} onClick={() => setActiveTab('email')}>
-          📧 Email-kampanjer
+          <Mail size={16} strokeWidth={1.5} /> Email-kampanjer
         </button>
         <button className={`tab ${activeTab === 'brevkampanjer' ? 'active' : ''}`} onClick={() => setActiveTab('brevkampanjer')}>
-          ✉️ Brevkampanjer
+          <MailCheck size={16} strokeWidth={1.5} /> Brevkampanjer
         </button>
         <button className={`tab ${activeTab === 'ads' ? 'active' : ''}`} onClick={() => setActiveTab('ads')}>
-          🎯 Google Ads
+          <Target size={16} strokeWidth={1.5} /> Google Ads
         </button>
         <button className={`tab ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => { setActiveTab('analytics'); handleLoadAnalytics(); }}>
-          📊 Statistik
+          <BarChart2 size={16} strokeWidth={1.5} /> Statistik
         </button>
         <button className={`tab ${activeTab === 'kampanjkit' ? 'active' : ''}`} onClick={() => setActiveTab('kampanjkit')}>
-          🎨 Kampanjkit
+          <Palette size={16} strokeWidth={1.5} /> Kampanjkit
         </button>
       </div>
 
@@ -245,17 +246,17 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
         {/* ===== LANDING PAGE TAB ===== */}
         {activeTab === 'landing' && (
           <div className="mf-section">
-            <h2>🌐 Emissionssida (Landing Page)</h2>
+            <h2><Globe size={18} strokeWidth={1.5} /> Emissionssida (Landing Page)</h2>
             <p>Generera en Redeye-style landing page för er emission</p>
 
             <button className="btn-primary btn-large" onClick={handleGenerateLandingPage} disabled={loading}>
-              {loading ? 'Genererar...' : '🤖 Generera Landing Page'}
+              {loading ? 'Genererar...' : <><Bot size={14} strokeWidth={1.5} /> Generera Landing Page</>}
             </button>
 
             {landingPageGenerated && (
               <div className="mf-landing-result">
                 <div className="mf-landing-meta">
-                  <span className="mf-badge mf-badge-success">✅ Publicerad</span>
+                  <span className="mf-badge mf-badge-success"><CheckCircle2 size={14} strokeWidth={1.5} /> Publicerad</span>
                   <span className="mf-url">{landingPageUrl}</span>
                 </div>
                 <div className="mf-iframe-container">
@@ -275,13 +276,13 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                     a.click();
                     window.URL.revokeObjectURL(url);
                   }}>
-                    📥 Ladda ner HTML
+                    <Download size={14} strokeWidth={1.5} /> Ladda ner HTML
                   </button>
                   <button className="btn-secondary" onClick={() => {
                     navigator.clipboard.writeText(landingPageHtml);
                     alert('HTML kopierad!');
                   }}>
-                    📋 Kopiera HTML
+                    <Clipboard size={14} strokeWidth={1.5} /> Kopiera HTML
                   </button>
                 </div>
               </div>
@@ -292,13 +293,13 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
         {/* ===== EMAIL TAB ===== */}
         {activeTab === 'email' && (
           <div className="mf-section">
-            <h2>📧 Email-kampanjer</h2>
+            <h2><Mail size={18} strokeWidth={1.5} /> Email-kampanjer</h2>
 
             <div className="mf-card">
               <h3>Automatisk kampanjsekvens</h3>
               <p>AI genererar tre email-ämnesrader: Pre-launch, Opening, Last Call</p>
               <button className="btn-primary" onClick={handleSetupEmailCampaign} disabled={loading}>
-                {loading ? 'Skapar...' : '🤖 Skapa email-kampanj'}
+                {loading ? 'Skapar...' : <><Bot size={14} strokeWidth={1.5} /> Skapa email-kampanj</>}
               </button>
 
               {emailCampaign && (
@@ -333,7 +334,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                 </select>
               </div>
               <button className="btn-secondary" onClick={handleGenerateEmailDraft} disabled={loading}>
-                {loading ? 'Genererar...' : '✍️ Generera email-utkast'}
+                {loading ? 'Genererar...' : <><PenLine size={14} strokeWidth={1.5} /> Generera email-utkast</>}
               </button>
 
               {emailDraft && (
@@ -346,7 +347,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                     style={{ width: '100%', height: '500px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff' }}
                   />
                   <button className="btn-primary" onClick={handleSendBrevoCampaign} disabled={loading} style={{ marginTop: '12px' }}>
-                    📤 Skicka via Brevo
+                    <Send size={14} strokeWidth={1.5} /> Skicka via Brevo
                   </button>
                 </div>
               )}
@@ -355,7 +356,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
             <div className="mf-card" style={{ marginTop: '1.5rem' }}>
               <h3>Brevo-kampanjer</h3>
               <button className="btn-secondary" onClick={handleLoadBrevoCampaigns}>
-                🔄 Hämta kampanjer
+                <RefreshCw size={14} strokeWidth={1.5} /> Hämta kampanjer
               </button>
               {brevoCampaigns.length > 0 && (
                 <table className="mf-table" style={{ marginTop: '12px' }}>
@@ -380,7 +381,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
         {/* ===== GOOGLE ADS TAB ===== */}
         {activeTab === 'ads' && (
           <div className="mf-section">
-            <h2>🎯 Google Ads-kampanj</h2>
+            <h2><Target size={18} strokeWidth={1.5} /> Google Ads-kampanj</h2>
             <p>Skapa en kampanj mot emissionssidan med AI-genererade keywords</p>
 
             <div className="mf-card">
@@ -395,7 +396,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                 />
               </div>
               <button className="btn-primary" onClick={handleSetupGoogleAds} disabled={loading}>
-                {loading ? 'Skapar...' : '🤖 Skapa Google Ads-kampanj'}
+                {loading ? 'Skapar...' : <><Bot size={14} strokeWidth={1.5} /> Skapa Google Ads-kampanj</>}
               </button>
 
               {adsResult && (
@@ -426,16 +427,16 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
         {/* ===== BREVKAMPANJER TAB ===== */}
         {activeTab === 'brevkampanjer' && (
           <div className="mf-section">
-            <h2>✉️ Brevkampanjer</h2>
+            <h2><MailCheck size={18} strokeWidth={1.5} /> Brevkampanjer</h2>
             <div className="mf-card">
               <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📮</div>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}><MailOpen size={48} strokeWidth={1.5} /></div>
                 <h3>Under utveckling</h3>
                 <p style={{ color: '#666', maxWidth: '500px', margin: '12px auto' }}>
                   Funktionalitet för att skicka fysiska brev med information om emissionen via Postnord eller Kivra.
                   Detta behöver utredas mer innan det kan tas i bruk.
                 </p>
-                <span className="mf-badge" style={{ background: '#fef3cd', color: '#856404' }}>🚧 Kommer i framtida version</span>
+                <span className="mf-badge" style={{ background: '#fef3cd', color: '#856404' }}>Kommer i framtida version</span>
               </div>
             </div>
           </div>
@@ -444,7 +445,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
         {/* ===== KAMPANJKIT TAB ===== */}
         {activeTab === 'kampanjkit' && (
           <div className="mf-section">
-            <h2>🎨 Kampanjkit</h2>
+            <h2><Palette size={18} strokeWidth={1.5} /> Kampanjkit</h2>
             <p>Generera färdigt marknadsföringsinnehåll baserat på emissionsdata och varumärkesprofil</p>
 
             <div className="mf-kampanj-status">
@@ -453,17 +454,17 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                 <span>{projekt.emissionsvillkor?.typ || 'Emission'} · {projekt.emissionsvillkor?.emissionsvolym ? Number(projekt.emissionsvillkor.emissionsvolym).toLocaleString('sv-SE') + ' SEK' : ''}</span>
               </div>
               <button className="btn-primary" onClick={handleGenerateKampanjKit} disabled={kampanjLoading}>
-                {kampanjLoading ? '⏳ Genererar...' : kampanjKit ? '🔄 Regenerera' : '🤖 Generera kampanjkit'}
+                {kampanjLoading ? 'Genererar...' : kampanjKit ? <><RefreshCw size={14} strokeWidth={1.5} /> Regenerera</> : <><Bot size={14} strokeWidth={1.5} /> Generera kampanjkit</>}
               </button>
             </div>
 
             {kampanjKit && (
               <>
                 <div className="mf-referral-box">
-                  <span className="mf-referral-label">🔗 Referrallänk</span>
+                  <span className="mf-referral-label">Referrallänk</span>
                   <span className="mf-referral-url">{kampanjKit.referralUrl}</span>
                   <button className="btn-secondary btn-small" onClick={() => handleCopy(kampanjKit.referralUrl)}>
-                    📋 Kopiera
+                    <Clipboard size={14} strokeWidth={1.5} /> Kopiera
                   </button>
                 </div>
 
@@ -486,7 +487,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                       <div key={i} className="mf-variant-card">
                         <div className="mf-variant-header">
                           <span className="mf-variant-label">{v.label}</span>
-                          <button className="btn-secondary btn-small" onClick={() => handleCopy(v.text)}>📋 Kopiera</button>
+                          <button className="btn-secondary btn-small" onClick={() => handleCopy(v.text)}><Clipboard size={14} strokeWidth={1.5} /> Kopiera</button>
                         </div>
                         <p className="mf-variant-text">{v.text}</p>
                       </div>
@@ -497,7 +498,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                       <div key={i} className="mf-variant-card">
                         <div className="mf-variant-header">
                           <span className="mf-variant-label">{v.label}</span>
-                          <button className="btn-secondary btn-small" onClick={() => handleCopy(v.text)}>📋 Kopiera</button>
+                          <button className="btn-secondary btn-small" onClick={() => handleCopy(v.text)}><Clipboard size={14} strokeWidth={1.5} /> Kopiera</button>
                         </div>
                         <p className="mf-variant-text">{v.text}</p>
                       </div>
@@ -509,7 +510,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                   <div className="mf-variant-card" style={{ marginTop: '1.5rem' }}>
                     <div className="mf-variant-header">
                       <span className="mf-variant-label">Presstext</span>
-                      <button className="btn-secondary btn-small" onClick={() => handleCopy(kampanjKit.presstext)}>📋 Kopiera</button>
+                      <button className="btn-secondary btn-small" onClick={() => handleCopy(kampanjKit.presstext)}><Clipboard size={14} strokeWidth={1.5} /> Kopiera</button>
                     </div>
                     <p className="mf-variant-text" style={{ whiteSpace: 'pre-wrap' }}>{kampanjKit.presstext}</p>
                   </div>
@@ -518,7 +519,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                 {kampanjSubTab === 'email' && (
                   <div style={{ marginTop: '1.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
-                      <button className="btn-secondary btn-small" onClick={() => handleCopy(kampanjKit.emailHtml)}>📋 Kopiera HTML</button>
+                      <button className="btn-secondary btn-small" onClick={() => handleCopy(kampanjKit.emailHtml)}><Clipboard size={14} strokeWidth={1.5} /> Kopiera HTML</button>
                     </div>
                     <iframe
                       srcDoc={kampanjKit.emailHtml}
@@ -536,14 +537,14 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
         {/* ===== ANALYTICS TAB ===== */}
         {activeTab === 'analytics' && (
           <div className="mf-section">
-            <h2>📊 Marknadsföringsstatistik</h2>
+            <h2><BarChart2 size={18} strokeWidth={1.5} /> Marknadsföringsstatistik</h2>
 
             {!analytics ? (
               <div className="mf-loading">Laddar statistik...</div>
             ) : (
               <div className="mf-analytics-grid">
                 <div className="mf-analytics-card">
-                  <h3>🌐 Landing Page</h3>
+                  <h3><Globe size={16} strokeWidth={1.5} /> Landing Page</h3>
                   <div className="mf-stats-grid">
                     <div className="mf-stat">
                       <span className="mf-stat-value">{analytics.landingPage?.visits?.toLocaleString('sv-SE')}</span>
@@ -565,7 +566,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                 </div>
 
                 <div className="mf-analytics-card">
-                  <h3>📧 Email-kampanjer</h3>
+                  <h3><Mail size={16} strokeWidth={1.5} /> Email-kampanjer</h3>
                   <div className="mf-stats-grid">
                     <div className="mf-stat">
                       <span className="mf-stat-value">{analytics.emailCampaign?.sent?.toLocaleString('sv-SE')}</span>
@@ -583,7 +584,7 @@ function Marknadsföring({ user, projekt, onBack, onUpdateProject, embedded }) {
                 </div>
 
                 <div className="mf-analytics-card">
-                  <h3>🎯 Google Ads</h3>
+                  <h3><Target size={16} strokeWidth={1.5} /> Google Ads</h3>
                   <div className="mf-stats-grid">
                     <div className="mf-stat">
                       <span className="mf-stat-value">{analytics.googleAds?.impressions?.toLocaleString('sv-SE')}</span>
