@@ -236,10 +236,26 @@ export default function Kassaflode({ companyId }) {
       const r = await apiPost('/api/cashflow/demo', { company_id:companyId });
       if (!r.ok) throw new Error('demo failed');
       await Promise.all([loadMonths(), loadTargets()]);
+      setForm(EMPTY_FORM);
+      setTForm(EMPTY_TARGETS);
       setTab('oversikt');
       notify('6 månaders exempeldata + mål inlagda!','ok');
     } catch { notify('Kunde inte fylla i exempeldata.','danger'); }
     finally { setLoadingDemo(false); }
+  }
+
+  async function handleReset() {
+    if (!window.confirm('Radera all kassaflödesdata för detta företag?')) return;
+    try {
+      const r = await apiDelete(`/api/cashflow/reset?company_id=${companyId}`);
+      if (!r.ok) throw new Error();
+      setMonths([]);
+      setTargets(null);
+      setForm(EMPTY_FORM);
+      setTForm(EMPTY_TARGETS);
+      setTab('oversikt');
+      notify('All kassaflödesdata raderad.','ok');
+    } catch { notify('Kunde inte återställa data.','danger'); }
   }
 
   async function handleDelete(id) {
@@ -380,6 +396,9 @@ export default function Kassaflode({ companyId }) {
                 <span className="kf-demo-label">Snabbstart</span>
                 <button className="kf-btn-demo" onClick={handleDemo} disabled={loadingDemo}>
                   {loadingDemo?'Fyller i...':'✦ Fyll i exempeldata'}
+                </button>
+                <button className="kf-btn kf-btn-danger" onClick={handleReset}>
+                  Återställ all data
                 </button>
               </div>
               <div className="kf-divider"><span>eller fyll i manuellt</span></div>

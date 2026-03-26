@@ -57,6 +57,20 @@ router.post('/', async (req, res) => {
   }
 });
 
+// DELETE /api/cashflow/reset?company_id=X — raderar all data för ett företag
+router.delete('/reset', async (req, res) => {
+  const { company_id } = req.query;
+  if (!company_id) return res.status(400).json({ error: 'company_id krävs' });
+  try {
+    await db.query('DELETE FROM cashflow_months WHERE company_id = $1', [company_id]);
+    await db.query('DELETE FROM cashflow_targets WHERE company_id = $1', [company_id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('cashflow reset error:', err);
+    res.status(500).json({ error: 'Databasfel' });
+  }
+});
+
 // DELETE /api/cashflow/:id
 router.delete('/:id', async (req, res) => {
   try {
@@ -94,6 +108,7 @@ router.post('/demo', async (req, res) => {
     aktiveringsgrad: 15.0
   };
   try {
+    await db.query('DELETE FROM cashflow_months WHERE company_id = $1', [company_id]);
     for (const d of demoData) {
       await db.query(
         `INSERT INTO cashflow_months
