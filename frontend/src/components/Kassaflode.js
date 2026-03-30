@@ -36,6 +36,22 @@ function calcRunway(months) {
 function calcCapexQ(months) {
   return months.slice(-3).reduce((s,d)=>s+Math.abs(n(d.capex)),0);
 }
+function calcGMAvg6(months) {
+  const valid = months.slice(-6).map(calcGM).filter(v=>v!==null);
+  return valid.length ? valid.reduce((s,v)=>s+v,0)/valid.length : null;
+}
+function calcEBITAvg6(months) {
+  const valid = months.slice(-6).map(calcEBIT).filter(v=>v!==null);
+  return valid.length ? valid.reduce((s,v)=>s+v,0)/valid.length : null;
+}
+function calcBurnAvg6(months) {
+  if (!months.length) return null;
+  const sl = months.slice(-6);
+  return sl.reduce((s,d)=>s+calcRorelse(d),0)/sl.length;
+}
+function calcCapexHalf(months) {
+  return months.slice(-6).reduce((s,d)=>s+Math.abs(n(d.capex)),0);
+}
 function fmtSEK(v)  { return Math.round(Number(v)).toLocaleString('sv-SE'); }
 function fmtPct(v)  { return v===null ? '–' : Math.round(v)+'%'; }
 function periodLabel(p) {
@@ -62,6 +78,7 @@ const EMPTY_TARGETS = { label:'Budget 12 mån', omsattning_tillvaxt:'', bruttoma
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Kassaflode({ companyId }) {
   const [tab, setTab]             = useState('oversikt');
+  const [varPeriod, setVarPeriod] = useState('last');
   const [months, setMonths]       = useState([]);
   const [targets, setTargets]     = useState(null);
   const [form, setForm]           = useState(EMPTY_FORM);
@@ -106,6 +123,11 @@ export default function Kassaflode({ companyId }) {
     loadChartJs(() => buildCharts(months, targets));
     return () => destroyCharts();
   }, [tab, months, targets]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (tab !== 'oversikt' || months.length === 0 || !targets) return;
+    loadChartJs(() => buildVarChart(months, targets, varPeriod));
+  }, [varPeriod]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function destroyCharts() {
     Object.values(chartInst.current).forEach(c => { try { c.destroy(); } catch(_){} });
@@ -162,27 +184,28 @@ export default function Kassaflode({ companyId }) {
       });
     }
 
-    if (chartVarRef.current && tgts && data.length>0) {
-      const last    = data[data.length-1];
-      const lastGM  = calcGM(last);
-      const lastEB  = calcEBIT(last);
-      const lastBrn = calcBurnAvg(data);
-      const varItems = [
-        { label:'Bruttomarginal',  actual:lastGM,          target:n(tgts.bruttomarginal)||null,  higherIsBetter:true },
-        { label:'Rörelsemarginal', actual:lastEB,          target:n(tgts.rorelsemarginal)||null,  higherIsBetter:true },
-        { label:'Burn rate',       actual:lastBrn,         target:n(tgts.burn_rate_max)||null,    higherIsBetter:false },
-        { label:'Runway',          actual:calcRunway(data),target:n(tgts.runway_min)||null,       higherIsBetter:true },
-      ].filter(i=>i.target!==null && i.actual!==null);
+    buildVarChart(data, tgts, 'last');
+  }
 
-      if (varItems.length>0) {
-        const vDiffs = varItems.map(i => { const d=i.actual-i.target; return i.higherIsBetter?d:-d; });
-        chartInst.current.var = new window.Chart(chartVarRef.current, {
-          type:'bar',
-          data:{ labels:varItems.map(i=>i.label), datasets:[{ data:vDiffs, backgroundColor:vDiffs.map(v=>v>=0?'rgba(99,153,34,0.7)':'rgba(226,75,74,0.7)'), borderRadius:4 }] },
-          options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>(ctx.raw>=0?'+':'')+Math.round(ctx.raw*10)/10}}}, scales:{ y:{ticks:{callback:v=>(v>=0?'+':'')+Math.round(v)}}, x:{ticks:{font:{size:11}}} } }
-        });
-      }
-    }
+  function buildVarChart(data, tgts, period) {
+    if (!chartVarRef.current || !tgts || !data.length) return;
+    if (chartInst.current.var) { try { chartInst.current.var.destroy(); } catch(_){} chartInst.current.var = null; }
+    const gmVal  = period==='last' ? calcGM(data[data.length-1])   : calcGMAvg6(data);
+    const ebVal  = period==='last' ? calcEBIT(data[data.length-1]) : calcEBITAvg6(data);
+    const brnVal = period==='last' ? calcBurnAvg(data)             : calcBurnAvg6(data);
+    const varItems = [
+      { label:'Bruttomarginal',  actual:gmVal,           target:n(tgts.bruttomarginal)||null,  higherIsBetter:true },
+      { label:'Rörelsemarginal', actual:ebVal,           target:n(tgts.rorelsemarginal)||null,  higherIsBetter:true },
+      { label:'Burn rate',       actual:brnVal,          target:n(tgts.burn_rate_max)||null,    higherIsBetter:true },
+      { label:'Runway',          actual:calcRunway(data),target:n(tgts.runway_min)||null,       higherIsBetter:true },
+    ].filter(i=>i.target!==null && i.actual!==null);
+    if (!varItems.length) return;
+    const vDiffs = varItems.map(i => i.actual - i.target);
+    chartInst.current.var = new window.Chart(chartVarRef.current, {
+      type:'bar',
+      data:{ labels:varItems.map(i=>i.label), datasets:[{ data:vDiffs, backgroundColor:vDiffs.map(v=>v>=0?'rgba(99,153,34,0.7)':'rgba(226,75,74,0.7)'), borderRadius:4 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>(ctx.raw>=0?'+':'')+Math.round(ctx.raw*10)/10}}}, scales:{ y:{ticks:{callback:v=>(v>=0?'+':'')+Math.round(v)}}, x:{ticks:{font:{size:11}}} } }
+    });
   }
 
   const runway    = calcRunway(months);
@@ -195,12 +218,18 @@ export default function Kassaflode({ companyId }) {
   const prevGM    = prevMonth ? calcGM(prevMonth) : null;
   const lastEBIT  = lastMonth ? calcEBIT(lastMonth) : null;
 
+  const dispGM    = varPeriod==='last' ? lastGM    : calcGMAvg6(months);
+  const dispEBIT  = varPeriod==='last' ? lastEBIT  : calcEBITAvg6(months);
+  const dispBurn  = varPeriod==='last' ? avgBurn   : calcBurnAvg6(months);
+  const dispCapex = varPeriod==='last' ? calcCapexQ(months) : calcCapexHalf(months);
+  const capexLabel= varPeriod==='last' ? 'CAPEX/kvartal' : 'CAPEX/6 mån';
+
   const variances = targets ? [
-    { label:'Bruttomarginal',  unit:'%',        v: variance(lastGM!==null?Math.round(lastGM):null,    n(targets.bruttomarginal)||null, true) },
-    { label:'Rörelsemarginal', unit:'%',        v: variance(lastEBIT!==null?Math.round(lastEBIT):null, n(targets.rorelsemarginal)||null, true) },
-    { label:'Burn rate',       unit:'kSEK/mån', v: variance(avgBurn!==null?Math.round(avgBurn):null,   n(targets.burn_rate_max)||null, false) },
-    { label:'Runway',          unit:'mån',      v: variance(runway===99?null:runway,                   n(targets.runway_min)||null, true) },
-    { label:'CAPEX/kvartal',   unit:'kSEK',     v: variance(-calcCapexQ(months),                       -(n(targets.capex_budget)||0)||null, false) },
+    { label:'Bruttomarginal',  unit:'%',        v: variance(dispGM!==null?Math.round(dispGM):null,     n(targets.bruttomarginal)||null, true) },
+    { label:'Rörelsemarginal', unit:'%',        v: variance(dispEBIT!==null?Math.round(dispEBIT):null,  n(targets.rorelsemarginal)||null, true) },
+    { label:'Burn rate',       unit:'kSEK/mån', v: variance(dispBurn!==null?Math.round(dispBurn):null,  n(targets.burn_rate_max)||null, true) },
+    { label:'Runway',          unit:'mån',      v: variance(runway===99?null:runway,                    n(targets.runway_min)||null, true) },
+    { label:capexLabel,        unit:'kSEK',     v: variance(-dispCapex,                                 -(n(targets.capex_budget)||0)||null, true) },
   ].filter(x=>x.v!==null) : [];
 
   const fv = k => parseFloat(form[k])||0;
@@ -341,7 +370,13 @@ export default function Kassaflode({ companyId }) {
           ) : (<>
             {variances.length>0 && (
               <div className="kf-card kf-var-card">
-                <div className="kf-card-title">Avvikelseanalys — utfall vs mål (senaste månad)</div>
+                <div className="kf-card-title-row">
+                  <span className="kf-card-title">Avvikelseanalys — utfall vs mål</span>
+                  <div className="kf-period-toggle">
+                    <button className={varPeriod==='last'?'active':''} onClick={()=>setVarPeriod('last')}>Senaste mån</button>
+                    <button className={varPeriod==='avg6'?'active':''} onClick={()=>setVarPeriod('avg6')}>Snitt 6 mån</button>
+                  </div>
+                </div>
                 <div className="kf-var-grid">
                   {variances.map(({label,unit,v})=>(
                     <div key={label} className={`kf-var-item kf-var-${v.status}`}>
