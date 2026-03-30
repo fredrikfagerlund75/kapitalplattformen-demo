@@ -120,8 +120,10 @@ export default function Kassaflode({ companyId }) {
     const ebitV    = data.map(d => { const v=calcEBIT(d); return v!==null?Math.round(v):null; });
     const burn     = calcBurnAvg(data)||0;
     const lastK    = kassaV[kassaV.length-1];
-    const progLbls = ['(+1 mån)','(+2 mån)','(+3 mån)'];
-    const progV    = [1,2,3].map(i=>Math.max(0,Math.round(lastK+i*burn)));
+    const monthsToZero = (burn < 0) ? Math.ceil(Math.abs(lastK / burn)) : 3;
+    const forecastMonths = Math.min(monthsToZero, 36);
+    const progLbls = Array.from({ length: forecastMonths }, (_, i) => `(+${i+1} mån)`);
+    const progV    = Array.from({ length: forecastMonths }, (_, i) => Math.max(0, Math.round(lastK + (i+1) * burn)));
 
     if (chartKassaRef.current) {
       chartInst.current.kassa = new window.Chart(chartKassaRef.current, {
@@ -129,7 +131,7 @@ export default function Kassaflode({ companyId }) {
         data: {
           labels: [...labels,...progLbls],
           datasets: [
-            { label:'Utfall',  data:[...kassaV,null,null,null], borderColor:'#378add', backgroundColor:'rgba(55,138,221,0.07)', tension:0.3, pointRadius:3, fill:true },
+            { label:'Utfall',  data:[...kassaV,...progLbls.map(()=>null)], borderColor:'#378add', backgroundColor:'rgba(55,138,221,0.07)', tension:0.3, pointRadius:3, fill:true },
             { label:'Prognos', data:[...kassaV.map(()=>null),lastK,...progV], borderColor:'#e24b4a', borderDash:[4,3], tension:0.3, pointRadius:3, fill:false }
           ]
         },
