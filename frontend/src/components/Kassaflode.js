@@ -132,7 +132,7 @@ export default function Kassaflode({ companyId }) {
           labels: [...labels,...progLbls],
           datasets: [
             { label:'Utfall',  data:[...kassaV,...progLbls.map(()=>null)], borderColor:'#378add', backgroundColor:'rgba(55,138,221,0.07)', tension:0.3, pointRadius:3, fill:true },
-            { label:'Prognos', data:[...kassaV.map(()=>null),lastK,...progV], borderColor:'#e24b4a', borderDash:[4,3], tension:0.3, pointRadius:3, fill:false }
+            { label:'Prognos', data:[...kassaV.map((_, i) => i === kassaV.length - 1 ? lastK : null),...progV], borderColor:'#e24b4a', borderDash:[4,3], tension:0.3, pointRadius:3, fill:false }
           ]
         },
         options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{ticks:{callback:v=>fmtSEK(v)}}, x:{ticks:{autoSkip:false,maxRotation:45,font:{size:10}}} } }
