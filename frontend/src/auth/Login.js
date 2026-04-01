@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiPost, setAuthToken, setUser } from '../utils/api';
+import logoLogin from '../assets/logo-login.svg';
 import './Login.css';
 
 function Login({ onLogin }) {
@@ -38,7 +39,7 @@ function Login({ onLogin }) {
     <div className="login-container">
       <div className="login-box">
         <div className="login-header">
-          <h1>💼 Kapitalplattformen</h1>
+          <img src={logoLogin} alt="Kapitalplattformen" className="login-logo" />
           <p>AI-driven plattform för kapitalanskaffning</p>
         </div>
 

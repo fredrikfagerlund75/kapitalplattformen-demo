@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import logoNav from './assets/logo-nav.svg';
 import './App.css';
 import Login from './auth/Login';
 import Dashboard from './components/Dashboard';
@@ -131,7 +132,7 @@ function App() {
       {/* Global Navigation Bar */}
       <nav className="global-nav">
         <div className="nav-brand">
-          <h1>💼 Kapitalplattformen v5.0</h1>
+          <img src={logoNav} alt="Kapitalplattformen" className="nav-logo" />
           <span className="company-name">{companySettings?.companyName || user.company}</span>
         </div>
         <div className="nav-actions">
