@@ -175,12 +175,56 @@ export default function Kassaflode({ companyId }) {
     }
 
     if (chartWfRef.current && data.length>0) {
-      const last   = data[data.length-1];
-      const wfLbls = ['Omsättning','Prod.kost','Personal','Externa','CAPEX','Ext. kapital'];
-      const wfV    = [n(last.omsattning),-n(last.produktionskost),-n(last.personalkost),-n(last.externa_kost),n(last.capex),n(last.externt_kapital)];
+      const last    = data[data.length-1];
+      const oms     = n(last.omsattning);
+      const prod    = n(last.produktionskost);
+      const pers    = n(last.personalkost);
+      const ext     = n(last.externa_kost);
+      const cap     = Math.abs(n(last.capex));
+      const extKap  = n(last.externt_kapital);
+      const costSegs = [
+        { label:'Prod.kost', val:prod, color:'#e24b4a' },
+        { label:'Personal',  val:pers, color:'#c43535' },
+        { label:'Externa',   val:ext,  color:'#9e2a2a' },
+        { label:'CAPEX',     val:cap,  color:'#7a2020' },
+      ].filter(s=>s.val>0);
+      const hasExtKap = extKap !== 0;
+      const wfLbls = ['Omsättning', 'Kostnader', ...(hasExtKap ? ['Ext. kapital'] : [])];
+      const pad = hasExtKap ? [0] : [];
+      const wfDatasets = [
+        { label:'Omsättning', data:[oms, 0, ...pad], backgroundColor:'#639922', stack:'a', borderRadius:4 },
+        ...costSegs.map(s=>({ label:s.label, data:[0, -s.val, ...pad], backgroundColor:s.color, stack:'a' })),
+        ...(hasExtKap ? [{ label:'Ext. kapital', data:[0, 0, extKap], backgroundColor:'#639922', stack:'a', borderRadius:4 }] : []),
+      ];
+      const wfLabelPlugin = {
+        id:'wfSegLabels',
+        afterDraw(chart) {
+          const ctx = chart.ctx;
+          ctx.save();
+          ctx.font = '11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = 'rgba(255,255,255,0.95)';
+          chart.data.datasets.forEach((ds, di) => {
+            const meta = chart.getDatasetMeta(di);
+            if (meta.hidden) return;
+            meta.data.forEach((bar, idx) => {
+              const val = ds.data[idx];
+              if (!val || val === 0) return;
+              const props = bar.getProps(['x','y','base'], true);
+              const segH = Math.abs(props.y - props.base);
+              if (segH < 14) return;
+              ctx.fillText(ds.label, props.x, (props.y + props.base) / 2);
+            });
+          });
+          ctx.restore();
+        }
+      };
       chartInst.current.wf = new window.Chart(chartWfRef.current, {
-        type:'bar', data:{ labels:wfLbls, datasets:[{ data:wfV, backgroundColor:wfV.map(v=>v>=0?'#639922':'#e24b4a'), borderRadius:4 }] },
-        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{ticks:{callback:v=>fmtSEK(v)}}, x:{ticks:{font:{size:11},autoSkip:false}} } }
+        type:'bar',
+        data:{ labels:wfLbls, datasets:wfDatasets },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{stacked:true, ticks:{font:{size:11},autoSkip:false}}, y:{stacked:true, ticks:{callback:v=>fmtSEK(v)}} } },
+        plugins:[wfLabelPlugin]
       });
     }
 
@@ -368,6 +412,14 @@ export default function Kassaflode({ companyId }) {
               <button className="kf-btn-secondary" onClick={()=>setTab('inmatning')}>Lägg till första månaden →</button>
             </div>
           ) : (<>
+            <div className="kf-card">
+              <div className="kf-card-title">Kassautveckling &amp; prognos (kSEK)</div>
+              <div className="kf-chart-wrap kf-chart-lg"><canvas ref={chartKassaRef}></canvas></div>
+              <div className="kf-chart-legend">
+                <span><span className="kf-leg-dot" style={{background:'#378add'}}></span>Utfall</span>
+                <span><span className="kf-leg-dot kf-leg-dashed" style={{borderColor:'#e24b4a'}}></span>Prognos</span>
+              </div>
+            </div>
             {variances.length>0 && (
               <div className="kf-card kf-var-card">
                 <div className="kf-card-title-row">
@@ -400,12 +452,8 @@ export default function Kassaflode({ companyId }) {
             )}
             <div className="kf-two-col">
               <div className="kf-card">
-                <div className="kf-card-title">Kassautveckling &amp; prognos (kSEK)</div>
-                <div className="kf-chart-wrap"><canvas ref={chartKassaRef}></canvas></div>
-                <div className="kf-chart-legend">
-                  <span><span className="kf-leg-dot" style={{background:'#378add'}}></span>Utfall</span>
-                  <span><span className="kf-leg-dot kf-leg-dashed" style={{borderColor:'#e24b4a'}}></span>Prognos</span>
-                </div>
+                <div className="kf-card-title">Kassaflöde per komponent — {lastMonth?periodLabel(lastMonth.period):''} (kSEK)</div>
+                <div className="kf-chart-wrap"><canvas ref={chartWfRef}></canvas></div>
               </div>
               <div className="kf-card">
                 <div className="kf-card-title">Marginaler per månad</div>
@@ -416,10 +464,6 @@ export default function Kassaflode({ companyId }) {
                   {targets?.bruttomarginal && <span><span className="kf-leg-dot kf-leg-target" style={{borderColor:'#639922'}}></span>Mål</span>}
                 </div>
               </div>
-            </div>
-            <div className="kf-card">
-              <div className="kf-card-title">Kassaflöde per komponent — {lastMonth?periodLabel(lastMonth.period):''} (kSEK)</div>
-              <div className="kf-chart-wrap kf-chart-sm"><canvas ref={chartWfRef}></canvas></div>
             </div>
           </>)}
         </div>
