@@ -624,6 +624,62 @@ ${truncatedText}`;
 //  PDF EXTRACTION (DOCUMENT API — dyrare, behålls som fallback)
 // ========================================================================
 
+const FINANCIAL_EXTRACTION_SYSTEM_PROMPT = `
+Du är en precisionsinriktad finansiell dataextraktor specialiserad på svenska kvartals- och årsrapporter från bolag noterade på Spotlight Stock Market, Nasdaq First North och Nordic Growth Market.
+
+STEG 1 — IDENTIFIERA RAPPORTSTRUKTUR:
+Kontrollera om dokumentet innehåller separata sektioner för "Koncernen" och "Moderbolaget".
+- Om JA: använd ALLTID Koncernens tabeller som källa för samtliga datapunkter nedan.
+- Om NEJ: använd bolagets enskilda tabeller.
+Ange detta i fältet "source" i svaret.
+
+STEG 2 — EXTRAHERA FÖLJANDE DATAPUNKTER:
+
+[A] FRÅN RESULTATRÄKNINGEN:
+Hitta tabellen med rubriken "Resultaträkning" (ev. "Koncernens resultaträkning").
+Extrahera från raden med exakt benämning "Nettoomsättning":
+- Värdet för rapportperioden (den kolumn som avser aktuellt kvartal/halvår/år)
+
+[B] FRÅN BALANSRÄKNINGEN:
+Hitta tabellen med rubriken "Balansräkning" (ev. "Koncernens balansräkning").
+Använd ALLTID den kolumn som avser den senaste balansdagen i dokumentet (högst kalendermässigt datum).
+Extrahera:
+- "Kassa och bank" (alternativa benämningar att acceptera: "Kassa och bankmedel", "Likvida medel", "Kassa", "Kassa och kortfristiga placeringar")
+- "Eget kapital" — använd raden "Summa eget kapital" eller motsvarande summerad rad. Vid koncern inkluderas minoritetsintressen om de ingår i summan.
+- "Totala skulder" — använd raden "Summa skulder". Om ingen sådan summerad rad finns: addera "Summa långfristiga skulder" + "Summa kortfristiga skulder" och notera detta i extraction_notes.
+
+[C] FRÅN KASSAFLÖDESANALYSEN:
+Hitta tabellen med rubriken "Kassaflödesanalys" (ev. "Koncernens kassaflödesanalys").
+Extrahera från raden med exakt benämning "Periodens kassaflöde":
+- Värdet för rapportperioden (den kolumn som avser aktuellt kvartal/halvår/år)
+
+STEG 3 — RETURNERA EXAKT DETTA JSON-OBJEKT, inga andra ord, ingen annan text:
+{
+  "source": "koncern" | "moderbolag",
+  "report_period": "t.ex. Q1 2025 eller Jan-Mar 2025",
+  "income_statement": {
+    "revenue_period": <number | null>
+  },
+  "balance_sheet": {
+    "balance_date": "YYYY-MM-DD",
+    "cash_and_bank": <number | null>,
+    "equity_total": <number | null>,
+    "total_liabilities": <number | null>
+  },
+  "cash_flow": {
+    "period_cash_flow": <number | null>
+  },
+  "currency": "t.ex. TSEK | MSEK | SEK",
+  "extraction_notes": "Ange avvikelser, osäkerheter, beräknade värden eller tolkningar. Tom sträng om inga."
+}
+
+REGLER:
+- Returnera ALDRIG text utanför JSON-objektet.
+- Sätt null för värden som inte återfinns i dokumentet — gissa inte.
+- Konvertera INTE belopp — återge i den enhet (TSEK/MSEK/SEK) som används i rapporten.
+- Om samma tabell förekommer både för Koncernen och Moderbolaget: ignorera Moderbolagets tabell helt.
+`;
+
 app.post('/api/kapitalradgivaren/extract-financial-data', async (req, res) => {
   try {
     const { fileName, fileData } = req.body;
@@ -636,41 +692,10 @@ app.post('/api/kapitalradgivaren/extract-financial-data', async (req, res) => {
       });
     }
 
-    const prompt = `Du är expert på att läsa svenska kvartalsrapporter och årsredovisningar.
-
-Denna PDF är EN kvartalsrapport (t.ex. Q2-rapport för 2025). Identifiera VILKET kvartal rapporten avser.
-
-Extrahera följande information och returnera som JSON:
-
-{
-  "quarter": 2,
-  "year": "2025",
-  "omsättning": [null, 12345, null, null],
-  "resultat": [null, -2000, null, null],
-  "egetKapital": "X",
-  "kassa": "X",
-  "skulder": "X",
-  "kassaflödeRörelse": [null, -1500, null, null],
-  "period": "Q2 2025"
-}
-
-VIKTIGT:
-- "quarter" ska vara en siffra 1-4 som anger VILKET kvartal rapporten avser
-- Sätt BARA det kvartalets siffra i arrayen, alla andra kvartal ska vara null
-- "kassaflödeRörelse" ska vara en array [Q1, Q2, Q3, Q4] precis som omsättning och resultat
-- Hitta INTE PÅ siffror för kvartal som inte finns i dokumentet!
-- Om rapporten innehåller ackumulerade siffror för flera kvartal (t.ex. "jan-jun"), extrahera BARA det specifika kvartalets siffror om möjligt. Om inte, sätt ackumulerat värde på senaste kvartalet.
-- Alla belopp i TSEK (konvertera från MSEK om nödvändigt: 1 MSEK = 1000 TSEK)
-- KASSAFLÖDE — KRITISKT VIKTIGT:
-  * Använd raden "Periodens kassaflöde" eller "Förändring av likvida medel" — detta är den SISTA/NEDERSTA raden i kassaflödesanalysen, den totala summan.
-  * Använd ALDRIG "Kassaflöde från den löpande verksamheten" eller "Kassaflöde från rörelsen" — det är bara en delpost, inte totalen.
-  * Om du inte hittar "Periodens kassaflöde" exakt, leta efter den sista sammanfattande raden i kassaflödesanalysen.
-- Negativt kassaflöde = negativt tal
-- ENDAST JSON, ingen annan text`;
-
     const apiCall = anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2000,
+      max_tokens: 1000,
+      system: FINANCIAL_EXTRACTION_SYSTEM_PROMPT,
       messages: [{
         role: 'user',
         content: [
@@ -684,7 +709,7 @@ VIKTIGT:
           },
           {
             type: 'text',
-            text: prompt
+            text: 'Extrahera finansiell data från denna rapport enligt instruktionerna.'
           }
         ]
       }]
@@ -696,15 +721,53 @@ VIKTIGT:
 
     const message = await Promise.race([apiCall, timeout]);
 
-    let extractedData;
+    const rawText = message.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('');
+
+    let newData;
     try {
-      const jsonText = message.content[0].text
-        .replace(/```json\n?/g, '')
-        .replace(/```/g, '')
-        .trim();
-      extractedData = JSON.parse(jsonText);
-    } catch (parseError) {
-      console.error('PDF JSON parse error:', parseError);
+      const cleaned = rawText.replace(/```json|```/g, '').trim();
+      newData = JSON.parse(cleaned);
+    } catch (err) {
+      console.error('JSON-parsning av extraction-svar misslyckades:', err);
+      console.error('Råsvar från Claude:', rawText);
+      newData = null;
+    }
+
+    let extractedData;
+    if (newData) {
+      const quarterMatch = (newData.report_period || '').match(/Q([1-4])/i);
+      const yearMatch = (newData.report_period || '').match(/20\d\d/);
+      const quarter = quarterMatch ? parseInt(quarterMatch[1]) : null;
+      const year = yearMatch ? yearMatch[0] : null;
+
+      const rev = [null, null, null, null];
+      const cf = [null, null, null, null];
+      if (quarter >= 1 && quarter <= 4) {
+        rev[quarter - 1] = newData.income_statement?.revenue_period ?? null;
+        cf[quarter - 1] = newData.cash_flow?.period_cash_flow ?? null;
+      }
+
+      extractedData = {
+        quarter,
+        year,
+        omsättning: rev,
+        resultat: [null, null, null, null], // ej extraherat av nytt prompt
+        egetKapital: String(newData.balance_sheet?.equity_total ?? ''),
+        kassa: String(newData.balance_sheet?.cash_and_bank ?? ''),
+        skulder: String(newData.balance_sheet?.total_liabilities ?? ''),
+        kassaflödeRörelse: cf,
+        period: newData.report_period || '',
+        currency: newData.currency || 'TSEK',
+        parseError: false
+        // TODO: balance_date, source, extraction_notes kan mappas till DB när schema utökas
+      };
+      console.log('extraction_notes:', newData.extraction_notes);
+      console.log('source:', newData.source);
+      console.log('balance_date:', newData.balance_sheet?.balance_date);
+    } else {
       extractedData = {
         omsättning: [null, null, null, null],
         resultat: [null, null, null, null],
