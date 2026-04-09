@@ -1,4 +1,7 @@
 require('dotenv').config();
+process.on('unhandledRejection', (reason) => {
+  console.error('unhandledRejection (ignored):', reason);
+});
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 const cors = require('cors');
@@ -867,23 +870,41 @@ Alla belopp i MSEK. Skriv professionellt, konkret och handlingsorienterat.`;
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    const stream = anthropic.messages.stream({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }]
-    });
+    try {
+      const stream = anthropic.messages.stream({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      });
 
-    stream.on('text', (text) => {
-      res.write(`data: ${JSON.stringify({ text })}\n\n`);
-    });
+      stream.on('text', (text) => {
+        res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      });
 
-    await stream.finalMessage();
-    res.write('data: [DONE]\n\n');
-    res.end();
+      stream.on('error', (err) => {
+        console.error('Stream error:', err.message);
+        if (!res.writableEnded) {
+          res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+          res.end();
+        }
+      });
+
+      await stream.finalMessage();
+      if (!res.writableEnded) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    } catch (streamErr) {
+      console.error('Stream setup error:', streamErr.message);
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ error: streamErr.message })}\n\n`);
+        res.end();
+      }
+    }
   } catch (error) {
     if (!res.headersSent) {
       res.status(500).json({ error: error.message });
-    } else {
+    } else if (!res.writableEnded) {
       res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
       res.end();
     }
