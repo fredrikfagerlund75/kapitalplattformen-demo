@@ -472,44 +472,39 @@ Svara BARA med JSON, inget annat.`;
 // ========================================================================
 
 app.get('/api/stock-data/:ticker', async (req, res) => {
-  try {
-    const { ticker } = req.params;
-    const fullTicker = ticker.includes('.') ? ticker : `${ticker}.ST`;
+  const rawTicker = req.params.ticker;
+  const suffixes = rawTicker.includes('.') ? [rawTicker] : [`${rawTicker}.ST`, `${rawTicker}.NGM`];
 
-    const [quote, summary] = await Promise.all([
-      yahooFinance.quote(fullTicker),
-      yahooFinance.quoteSummary(fullTicker, { modules: ['defaultKeyStatistics', 'price'] })
-    ]);
+  for (const fullTicker of suffixes) {
+    try {
+      const quote = await yahooFinance.quote(fullTicker);
+      if (!quote || !quote.regularMarketPrice) continue;
 
-    res.json({
-      ticker: fullTicker,
-      price: quote.regularMarketPrice,
-      currency: quote.currency,
-      sharesOutstanding: summary.defaultKeyStatistics?.sharesOutstanding || quote.sharesOutstanding,
-      marketCap: summary.price?.marketCap || quote.marketCap,
-      previousClose: quote.regularMarketPreviousClose,
-      change: quote.regularMarketChange,
-      changePercent: quote.regularMarketChangePercent,
-      updatedAt: quote.regularMarketTime?.toISOString() || new Date().toISOString(),
-      demo: false
-    });
-  } catch (error) {
-    console.error('Yahoo Finance error:', error.message);
+      let sharesOutstanding = quote.sharesOutstanding;
+      let marketCap = quote.marketCap;
+      try {
+        const summary = await yahooFinance.quoteSummary(fullTicker, { modules: ['defaultKeyStatistics', 'price'] });
+        sharesOutstanding = summary.defaultKeyStatistics?.sharesOutstanding || sharesOutstanding;
+        marketCap = summary.price?.marketCap || marketCap;
+      } catch (_) { /* summary optional */ }
 
-    // Fallback to demo data
-    res.json({
-      ticker: `${req.params.ticker}.ST`,
-      price: 2.84,
-      currency: 'SEK',
-      sharesOutstanding: 25347891,
-      marketCap: 71988011,
-      previousClose: 2.96,
-      change: -0.12,
-      changePercent: -4.05,
-      updatedAt: new Date().toISOString(),
-      demo: true
-    });
+      return res.json({
+        ticker: fullTicker,
+        price: quote.regularMarketPrice,
+        currency: quote.currency,
+        sharesOutstanding,
+        marketCap,
+        previousClose: quote.regularMarketPreviousClose,
+        change: quote.regularMarketChange,
+        changePercent: quote.regularMarketChangePercent,
+        updatedAt: quote.regularMarketTime?.toISOString() || new Date().toISOString(),
+        demo: false
+      });
+    } catch (_) { /* try next suffix */ }
   }
+
+  console.error(`Yahoo Finance: hittade inte ticker ${rawTicker}`);
+  res.status(404).json({ notFound: true, ticker: rawTicker });
 });
 
 // ========================================================================
@@ -867,14 +862,31 @@ ${börsdataAvsnitt ? `6. EMISSIONSMANDAT (obligatorisk sektion — börsdata fin
 
 Alla belopp i MSEK. Skriv professionellt, konkret och handlingsorienterat.`;
 
-    const message = await anthropic.messages.create({
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const stream = anthropic.messages.stream({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }]
     });
-    res.json({ analys: message.content[0].text });
+
+    stream.on('text', (text) => {
+      res.write(`data: ${JSON.stringify({ text })}\n\n`);
+    });
+
+    await stream.finalMessage();
+    res.write('data: [DONE]\n\n');
+    res.end();
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+      res.end();
+    }
   }
 });
 

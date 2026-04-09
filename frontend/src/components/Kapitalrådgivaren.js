@@ -108,6 +108,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
   const handleGenerateAnalys = async () => {
     setLoading(true);
+    setGeneratedAnalys('');
     try {
       const burnRateTSEK = parseFloat(analysData.companyData.burnRate) || 0;
       const kassaTSEK = parseFloat(finansiellData.kassa) || 0;
@@ -132,11 +133,27 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
         const errText = await response.text();
         throw new Error(`Server svarade ${response.status}: ${errText}`);
       }
-      const data = await response.json();
-      if (!data.analys) {
-        throw new Error('Tomt svar från servern');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = line.slice(6);
+          if (payload === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(payload);
+            if (parsed.text) setGeneratedAnalys(prev => prev + parsed.text);
+            if (parsed.error) throw new Error(parsed.error);
+          } catch (_) {}
+        }
       }
-      setGeneratedAnalys(data.analys);
     } catch (error) {
       console.error('Failed to generate analys:', error);
       alert('Fel: ' + (error.message || 'Kunde inte ansluta till servern'));
@@ -423,17 +440,23 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
     try {
       const response = await apiGet(`/api/stock-data/${ticker}`);
       const data = await response.json();
-      
+
+      if (data.notFound) {
+        alert(`Kunde inte hitta ticker "${ticker}" på First North (.ST) eller Nordic SME (.NGM).\n\nKontrollera att du angett rätt ticker-symbol och försök igen, eller fortsätt utan börsdata.`);
+        setFetchingStock(false);
+        return;
+      }
+
       setStockData(data);
-      
+
       const kassaTSEK = parseInt(analysData.companyData.currentCapital) || 20000;
       const kapitalbehovSEK = kassaTSEK * 1000;
       const behovVsBörsvärdeRatio = kapitalbehovSEK / data.marketCap;
-      
+
       let rekommenderadRabatt = 20;
       let rekommenderadSpädning = 38;
       let rekommenderadeTeckningsrätter = '1:2';
-      
+
       if (behovVsBörsvärdeRatio > 1.5) {
         rekommenderadRabatt = 25;
         rekommenderadSpädning = 45;
@@ -443,17 +466,14 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
         rekommenderadSpädning = 30;
         rekommenderadeTeckningsrätter = '1:4';
       }
-      
+
       setEmissionsParametrar({
         rabatt: rekommenderadRabatt,
         maxSpädning: rekommenderadSpädning,
         teckningsrätter: rekommenderadeTeckningsrätter
       });
-      
-      alert(data.demo ?
-        'Demo börsdata hämtad (Yahoo Finance offline)' :
-        `Börsdata hämtad för ${data.ticker}!`
-      );
+
+      alert(`Börsdata hämtad för ${data.ticker}!`);
     } catch (error) {
       console.error('Stock fetch failed:', error);
       alert('Kunde inte hämta börsdata. Kontrollera ticker-symbol eller fortsätt manuellt.');
@@ -1381,15 +1401,15 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
               <h3><BarChart2 size={16} strokeWidth={1.5} /> Hämta börsdata</h3>
               <div className="form-row">
                 <div className="form-group" style={{flex: 2}}>
-                  <label>Ticker-symbol (Spotlight/Nordic SME)</label>
-                  <input 
+                  <label>Ticker-symbol</label>
+                  <input
                     type="text"
                     value={ticker}
                     onChange={(e) => setTicker(e.target.value.toUpperCase())}
                     placeholder="T.ex. MINEST"
                   />
                   <small style={{color: '#718096', display: 'block', marginTop: '0.5rem'}}>
-                    För svenska bolag läggs .ST till automatiskt
+                    Provar First North (.ST) och Nordic SME (.NGM) automatiskt
                   </small>
                 </div>
                 <div style={{display: 'flex', alignItems: 'flex-end'}}>
