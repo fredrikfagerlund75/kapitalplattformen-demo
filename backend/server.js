@@ -192,29 +192,29 @@ app.post('/api/qualify-document', async (req, res) => {
   try {
     const { market, emissionSizeSEK, period12Months, audience } = req.body;
     const emissionSizeEUR = emissionSizeSEK / 11.5;
-    const isOver8M = period12Months ? emissionSizeEUR >= 8000000 : false;
+    const isOver12M = period12Months ? emissionSizeEUR >= 12000000 : false;
 
     let docType = 'IM';
     let reasoning = '';
 
     if (market === 'nasdaq_stockholm' || market === 'first_north') {
-      if (audience === 'public' && isOver8M) {
+      if (audience === 'public' && isOver12M) {
         docType = 'PROSPEKT';
-        reasoning = 'Er emission \u00e4r riktad till allm\u00e4nheten och \u00f6verstiger \u20ac8M-tr\u00f6skeln. Ett FI-godk\u00e4nt prospekt kr\u00e4vs.';
-      } else if (audience === 'public' && !isOver8M) {
+        reasoning = 'Er emission är riktad till allmänheten och överstiger €12M-tröskeln (EU Listing Act, juni 2026). Ett FI-godkänt prospekt krävs.';
+      } else if (audience === 'public' && !isOver12M) {
         docType = 'IM';
-        reasoning = 'Er emission \u00e4r under \u20ac8M-tr\u00f6skeln. Ett informationsmemorandum r\u00e4cker.';
+        reasoning = 'Er emission är under €12M-tröskeln (EU Listing Act, juni 2026). Ett informationsmemorandum räcker.';
       } else {
         docType = 'IM';
-        reasoning = 'Er emission \u00e4r riktad till kvalificerade investerare.';
+        reasoning = 'Er emission är riktad till kvalificerade investerare.';
       }
     } else if (market === 'spotlight' || market === 'nordic_sme') {
-      if (audience === 'public' && isOver8M) {
+      if (audience === 'public' && isOver12M) {
         docType = 'PROSPEKT';
-        reasoning = '\u00c4ven p\u00e5 tillv\u00e4xtmarknader kr\u00e4vs prospekt f\u00f6r allm\u00e4nna erbjudanden \u00f6ver \u20ac8M.';
+        reasoning = 'Även på tillväxtmarknader krävs prospekt för allmänna erbjudanden över €12M (EU Listing Act, juni 2026).';
       } else {
         docType = 'IM';
-        reasoning = 'F\u00f6r bolag p\u00e5 Spotlight/Nordic SME r\u00e4cker vanligtvis ett IM.';
+        reasoning = 'För bolag på Spotlight/Nordic SME räcker vanligtvis ett IM.';
       }
     } else if (market === 'unlisted') {
       docType = 'IM';

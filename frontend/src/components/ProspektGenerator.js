@@ -168,7 +168,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
       <div className="module-container">
         <div className="module-header">
           <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
-          <h1><FileText size={20} strokeWidth={1.5} /> Prospekt/IM Generator</h1>
+          <h1><FileText size={20} strokeWidth={1.5} /> IM/Prospekt Generator</h1>
         </div>
         <div className="empty-state">
           <p>Välj ett emissionsprojekt från Dashboard för att skapa Prospekt/IM</p>
@@ -353,7 +353,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
     <div className="module-container">
       <div className="module-header">
         <button className="back-button" onClick={onBack}><ChevronLeft size={16} strokeWidth={1.5} /> Tillbaka</button>
-        <h1><FileText size={20} strokeWidth={1.5} /> Prospekt/IM Generator</h1>
+        <h1><FileText size={20} strokeWidth={1.5} /> IM/Prospekt Generator</h1>
       </div>
 
       {/* Progress bar */}
@@ -396,8 +396,11 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
         {/* Step 0: Qualification */}
         {step === 0 && (
           <div className="wizard-step">
-            <h2>Välkommen till Prospekt/IM Generatorn</h2>
+            <h2>Välkommen till IM/Prospekt Generatorn</h2>
             <p>Besvara några frågor så avgör vi vilket dokument som behövs för er kapitalanskaffning.</p>
+            <div style={{background:'#fffbeb', border:'1px solid #f6d860', borderRadius:'8px', padding:'10px 14px', marginBottom:'16px', fontSize:'0.85rem', color:'#7c5a00'}}>
+              <strong>EU Listing Act (juni 2026):</strong> Prospektgränsen höjs från €2,5M till €12M. Emissioner under €12M riktade till allmänheten kommer inte längre kräva FI-godkänt prospekt.
+            </div>
 
             {!qualification ? (
               <>
@@ -466,14 +469,14 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
                       <li>✓ Snabbare att producera (3-5 dagar)</li>
                       <li>✓ Lägre kostnad (frivilligt format)</li>
                       <li>✓ Ingen FI-granskning</li>
-                      <li>✓ Lämpligt för riktade emissioner &lt;€8M</li>
+                      <li>✓ Lämpligt för emissioner &lt;€12M (fr.o.m. juni 2026)</li>
                     </ul>
                   </div>
                   <div style={{background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.25rem'}}>
                     <h4><ClipboardList size={16} strokeWidth={1.5} /> Prospekt</h4>
                     <ul style={{marginLeft: '1rem', fontSize: '0.9rem', lineHeight: '1.8'}}>
                       <li>✓ FI-godkänt (högre trovärdighet)</li>
-                      <li>✓ Nödvändigt för allmänna erbjudanden ≥€8M</li>
+                      <li>✓ Nödvändigt för allmänna erbjudanden ≥€12M (fr.o.m. juni 2026)</li>
                       <li>⚠ Striktare formatkrav</li>
                       <li>⚠ Längre processtid (4-6 veckor)</li>
                     </ul>

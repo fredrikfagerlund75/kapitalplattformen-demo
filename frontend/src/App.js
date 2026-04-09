@@ -23,7 +23,7 @@ function App() {
   const [aktivtProjekt, setAktivtProjekt] = useState(null);
   // loading state available for future use
   const [loading, setLoading] = useState(false); // eslint-disable-line no-unused-vars
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const keepAliveRef = useRef(null);
   const [companySettings, setCompanySettings] = useState(() => {
     try {
