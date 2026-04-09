@@ -1409,7 +1409,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     placeholder="T.ex. MINEST"
                   />
                   <small style={{color: '#718096', display: 'block', marginTop: '0.5rem'}}>
-                    Provar First North (.ST) och Nordic SME (.NGM) automatiskt
+                    Provar First North, Spotlight (.ST) och Nordic SME (.NGM) automatiskt
                   </small>
                 </div>
                 <div style={{display: 'flex', alignItems: 'flex-end'}}>
@@ -1426,7 +1426,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
             {stockData && (
               <div className="stock-data-display">
-                <h3><CheckCircle2 size={16} strokeWidth={1.5} /> Börsdata hämtad {stockData.demo && '(Demo)'}</h3>
+                <h3><CheckCircle2 size={16} strokeWidth={1.5} /> Börsdata hämtad {stockData.demo && '(Demo)'}{stockData.source === 'avanza' && ' (Avanza)'}</h3>
                 
                 <div className="stock-metrics">
                   <div className="stock-metric-card">
