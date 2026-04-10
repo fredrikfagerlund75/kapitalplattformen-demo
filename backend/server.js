@@ -519,6 +519,7 @@ app.get('/api/stock-data/:ticker', async (req, res) => {
   const STALE_DAYS = 7;
 
   // --- Try Yahoo Finance ---
+  let staleYahooFallback = null; // keep stale data in case Avanza also fails
   const suffixes = rawTicker.includes('.') ? [rawTicker] : [`${rawTicker}.ST`, `${rawTicker}.NGM`];
   for (const fullTicker of suffixes) {
     try {
@@ -527,10 +528,6 @@ app.get('/api/stock-data/:ticker', async (req, res) => {
 
       const updatedAt = quote.regularMarketTime?.toISOString() || new Date().toISOString();
       const daysSince = (Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSince > STALE_DAYS) {
-        console.log(`Yahoo Finance: ${fullTicker} data är ${Math.round(daysSince)} dagar gammal, provar Avanza`);
-        break; // fall through to Avanza
-      }
 
       let sharesOutstanding = quote.sharesOutstanding;
       let marketCap = quote.marketCap;
@@ -540,7 +537,7 @@ app.get('/api/stock-data/:ticker', async (req, res) => {
         marketCap = summary.price?.marketCap || marketCap;
       } catch (_) { /* summary optional */ }
 
-      return res.json({
+      const yahooResult = {
         ticker: fullTicker,
         price: quote.regularMarketPrice,
         currency: quote.currency,
@@ -552,7 +549,15 @@ app.get('/api/stock-data/:ticker', async (req, res) => {
         updatedAt,
         source: 'yahoo',
         demo: false
-      });
+      };
+
+      if (daysSince > STALE_DAYS) {
+        console.log(`Yahoo Finance: ${fullTicker} data är ${Math.round(daysSince)} dagar gammal, provar Avanza`);
+        staleYahooFallback = staleYahooFallback || yahooResult; // save first stale result
+        break; // fall through to Avanza
+      }
+
+      return res.json(yahooResult);
     } catch (_) { /* try next suffix */ }
   }
 
@@ -566,6 +571,12 @@ app.get('/api/stock-data/:ticker', async (req, res) => {
     }
   } catch (avanzaErr) {
     console.error('Avanza fetch failed:', avanzaErr.message);
+  }
+
+  // --- Last resort: return stale Yahoo data rather than notFound ---
+  if (staleYahooFallback) {
+    console.log(`Använder inaktuell Yahoo-data för ${rawTicker} (Avanza misslyckades)`);
+    return res.json(staleYahooFallback);
   }
 
   console.error(`Hittade inte ticker ${rawTicker} i Yahoo Finance eller Avanza`);
