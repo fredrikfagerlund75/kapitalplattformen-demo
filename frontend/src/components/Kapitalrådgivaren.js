@@ -1438,14 +1438,16 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                     <div className="metric-value">
                       {stockData.price.toFixed(2)} {stockData.currency}
                     </div>
-                    <div 
-                      className="metric-change" 
-                      style={{color: stockData.change >= 0 ? '#48bb78' : '#f56565'}}
-                    >
-                      {stockData.change >= 0 ? '↑' : '↓'} 
-                      {Math.abs(stockData.change).toFixed(2)} 
-                      ({stockData.changePercent.toFixed(2)}%)
-                    </div>
+                    {stockData.change != null && stockData.changePercent != null && (
+                      <div
+                        className="metric-change"
+                        style={{color: stockData.change >= 0 ? '#48bb78' : '#f56565'}}
+                      >
+                        {stockData.change >= 0 ? '↑' : '↓'}
+                        {Math.abs(stockData.change).toFixed(2)}
+                        ({stockData.changePercent.toFixed(2)}%)
+                      </div>
+                    )}
                   </div>
 
                   <div className="stock-metric-card">
