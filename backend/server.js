@@ -471,28 +471,66 @@ Svara BARA med JSON, inget annat.`;
 });
 
 // ========================================================================
-//  STOCK DATA (Yahoo Finance + Avanza fallback)
+//  STOCK DATA (Yahoo Finance)
 // ========================================================================
 
+// Direct HTTP fetch to Yahoo Finance chart API — no crumb/cookie required,
+// works as fallback when yahoo-finance2 library fails on cloud IPs.
+async function fetchYahooChartDirect(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+  const resp = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Referer': 'https://finance.yahoo.com',
+    },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  const result = data?.chart?.result?.[0];
+  if (!result) return null;
+  const meta = result.meta;
+  const price = meta.regularMarketPrice;
+  if (!price) return null;
+  return {
+    ticker: symbol,
+    price,
+    currency: meta.currency || 'SEK',
+    sharesOutstanding: null,
+    marketCap: null,
+    previousClose: meta.previousClose ?? meta.chartPreviousClose ?? null,
+    change: price - (meta.previousClose ?? price),
+    changePercent: meta.previousClose ? ((price - meta.previousClose) / meta.previousClose) * 100 : null,
+    updatedAt: meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : new Date().toISOString(),
+    source: 'yahoo',
+    demo: false,
+  };
+}
 
 app.get('/api/stock-data/:ticker', async (req, res) => {
   const rawTicker = req.params.ticker;
-
-  // Try Yahoo Finance — accept data even if stale (illiquid First North stocks trade infrequently)
   const suffixes = rawTicker.includes('.') ? [rawTicker] : [`${rawTicker}.ST`, `${rawTicker}.NGM`];
+
+  // --- Primary: yahoo-finance2 library (richer data) ---
   for (const fullTicker of suffixes) {
     try {
-      const quote = await yahooFinance.quote(fullTicker);
-      if (!quote || !quote.regularMarketPrice) continue;
+      const quote = await yahooFinance.quote(fullTicker, {}, { validateResult: false });
+      if (!quote || !quote.regularMarketPrice) {
+        console.log(`yahoo-finance2: ${fullTicker} — ingen kurs`);
+        continue;
+      }
 
       let sharesOutstanding = quote.sharesOutstanding;
       let marketCap = quote.marketCap;
       try {
-        const summary = await yahooFinance.quoteSummary(fullTicker, { modules: ['defaultKeyStatistics', 'price'] });
+        const summary = await yahooFinance.quoteSummary(fullTicker, { modules: ['defaultKeyStatistics', 'price'] }, { validateResult: false });
         sharesOutstanding = summary.defaultKeyStatistics?.sharesOutstanding || sharesOutstanding;
         marketCap = summary.price?.marketCap || marketCap;
       } catch (_) { /* summary optional */ }
 
+      console.log(`yahoo-finance2 OK: ${fullTicker} kurs=${quote.regularMarketPrice}`);
       return res.json({
         ticker: fullTicker,
         price: quote.regularMarketPrice,
@@ -504,12 +542,27 @@ app.get('/api/stock-data/:ticker', async (req, res) => {
         changePercent: quote.regularMarketChangePercent,
         updatedAt: quote.regularMarketTime?.toISOString() || new Date().toISOString(),
         source: 'yahoo',
-        demo: false
+        demo: false,
       });
-    } catch (_) { /* try next suffix */ }
+    } catch (e) {
+      console.error(`yahoo-finance2 fel för ${fullTicker}:`, e.message);
+    }
   }
 
-  console.error(`Hittade inte ticker ${rawTicker} i Yahoo Finance`);
+  // --- Fallback: direct HTTP to Yahoo Finance chart API ---
+  for (const fullTicker of suffixes) {
+    try {
+      const result = await fetchYahooChartDirect(fullTicker);
+      if (result) {
+        console.log(`Yahoo chart direct OK: ${fullTicker} kurs=${result.price}`);
+        return res.json(result);
+      }
+    } catch (e) {
+      console.error(`Yahoo chart direct fel för ${fullTicker}:`, e.message);
+    }
+  }
+
+  console.error(`Hittade inte ticker ${rawTicker} via Yahoo Finance`);
   res.status(404).json({ notFound: true, ticker: rawTicker });
 });
 
