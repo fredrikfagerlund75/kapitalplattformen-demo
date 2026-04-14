@@ -451,20 +451,22 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
 
       const kassaTSEK = parseInt(analysData.companyData.currentCapital) || 20000;
       const kapitalbehovSEK = kassaTSEK * 1000;
-      const behovVsBörsvärdeRatio = kapitalbehovSEK / data.marketCap;
 
       let rekommenderadRabatt = 20;
       let rekommenderadSpädning = 38;
       let rekommenderadeTeckningsrätter = '1:2';
 
-      if (behovVsBörsvärdeRatio > 1.5) {
-        rekommenderadRabatt = 25;
-        rekommenderadSpädning = 45;
-        rekommenderadeTeckningsrätter = '1:1';
-      } else if (behovVsBörsvärdeRatio < 0.5) {
-        rekommenderadRabatt = 15;
-        rekommenderadSpädning = 30;
-        rekommenderadeTeckningsrätter = '1:4';
+      if (data.marketCap) {
+        const behovVsBörsvärdeRatio = kapitalbehovSEK / data.marketCap;
+        if (behovVsBörsvärdeRatio > 1.5) {
+          rekommenderadRabatt = 25;
+          rekommenderadSpädning = 45;
+          rekommenderadeTeckningsrätter = '1:1';
+        } else if (behovVsBörsvärdeRatio < 0.5) {
+          rekommenderadRabatt = 15;
+          rekommenderadSpädning = 30;
+          rekommenderadeTeckningsrätter = '1:4';
+        }
       }
 
       setEmissionsParametrar({
@@ -494,8 +496,7 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
     const kapitalbehovSEK = kapitalbehovTSEK * 1000;
     
     const antalNyaAktier = Math.round(kapitalbehovSEK / teckningskurs);
-    const spädning = (antalNyaAktier / (stockData.sharesOutstanding + antalNyaAktier)) * 100;
-    
+
     setEmissionsvillkor({
       typ: 'Företrädesemission',
       teckningskurs: teckningskurs.toFixed(2),
@@ -503,9 +504,12 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
       emissionsvolym: kapitalbehovSEK,
       teckningsrätter: emissionsParametrar.teckningsrätter
     });
-    
-    if (spädning > emissionsParametrar.maxSpädning) {
-      alert(`Varning: Beräknad spädning (${spädning.toFixed(1)}%) överstiger ert mål (${emissionsParametrar.maxSpädning}%)`);
+
+    if (stockData.sharesOutstanding) {
+      const spädning = (antalNyaAktier / (stockData.sharesOutstanding + antalNyaAktier)) * 100;
+      if (spädning > emissionsParametrar.maxSpädning) {
+        alert(`Varning: Beräknad spädning (${spädning.toFixed(1)}%) överstiger ert mål (${emissionsParametrar.maxSpädning}%)`);
+      }
     }
   };
 
@@ -1447,14 +1451,14 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                   <div className="stock-metric-card">
                     <div className="metric-label">Utestående aktier</div>
                     <div className="metric-value">
-                      {stockData.sharesOutstanding.toLocaleString('sv-SE')}
+                      {stockData.sharesOutstanding ? stockData.sharesOutstanding.toLocaleString('sv-SE') : '–'}
                     </div>
                   </div>
 
                   <div className="stock-metric-card">
                     <div className="metric-label">Börsvärde</div>
                     <div className="metric-value">
-                      {(stockData.marketCap / 1000000).toFixed(1)} MSEK
+                      {stockData.marketCap ? `${(stockData.marketCap / 1000000).toFixed(1)} MSEK` : '–'}
                     </div>
                   </div>
 
@@ -1487,8 +1491,10 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                         <div className="rec-value">{emissionsParametrar.maxSpädning}%</div>
                         <p>
                           Kapitalbehov/Börsvärde: {
-                            ((parseInt(analysData.companyData.currentCapital || 0) * 1000 / stockData.marketCap) * 100).toFixed(0)
-                          }%
+                            stockData.marketCap
+                              ? `${((parseInt(analysData.companyData.currentCapital || 0) * 1000 / stockData.marketCap) * 100).toFixed(0)}%`
+                              : '–'
+                          }
                         </p>
                       </div>
                     </div>
