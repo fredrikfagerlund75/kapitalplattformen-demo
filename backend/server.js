@@ -474,60 +474,16 @@ Svara BARA med JSON, inget annat.`;
 //  STOCK DATA (Yahoo Finance + Avanza fallback)
 // ========================================================================
 
-async function fetchFromAvanza(ticker) {
-  const AVANZA_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (compatible; kapitalplattformen/1.0)',
-    'Accept': 'application/json'
-  };
-  // Step 1: search for ticker on Avanza
-  const searchUrl = `https://www.avanza.se/_mobile/market/search/suggests?query=${encodeURIComponent(ticker)}&limit=10`;
-  const searchResp = await fetch(searchUrl, { headers: AVANZA_HEADERS });
-  if (!searchResp.ok) return null;
-  const suggestions = await searchResp.json();
-  if (!Array.isArray(suggestions) || suggestions.length === 0) return null;
-
-  // Prefer exact ticker match, otherwise use first result
-  const match = suggestions.find(s => s.tickerSymbol?.toUpperCase() === ticker.toUpperCase()) || suggestions[0];
-  if (!match?.id) return null;
-
-  // Step 2: fetch stock details
-  const stockUrl = `https://www.avanza.se/_mobile/market/stock/${match.id}`;
-  const stockResp = await fetch(stockUrl, { headers: AVANZA_HEADERS });
-  if (!stockResp.ok) return null;
-  const s = await stockResp.json();
-
-  const price = s.lastPrice ?? s.lastPriceUpdated ?? null;
-  if (!price) return null;
-
-  return {
-    ticker: match.tickerSymbol || ticker,
-    price,
-    currency: 'SEK',
-    sharesOutstanding: s.numberOfShares ?? null,
-    marketCap: s.marketCapital ?? null,
-    previousClose: s.previousClosingPrice ?? null,
-    change: s.change ?? null,
-    changePercent: s.changePercent ?? null,
-    updatedAt: s.lastPriceUpdated ? new Date(s.lastPriceUpdated).toISOString() : new Date().toISOString(),
-    source: 'avanza',
-    demo: false
-  };
-}
 
 app.get('/api/stock-data/:ticker', async (req, res) => {
   const rawTicker = req.params.ticker;
-  const STALE_DAYS = 7;
 
-  // --- Try Yahoo Finance ---
-  let staleYahooFallback = null; // keep stale data in case Avanza also fails
+  // Try Yahoo Finance — accept data even if stale (illiquid First North stocks trade infrequently)
   const suffixes = rawTicker.includes('.') ? [rawTicker] : [`${rawTicker}.ST`, `${rawTicker}.NGM`];
   for (const fullTicker of suffixes) {
     try {
       const quote = await yahooFinance.quote(fullTicker);
       if (!quote || !quote.regularMarketPrice) continue;
-
-      const updatedAt = quote.regularMarketTime?.toISOString() || new Date().toISOString();
-      const daysSince = (Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24);
 
       let sharesOutstanding = quote.sharesOutstanding;
       let marketCap = quote.marketCap;
@@ -537,7 +493,7 @@ app.get('/api/stock-data/:ticker', async (req, res) => {
         marketCap = summary.price?.marketCap || marketCap;
       } catch (_) { /* summary optional */ }
 
-      const yahooResult = {
+      return res.json({
         ticker: fullTicker,
         price: quote.regularMarketPrice,
         currency: quote.currency,
@@ -546,40 +502,14 @@ app.get('/api/stock-data/:ticker', async (req, res) => {
         previousClose: quote.regularMarketPreviousClose,
         change: quote.regularMarketChange,
         changePercent: quote.regularMarketChangePercent,
-        updatedAt,
+        updatedAt: quote.regularMarketTime?.toISOString() || new Date().toISOString(),
         source: 'yahoo',
         demo: false
-      };
-
-      if (daysSince > STALE_DAYS) {
-        console.log(`Yahoo Finance: ${fullTicker} data är ${Math.round(daysSince)} dagar gammal, provar Avanza`);
-        staleYahooFallback = staleYahooFallback || yahooResult; // save first stale result
-        break; // fall through to Avanza
-      }
-
-      return res.json(yahooResult);
+      });
     } catch (_) { /* try next suffix */ }
   }
 
-  // --- Fallback: Avanza ---
-  try {
-    console.log(`Försöker hämta ${rawTicker} från Avanza`);
-    const avanzaData = await fetchFromAvanza(rawTicker);
-    if (avanzaData) {
-      console.log(`Avanza OK: ${avanzaData.ticker} kurs=${avanzaData.price}`);
-      return res.json(avanzaData);
-    }
-  } catch (avanzaErr) {
-    console.error('Avanza fetch failed:', avanzaErr.message);
-  }
-
-  // --- Last resort: return stale Yahoo data rather than notFound ---
-  if (staleYahooFallback) {
-    console.log(`Använder inaktuell Yahoo-data för ${rawTicker} (Avanza misslyckades)`);
-    return res.json(staleYahooFallback);
-  }
-
-  console.error(`Hittade inte ticker ${rawTicker} i Yahoo Finance eller Avanza`);
+  console.error(`Hittade inte ticker ${rawTicker} i Yahoo Finance`);
   res.status(404).json({ notFound: true, ticker: rawTicker });
 });
 
