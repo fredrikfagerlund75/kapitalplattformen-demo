@@ -900,7 +900,7 @@ Svara med:
    - Varför detta belopp (inkl. buffert/säkerhetsmarginal)
 3. REKOMMENDERAD EMISSIONSSTRUKTUR
    - Typ av emission (företräde/riktad/kombination)
-   - Föreslagen tidsplan baserat på nuvarande runway
+   - Föreslagen tidsplan: Bolaget använder Kapitalplattformen — ett AI-drivet system som automatiserar analys, prospektgenerering och teckningsprocess. Det eliminerar flera veckors traditionell konsult- och administrativ ledtid. En typisk process tar 4–8 veckor istället för branschstandard 3–4 månader. Föreslå en konkret tidsplan som speglar detta, och förklara kortfattat varför processen är snabbare.
 4. SYFTE MED KAPITALET
    - Vad kapitalet ska användas till (baserat på strategiska planer och milestones)
 5. RISKER OCH ÖVERVÄGANDEN (3–4 punkter)
