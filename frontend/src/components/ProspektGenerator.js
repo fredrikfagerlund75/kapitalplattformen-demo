@@ -177,65 +177,57 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
     );
   }
 
+  const readStream = async (response, onChunk) => {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6);
+        if (payload === '[DONE]') return;
+        try {
+          const parsed = JSON.parse(payload);
+          if (parsed.text) onChunk(parsed.text);
+          if (parsed.error) throw new Error(parsed.error);
+        } catch (_) {}
+      }
+    }
+  };
+
   const handleGenerateContent = async () => {
     setLoading(true);
+    // Reset content and jump to preview immediately so user sees it build up
+    setGeneratedContent({ verksamhet: '', marknad: '', riskfaktorer: '', teamBios: '' });
+    setStep(6);
+
+    const company = { name: formData.bolag.namn, industry: formData.bolag.bransch };
+
     try {
-      const company = {
-        name: formData.bolag.namn,
-        industry: formData.bolag.bransch
-      };
+      const [verksamhetResp, marknadResp, riskResp, teamResp] = await Promise.all([
+        apiPost('/api/generate-business-section', { company, business: { description: formData.bolag.verksamhetsbeskrivning, businessModel: formData.strategi.affärsmodell } }),
+        apiPost('/api/generate-market-section', { company, market: { description: formData.strategi.marknadsbeskrivning, competitors: formData.strategi.konkurrenter } }),
+        apiPost('/api/generate-risk-factors', { company, business: { description: formData.bolag.verksamhetsbeskrivning }, financial: { revenue: formData.finansiellt.omsättning, result: formData.finansiellt.resultat } }),
+        apiPost('/api/generate-team-bios', { team: formData.team })
+      ]);
 
-      // Generate business section
-      const verksamhetResponse = await apiPost('/api/generate-business-section', {
-        company,
-        business: {
-          description: formData.bolag.verksamhetsbeskrivning,
-          businessModel: formData.strategi.affärsmodell
-        }
+      await Promise.all([
+        readStream(verksamhetResp, (chunk) => setGeneratedContent(prev => ({ ...prev, verksamhet: prev.verksamhet + chunk }))),
+        readStream(marknadResp,    (chunk) => setGeneratedContent(prev => ({ ...prev, marknad: prev.marknad + chunk }))),
+        readStream(riskResp,       (chunk) => setGeneratedContent(prev => ({ ...prev, riskfaktorer: prev.riskfaktorer + chunk }))),
+        readStream(teamResp,       (chunk) => setGeneratedContent(prev => ({ ...prev, teamBios: prev.teamBios + chunk })))
+      ]);
+
+      // Save final content
+      setGeneratedContent(prev => {
+        onUpdateProject(projekt.id, { generatedContent: prev });
+        return prev;
       });
-      
-      // Generate market section
-      const marknadResponse = await apiPost('/api/generate-market-section', {
-        company,
-        market: {
-          description: formData.strategi.marknadsbeskrivning,
-          competitors: formData.strategi.konkurrenter
-        }
-      });
-
-      // Generate risk factors
-      const riskResponse = await apiPost('/api/generate-risk-factors', {
-        company,
-        business: { description: formData.bolag.verksamhetsbeskrivning },
-        financial: {
-          revenue: formData.finansiellt.omsättning,
-          result: formData.finansiellt.resultat
-        }
-      });
-
-      // Generate team bios
-      const teamResponse = await apiPost('/api/generate-team-bios', {
-        team: formData.team
-      });
-
-      const verksamhet = await verksamhetResponse.json();
-      const marknad = await marknadResponse.json();
-      const risk = await riskResponse.json();
-      const team = await teamResponse.json();
-
-      const newContent = {
-        verksamhet: verksamhet.business || '',
-        marknad: marknad.market || '',
-        riskfaktorer: risk.risks || '',
-        teamBios: team.bios || ''
-      };
-
-      setGeneratedContent(newContent);
-
-      // Save generated content to projekt
-      await onUpdateProject(projekt.id, { generatedContent: newContent });
-
-      setStep(6); // Go to preview step
     } catch (error) {
       console.error('Generation failed:', error);
       alert('Kunde inte generera innehåll. Kontrollera att servern är igång.');
@@ -760,6 +752,13 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
         {step === 6 && (
           <div className="wizard-step">
             <h2>Granska och generera</h2>
+
+            {loading && (
+              <div style={{background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '12px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '10px', color: '#166534', fontSize: '0.9rem'}}>
+                <Sparkles size={16} strokeWidth={1.5} style={{flexShrink: 0, animation: 'spin 1.5s linear infinite'}} />
+                AI genererar alla sektioner parallellt — texten byggs upp nedan...
+              </div>
+            )}
 
             <div className="preview-section">
               <h3><FileText size={16} strokeWidth={1.5} /> Prospekt/IM innehåll</h3>

@@ -1066,97 +1066,68 @@ Professionellt och \u00f6vertygande.`;
   }
 });
 
+function streamSection(res, prompt, maxTokens) {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  const stream = anthropic.messages.stream({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] });
+  stream.on('text', (text) => { if (!res.writableEnded) res.write(`data: ${JSON.stringify({ text })}\n\n`); });
+  stream.on('error', (err) => { if (!res.writableEnded) { res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`); res.end(); } });
+  stream.finalMessage().then(() => { if (!res.writableEnded) { res.write('data: [DONE]\n\n'); res.end(); } }).catch(() => { if (!res.writableEnded) res.end(); });
+}
+
 app.post('/api/generate-business-section', async (req, res) => {
-  try {
-    const { company, business } = req.body;
-    const prompt = `Du \u00e4r expert p\u00e5 investeringsmemorandum.
+  const { company, business } = req.body;
+  const prompt = `Du är expert på investeringsmemorandum.
 
 Skriv "Verksamhet och Strategi" (max 600 ord):
 BOLAG: ${company.name}
 BRANSCH: ${company.industry}
 VERKSAMHET: ${business.description}
 PRODUKTER: ${business.products || 'Information saknas'}
-AFF\u00c4RSMODELL: ${business.businessModel || 'Information saknas'}
+AFFÄRSMODELL: ${business.businessModel || 'Information saknas'}
 STRATEGI: ${business.strategy || 'Information saknas'}
 
-Struktur: 1. VAD VI G\u00d6R 2. HUR VI TJ\u00c4NAR PENGAR 3. VAR VI \u00c4R P\u00c5 V\u00c4G`;
-
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    res.json({ business: message.content[0].text });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+Struktur: 1. VAD VI GÖR 2. HUR VI TJÄNAR PENGAR 3. VAR VI ÄR PÅ VÄG`;
+  streamSection(res, prompt, 2000);
 });
 
 app.post('/api/generate-market-section', async (req, res) => {
-  try {
-    const { market, company } = req.body;
-    const prompt = `Du \u00e4r expert p\u00e5 marknadsanalyser f\u00f6r investeringsmemorandum.
+  const { market, company } = req.body;
+  const prompt = `Du är expert på marknadsanalyser för investeringsmemorandum.
 
-Skriv "Marknads\u00f6versikt" (max 500 ord):
+Skriv "Marknadsöversikt" (max 500 ord):
 BRANSCH: ${company.industry}
 MARKNAD: ${market.description}
 TAM/SAM: ${market.size || 'Information saknas'}
 GEOGRAFI: ${market.geography || 'Information saknas'}
 KONKURRENTER: ${market.competitors || 'Information saknas'}
 
-Struktur: 1. MARKNADEN 2. KONKURRENSSITUATION 3. M\u00d6JLIGHET`;
-
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1800,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    res.json({ market: message.content[0].text });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+Struktur: 1. MARKNADEN 2. KONKURRENSSITUATION 3. MÖJLIGHET`;
+  streamSection(res, prompt, 1800);
 });
 
 app.post('/api/generate-risk-factors', async (req, res) => {
-  try {
-    const { company, business, financial } = req.body;
-    const prompt = `Du \u00e4r expert p\u00e5 riskanalys f\u00f6r investeringsmemorandum.
+  const { company, business, financial } = req.body;
+  const prompt = `Du är expert på riskanalys för investeringsmemorandum.
 
 Generera 5-7 riskfaktorer:
 BOLAG: ${company.name}
 BRANSCH: ${company.industry}
 VERKSAMHET: ${business.description}
-FINANSIELL STATUS: Oms\u00e4ttning ${financial.revenue || 'ej angiven'}, Resultat ${financial.result || 'ej angivet'}
+FINANSIELL STATUS: Omsättning ${financial.revenue || 'ej angiven'}, Resultat ${financial.result || 'ej angivet'}
 
 Kategorier: Verksamhetsrisker (2-3), Marknadsrisker (1-2), Finansiella (1-2), Emissionsrisker (1).
 Per risk: Rubrik + 2-3 meningar.`;
-
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    res.json({ risks: message.content[0].text });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  streamSection(res, prompt, 2000);
 });
 
 app.post('/api/generate-team-bios', async (req, res) => {
-  try {
-    const { team } = req.body;
-    const teamStr = team.map(p => `NAMN: ${p.name || p.namn}\nROLL: ${p.role || p.roll}\nBAKGRUND: ${p.background || p.bakgrund || 'Info saknas'}`).join('\n\n');
-    const prompt = `Skriv korta biografier (2-3 meningar per person) f\u00f6r investeringsmemorandum:\n\n${teamStr}\n\nPer person: Roll + erfarenhet. Professionell ton.`;
-
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    res.json({ bios: message.content[0].text });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  const { team } = req.body;
+  const teamStr = team.map(p => `NAMN: ${p.name || p.namn}\nROLL: ${p.role || p.roll}\nBAKGRUND: ${p.background || p.bakgrund || 'Info saknas'}`).join('\n\n');
+  const prompt = `Skriv korta biografier (2-3 meningar per person) för investeringsmemorandum:\n\n${teamStr}\n\nPer person: Roll + erfarenhet. Professionell ton.`;
+  streamSection(res, prompt, 1500);
 });
 
 app.post('/api/generate-offering-terms', async (req, res) => {
