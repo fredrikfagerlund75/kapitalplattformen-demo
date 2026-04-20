@@ -1426,7 +1426,7 @@ Struktur: 1. SAMMANDRAG 2. TECKNINGSPERIOD 3. TECKNING 4. TILLDELNING 5. BETALNI
 app.post('/api/generate-docx', async (req, res) => {
   try {
     const { Document, Paragraph, TextRun, HeadingLevel, Packer, AlignmentType } = require('docx');
-    const { company, content, emissionsvillkor } = req.body;
+    const { company, content } = req.body;
     const bolagsnamn = company?.name || 'Bolag';
 
     const makeParagraphs = (text) => {
@@ -1470,12 +1470,14 @@ app.post('/api/generate-docx', async (req, res) => {
           new Paragraph({ text: '4. Ledning och Styrelse', heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }),
           ...makeParagraphs(content?.teamBios),
 
-          ...(emissionsvillkor ? [
-            new Paragraph({ text: '5. Emissionsvillkor', heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }),
-            new Paragraph({ children: [new TextRun({ text: `Typ: ${emissionsvillkor.typ || ''}`, size: 22 })], spacing: { after: 120 } }),
-            new Paragraph({ children: [new TextRun({ text: `Teckningskurs: ${emissionsvillkor.teckningskurs || ''} SEK`, size: 22 })], spacing: { after: 120 } }),
-            new Paragraph({ children: [new TextRun({ text: `Emissionsvolym: ${(emissionsvillkor.emissionsvolym || 0).toLocaleString('sv-SE')} SEK`, size: 22 })], spacing: { after: 120 } }),
-          ] : []),
+          new Paragraph({ text: '5. Finansiell information', heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }),
+          ...makeParagraphs(content?.finansiellInfo),
+
+          new Paragraph({ text: '6. Emissionsvillkor', heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }),
+          ...makeParagraphs(content?.emissionsvillkorText),
+
+          new Paragraph({ text: '7. Användning av emissionslikvid', heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }),
+          ...makeParagraphs(content?.användningText),
 
           new Paragraph({ text: '', spacing: { before: 600 } }),
           new Paragraph({
@@ -1502,93 +1504,65 @@ app.post('/api/generate-docx', async (req, res) => {
 
 app.post('/api/generate-pdf', async (req, res) => {
   try {
-    const data = req.body;
-    const doc = new PDFDocument({ margin: 50 });
+    const { company, emission, generated } = req.body;
+    const bolagsnamn = company?.name || 'Bolag';
+    const doc = new PDFDocument({ margin: 60, size: 'A4' });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${(data.company.name || 'Bolag').replace(/\s+/g, '_')}_IM.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${bolagsnamn.replace(/\s+/g, '_')}_IM.pdf"`);
     doc.pipe(res);
 
-    // Title page
-    doc.fontSize(28).font('Helvetica-Bold').text('INFORMATIONSMEMORANDUM', { align: 'center' });
+    const addSection = (number, title, text) => {
+      if (!text || !text.trim()) return;
+      doc.addPage();
+      doc.fontSize(9).font('Helvetica').fillColor('#718096')
+        .text(bolagsnamn.toUpperCase() + ' — INFORMATIONSMEMORANDUM', { align: 'right' });
+      doc.moveDown(0.5);
+      doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#CBD5E0').lineWidth(0.5).stroke();
+      doc.moveDown(0.8);
+      doc.fontSize(10).font('Helvetica').fillColor('#718096').text(`${number}.`);
+      doc.moveUp();
+      doc.fontSize(18).font('Helvetica-Bold').fillColor('#1A202C').text(title, { indent: 20 });
+      doc.moveDown(0.8);
+      doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#0D7377').lineWidth(2).stroke();
+      doc.moveDown(0.8);
+      doc.fontSize(11).font('Helvetica').fillColor('#2D3748').text(text, { align: 'justify', lineGap: 3 });
+    };
+
+    // ── Titelsida ──
+    doc.rect(0, 0, 595, 200).fill('#0D7377');
+    doc.fontSize(28).font('Helvetica-Bold').fillColor('white')
+      .text('INFORMATIONSMEMORANDUM', 60, 70, { align: 'center' });
+    doc.fontSize(20).font('Helvetica').fillColor('rgba(255,255,255,0.85)')
+      .text(bolagsnamn, { align: 'center' });
+    doc.moveDown(0.4);
+    doc.fontSize(13).fillColor('rgba(255,255,255,0.7)')
+      .text(`${(emission?.sizeSEK || 0).toLocaleString('sv-SE')} SEK  ·  ${new Date().toLocaleDateString('sv-SE')}`, { align: 'center' });
+    doc.fillColor('#2D3748').fontSize(9).font('Helvetica-Oblique')
+      .text('Detta informationsmemorandum har inte granskats eller godkänts av Finansinspektionen.', 60, 760, { align: 'center', width: 475 });
+
+    // ── Sektioner i samma ordning som DOCX ──
+    addSection(1, 'Verksamhet och Strategi',       generated?.business);
+    addSection(2, 'Marknadsöversikt',              generated?.market);
+    addSection(3, 'Riskfaktorer',                  generated?.risks);
+    addSection(4, 'Ledning och Styrelse',          generated?.team);
+    addSection(5, 'Finansiell information',        generated?.financial);
+    addSection(6, 'Emissionsvillkor',              generated?.emissionsvillkor);
+    addSection(7, 'Användning av emissionslikvid', generated?.usage);
+
+    // ── Juridisk sida ──
+    doc.addPage();
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#1A202C').text('Juridisk information');
+    doc.moveDown(0.5);
+    doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#CBD5E0').lineWidth(0.5).stroke();
+    doc.moveDown(0.5);
+    doc.fontSize(11).font('Helvetica').fillColor('#2D3748');
+    doc.text(`Bolag: ${bolagsnamn}`);
+    if (company?.orgNr) doc.text(`Organisationsnummer: ${company.orgNr}`);
     doc.moveDown();
-    doc.fontSize(24).text(data.company.name, { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(14).font('Helvetica').text(`${(data.emission.sizeSEK || 0).toLocaleString('sv-SE')} SEK`, { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(12).text(new Date().toLocaleDateString('sv-SE'), { align: 'center' });
-    doc.moveDown(3);
-    doc.fontSize(10).font('Helvetica-Oblique')
-      .text('Detta informationsmemorandum har inte granskats eller godk\u00e4nts av Finansinspektionen.', { align: 'center', width: 400 });
-    doc.addPage();
+    doc.fontSize(10).font('Helvetica-Oblique').fillColor('#718096')
+      .text('Detta informationsmemorandum utgör inte ett erbjudande att förvärva värdepapper och har upprättats i informationssyfte.');
 
-    if (data.generated && data.generated.executiveSummary) {
-      doc.fontSize(18).font('Helvetica-Bold').text('EXECUTIVE SUMMARY');
-      doc.moveDown(0.5);
-      doc.fontSize(11).font('Helvetica').text(data.generated.executiveSummary, { align: 'justify' });
-      doc.moveDown(2);
-    }
-
-    doc.fontSize(14).font('Helvetica-Bold').text('EMISSIONSDETALJER');
-    doc.moveDown(0.5);
-    doc.fontSize(11).font('Helvetica');
-    doc.text(`Emissionsbelopp: ${(data.emission.sizeSEK || 0).toLocaleString('sv-SE')} SEK`);
-    doc.text(`Anv\u00e4ndning: ${data.emission.purpose || 'Ej angivet'}`);
-    doc.addPage();
-
-    if (data.generated && data.generated.business) {
-      doc.fontSize(18).font('Helvetica-Bold').text('VERKSAMHET OCH STRATEGI');
-      doc.moveDown(0.5);
-      doc.fontSize(11).font('Helvetica').text(data.generated.business, { align: 'justify' });
-      doc.addPage();
-    }
-
-    if (data.generated && data.generated.market) {
-      doc.fontSize(18).font('Helvetica-Bold').text('MARKNADS\u00d6VERSIKT');
-      doc.moveDown(0.5);
-      doc.fontSize(11).font('Helvetica').text(data.generated.market, { align: 'justify' });
-      doc.addPage();
-    }
-
-    doc.fontSize(18).font('Helvetica-Bold').text('FINANSIELL INFORMATION');
-    doc.moveDown(0.5);
-    doc.fontSize(11).font('Helvetica');
-    if (data.financial) {
-      if (data.financial.revenue) doc.text(`Oms\u00e4ttning: ${data.financial.revenue} TSEK`);
-      if (data.financial.result) doc.text(`Resultat: ${data.financial.result} TSEK`);
-      if (data.financial.equity) doc.text(`Eget kapital: ${data.financial.equity} TSEK`);
-    }
-    doc.addPage();
-
-    if (data.generated && data.generated.offeringTerms) {
-      doc.fontSize(18).font('Helvetica-Bold').text('VILLKOR F\u00d6R TECKNINGSERBJUDANDET');
-      doc.moveDown(0.5);
-      doc.fontSize(11).font('Helvetica').text(data.generated.offeringTerms, { align: 'justify' });
-      doc.addPage();
-    }
-
-    if (data.generated && data.generated.team) {
-      doc.fontSize(18).font('Helvetica-Bold').text('LEDNING OCH STYRELSE');
-      doc.moveDown(0.5);
-      doc.fontSize(11).font('Helvetica').text(data.generated.team, { align: 'justify' });
-      doc.addPage();
-    }
-
-    if (data.generated && data.generated.risks) {
-      doc.fontSize(18).font('Helvetica-Bold').text('RISKFAKTORER');
-      doc.moveDown(0.5);
-      doc.fontSize(11).font('Helvetica').text(data.generated.risks, { align: 'justify' });
-      doc.addPage();
-    }
-
-    doc.fontSize(18).font('Helvetica-Bold').text('JURIDISK INFORMATION');
-    doc.moveDown(0.5);
-    doc.fontSize(11).font('Helvetica');
-    doc.text(`Bolag: ${data.company.name}`);
-    doc.text(`Organisationsnummer: ${data.company.orgNr || 'Ej angivet'}`);
-    doc.moveDown();
-    doc.fontSize(10).font('Helvetica-Oblique')
-      .text('Detta informationsmemorandum utg\u00f6r inte ett erbjudande att f\u00f6rv\u00e4rva v\u00e4rdepapper.');
     doc.end();
   } catch (error) {
     console.error('PDF generation error:', error);

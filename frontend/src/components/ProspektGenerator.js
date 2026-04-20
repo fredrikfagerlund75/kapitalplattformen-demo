@@ -309,15 +309,11 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
           business: generatedContent.verksamhet,
           market: generatedContent.marknad,
           risks: generatedContent.riskfaktorer,
-          team: generatedContent.teamBios
-        },
-        financial: {
-          revenue: formData.finansiellt.omsättning,
-          result: formData.finansiellt.resultat,
-          equity: formData.finansiellt.egetKapital,
-          year: formData.finansiellt.år
-        },
-        usage: formData.användning
+          team: generatedContent.teamBios,
+          financial: generatedContent.finansiellInfo,
+          emissionsvillkor: generatedContent.emissionsvillkorText,
+          usage: generatedContent.användningText
+        }
       };
 
       const response = await apiPost('/api/generate-pdf', pdfPayload);
