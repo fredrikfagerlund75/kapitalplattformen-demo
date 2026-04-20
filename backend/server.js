@@ -1296,6 +1296,105 @@ Avsluta med en kort (1 mening) sammantagen kommentar om teamets samlade styrka.`
   streamSection(res, system, user, 1500);
 });
 
+app.post('/api/generate-financial-section', async (req, res) => {
+  const { company, financial, investmentThesis } = req.body;
+
+  const thesisContext = investmentThesis ? `
+ANALYTISK KONTEXT:
+Investment thesis: ${investmentThesis.thesis}
+Bolagets fas: ${investmentThesis.stage}
+Narrativ: ${investmentThesis.narrative}
+` : '';
+
+  const system = `Du är en finansanalytiker specialiserad på Nordic growth markets. Du skriver finansiella avsnitt för investeringsmemorandum. Du presenterar inte bara siffror — du tolkar dem och sätter dem i ett sammanhang som investerare förstår. Du är ärlig om svaga siffror men lyfter alltid den underliggande trenden och vad bolaget gör åt det.`;
+
+  const user = `Skriv sektionen "Finansiell översikt" för ett informationsmemorandum.
+${thesisContext}
+FINANSIELL DATA:
+- Bolag: ${company.name}
+- Bransch: ${company.industry}
+- Omsättning: ${financial.revenue} TSEK (${financial.year})
+- Rörelseresultat: ${financial.result} TSEK
+- Eget kapital: ${financial.equity} TSEK
+
+INSTRUKTION:
+Presentera och analysera den finansiella ställningen. Förklara vad siffrorna betyder för bolaget i dess nuvarande fas. Om bolaget är förlustgivande — sätt det i kontext av tillväxtstadiet och investeringsbehovet. Lyft relevanta nyckeltal och trender.
+
+Struktur (max 400 ord):
+1. **Intäkter och tillväxt** — Omsättningsutveckling och vad som driver den.
+2. **Resultat och kassaposition** — Förklara rörelseresultatet i bolagets fas. Är förlusten planerad och kontrollerad?
+3. **Finansiell ställning** — Eget kapital, soliditet och bolagets förmåga att hantera närtida kapitalbehov.
+
+Skriv i löpande prosa. Var analytisk — inte en lista med siffror.`;
+
+  streamSection(res, system, user, 1500);
+});
+
+app.post('/api/generate-emission-terms-section', async (req, res) => {
+  const { company, emission, investmentThesis } = req.body;
+
+  const thesisContext = investmentThesis ? `
+ANALYTISK KONTEXT:
+Investment thesis: ${investmentThesis.thesis}
+Bolagets fas: ${investmentThesis.stage}
+` : '';
+
+  const system = `Du är en erfaren emissionsrådgivare med djup kunskap om Nordic growth markets. Du skriver emissionsvillkorsavsnitt för informationsmemorandum. Du förklarar inte bara villkoren — du motiverar dem och hjälper investerare förstå varför de är rimliga givet bolagets situation.`;
+
+  const user = `Skriv sektionen "Emissionsvillkor" för ett informationsmemorandum.
+${thesisContext}
+EMISSIONSDATA:
+- Bolag: ${company.name}
+- Emissionstyp: ${emission.typ}
+- Teckningskurs: ${emission.teckningskurs} SEK per aktie
+- Antal nya aktier: ${Number(emission.antalNyaAktier).toLocaleString('sv-SE')} st
+- Emissionsvolym: ${Number(emission.emissionsvolym).toLocaleString('sv-SE')} SEK
+
+INSTRUKTION:
+Presentera emissionsvillkoren och motivera dem. Förklara varför teckningskursen är satt där den är. Sätt emissionsvolymen i relation till bolagets behov och fas.
+
+Struktur (max 350 ord):
+1. **Erbjudandet i korthet** — Typ av emission, volym och vad det innebär för befintliga ägare.
+2. **Prissättning** — Motivera teckningskursen. Vad speglar den? Hur förhåller den sig till bolagets värdering?
+3. **Användning och timing** — Varför denna volym och varför nu?
+
+Skriv i löpande prosa. Professionell och transparent ton.`;
+
+  streamSection(res, system, user, 1200);
+});
+
+app.post('/api/generate-use-of-proceeds', async (req, res) => {
+  const { company, användning, emission, investmentThesis } = req.body;
+
+  const thesisContext = investmentThesis ? `
+ANALYTISK KONTEXT:
+Investment thesis: ${investmentThesis.thesis}
+Bolagets narrativ: ${investmentThesis.narrative}
+Bolagets fas: ${investmentThesis.stage}
+` : '';
+
+  const system = `Du är en erfaren emissionsrådgivare. Du skriver avsnittet om användning av emissionslikvid för informationsmemorandum. Du vet att investerare granskar detta noga — de vill se att kapitalet används effektivt och kopplar direkt till tillväxtstrategin. Vaga formuleringar som "rörelsekapital" utan förklaring minskar förtroendet.`;
+
+  const user = `Skriv sektionen "Användning av emissionslikvid" för ett informationsmemorandum.
+${thesisContext}
+DATA:
+- Bolag: ${company.name}
+- Emissionsvolym: ${Number(emission.emissionsvolym).toLocaleString('sv-SE')} SEK
+- Planerad användning (rådata från bolaget): ${användning}
+
+INSTRUKTION:
+Omvandla bolagets rådata till ett analytiskt, övertygande avsnitt. Förklara inte bara vad pengarna går till — förklara VARFÖR varje post är strategiskt motiverad och hur den driver bolaget mot nästa milstolpe. Koppla användningen till investment thesis och tillväxtstrategin.
+
+Struktur (max 350 ord):
+1. **Kapitalallokering** — Hur emissionslikviden fördelas och den strategiska logiken bakom prioriteringarna.
+2. **Förväntad effekt** — Vad varje investering förväntas leverera i termer av tillväxt, kapacitet eller marknadsposition.
+3. **Vägen mot lönsamhet** — Hur detta kapital tar bolaget mot nästa finansiella milstolpe.
+
+Skriv i löpande prosa. Analytisk och konkret — undvik generiska formuleringar.`;
+
+  streamSection(res, system, user, 1200);
+});
+
 app.post('/api/generate-offering-terms', async (req, res) => {
   try {
     const { company, emission } = req.body;
