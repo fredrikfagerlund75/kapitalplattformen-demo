@@ -1070,12 +1070,12 @@ Professionellt och \u00f6vertygande.`;
   }
 });
 
-function streamSection(res, prompt, maxTokens) {
+function streamSection(res, systemPrompt, userPrompt, maxTokens) {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
-  const stream = anthropic.messages.stream({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] });
+  const stream = anthropic.messages.stream({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] });
   stream.on('text', (text) => { if (!res.writableEnded) res.write(`data: ${JSON.stringify({ text })}\n\n`); });
   stream.on('error', (err) => { if (!res.writableEnded) { res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`); res.end(); } });
   stream.finalMessage().then(() => { if (!res.writableEnded) { res.write('data: [DONE]\n\n'); res.end(); } }).catch(() => { if (!res.writableEnded) res.end(); });
@@ -1083,55 +1083,113 @@ function streamSection(res, prompt, maxTokens) {
 
 app.post('/api/generate-business-section', async (req, res) => {
   const { company, business } = req.body;
-  const prompt = `Du är expert på investeringsmemorandum.
 
-Skriv "Verksamhet och Strategi" (max 600 ord):
-BOLAG: ${company.name}
-BRANSCH: ${company.industry}
-VERKSAMHET: ${business.description}
-PRODUKTER: ${business.products || 'Information saknas'}
-AFFÄRSMODELL: ${business.businessModel || 'Information saknas'}
-STRATEGI: ${business.strategy || 'Information saknas'}
+  const system = `Du är en erfaren svensk emissionsrådgivare specialiserad på Nordic growth markets (Spotlight Stock Market, Nasdaq First North, NGM Nordic SME). Du har skrivit över 50 informationsmemorandum och vet exakt vad som får kvalificerade investerare att engagera sig.
 
-Struktur: 1. VAD VI GÖR 2. HUR VI TJÄNAR PENGAR 3. VAR VI ÄR PÅ VÄG`;
-  streamSection(res, prompt, 2000);
+Ditt uppdrag är inte att sammanfatta bolagets input – utan att bygga ett övertygande narrativ kring det. Du identifierar det starkaste investeringsargumentet i materialet och låter det genomsyra hela texten. Du skriver på professionell affärssvenska.`;
+
+  const user = `Skriv sektionen "Verksamhet och Strategi" för ett informationsmemorandum.
+
+BOLAGSDATA:
+- Bolag: ${company.name}
+- Bransch: ${company.industry}
+- Verksamhetsbeskrivning: ${business.description}
+- Produkter/tjänster: ${business.products || 'Ej specificerat'}
+- Affärsmodell: ${business.businessModel || 'Ej specificerat'}
+- Strategi: ${business.strategy || 'Ej specificerat'}
+
+INSTRUKTION:
+Innan du skriver – identifiera: Vad är det starkaste argumentet för detta bolag som investerare? Vad är den kritiska frågan en investerare kommer ställa? Låt svaren på dessa frågor forma texten.
+
+Struktur (max 600 ord):
+1. **Verksamheten** – Vad bolaget gör och vilket problem det löser. Var konkret.
+2. **Affärsmodellen** – Hur intäkter genereras och varför modellen är skalbar.
+3. **Strategin framåt** – Vart bolaget är på väg och vad som driver tillväxt. Koppla explicit till hur emissionslikviden accelererar detta.
+
+Skriv i löpande prosa, inte punktlistor. Professionell men tillgänglig ton.`;
+
+  streamSection(res, system, user, 2000);
 });
 
 app.post('/api/generate-market-section', async (req, res) => {
   const { market, company } = req.body;
-  const prompt = `Du är expert på marknadsanalyser för investeringsmemorandum.
 
-Skriv "Marknadsöversikt" (max 500 ord):
-BRANSCH: ${company.industry}
-MARKNAD: ${market.description}
-TAM/SAM: ${market.size || 'Information saknas'}
-GEOGRAFI: ${market.geography || 'Information saknas'}
-KONKURRENTER: ${market.competitors || 'Information saknas'}
+  const system = `Du är en senior marknadsanalytiker med djup kunskap om nordiska tillväxtmarknader. Du skriver marknadsanalyser för informationsmemorandum där syftet är att etablera att marknadsopportunitet finns OCH att bolaget har en trovärdig position i den. Du ifrågasätter orealistiska marknadspåståenden och hjälper bolaget kommunicera sin adresserbara marknad på ett trovärdigt sätt.`;
 
-Struktur: 1. MARKNADEN 2. KONKURRENSSITUATION 3. MÖJLIGHET`;
-  streamSection(res, prompt, 1800);
+  const user = `Skriv sektionen "Marknadsöversikt" för ett informationsmemorandum.
+
+BOLAGSDATA:
+- Bransch: ${company.industry}
+- Marknadsbeskrivning: ${market.description}
+- Marknadsstorlek (TAM/SAM): ${market.size || 'Ej specificerat'}
+- Geografi: ${market.geography || 'Ej specificerat'}
+- Konkurrenter: ${market.competitors || 'Ej specificerat'}
+
+INSTRUKTION:
+Analysera: Är bolaget en utmanare, nischaktör eller first-mover? Vad är bolagets faktiska konkurrensfördel givet det som beskrivs? Låt den analysen forma hur du presenterar marknaden.
+
+Struktur (max 500 ord):
+1. **Marknaden** – Storlek, tillväxt och drivkrafter. Var specifik – undvik generiska påståenden utan förankring.
+2. **Konkurrenssituationen** – Hur ser konkurrensbilden ut och var positionerar sig bolaget? Lyft differentieringen tydligt.
+3. **Möjligheten** – Varför är timing rätt nu? Vad är den adresserbara möjligheten för just detta bolag?
+
+Skriv i löpande prosa. Om marknadsstorleksdata saknas – resonera kring det istället för att lämna ett tomt påstående.`;
+
+  streamSection(res, system, user, 1800);
 });
 
 app.post('/api/generate-risk-factors', async (req, res) => {
   const { company, business, financial } = req.body;
-  const prompt = `Du är expert på riskanalys för investeringsmemorandum.
 
-Generera 5-7 riskfaktorer:
-BOLAG: ${company.name}
-BRANSCH: ${company.industry}
-VERKSAMHET: ${business.description}
-FINANSIELL STATUS: Omsättning ${financial.revenue || 'ej angiven'}, Resultat ${financial.result || 'ej angivet'}
+  const system = `Du är juridik- och riskspecialist med erfarenhet av prospekt och informationsmemorandum på svenska tillväxtmarknader. Du vet att välskrivna riskfaktorer faktiskt ökar investerarförtroende – de visar att bolaget har gjort hemläxan. Dåliga riskfaktorer är generiska och listan skulle kunna gälla vilket bolag som helst. Bra riskfaktorer är specifika, materiella och visar att bolaget förstår sin situation.`;
 
-Kategorier: Verksamhetsrisker (2-3), Marknadsrisker (1-2), Finansiella (1-2), Emissionsrisker (1).
-Per risk: Rubrik + 2-3 meningar.`;
-  streamSection(res, prompt, 2000);
+  const user = `Skriv sektionen "Riskfaktorer" för ett informationsmemorandum.
+
+BOLAGSDATA:
+- Bolag: ${company.name}
+- Bransch: ${company.industry}
+- Verksamhet: ${business.description}
+- Finansiell status: Omsättning ${financial.revenue || 'ej angiven'}, Resultat ${financial.result || 'ej angivet'}
+
+INSTRUKTION:
+Identifiera de mest MATERIELLA riskerna för just detta bolag i denna fas. Undvik generiska risker som "vi verkar på en konkurrensutsatt marknad". Varje risk ska vara specifik nog att en investerare förstår exakt vad som kan gå fel.
+
+Generera 5-7 riskfaktorer fördelade på:
+- Verksamhetsrisker (2-3 st) – specifika för bolagets affärsmodell och fas
+- Marknadsrisker (1-2 st) – relevanta för just denna bransch/geografi
+- Finansiella risker (1-2 st) – baserat på bolagets finansiella situation
+- Emissionsrisk (1 st) – risk att emissionen inte fulltecknas och konsekvenser
+
+Per riskfaktor:
+**[Rubrik]**
+Beskrivning (2-3 meningar): Vad är risken → Vad kan konsekvensen bli → Vad gör bolaget för att hantera/mitigera den.`;
+
+  streamSection(res, system, user, 2000);
 });
 
 app.post('/api/generate-team-bios', async (req, res) => {
   const { team } = req.body;
-  const teamStr = team.map(p => `NAMN: ${p.name || p.namn}\nROLL: ${p.role || p.roll}\nBAKGRUND: ${p.background || p.bakgrund || 'Info saknas'}`).join('\n\n');
-  const prompt = `Skriv korta biografier (2-3 meningar per person) för investeringsmemorandum:\n\n${teamStr}\n\nPer person: Roll + erfarenhet. Professionell ton.`;
-  streamSection(res, prompt, 1500);
+  const teamStr = team.map(p =>
+    `NAMN: ${p.name || p.namn}\nROLL: ${p.role || p.roll}\nBAKGRUND: ${p.background || p.bakgrund || 'Info saknas'}`
+  ).join('\n\n');
+
+  const system = `Du skriver teamavsnitt för informationsmemorandum på svenska tillväxtmarknader. Du vet att investerare bedömer team hårt – de investerar i människor lika mycket som i idéer. Ditt uppdrag är att lyfta fram det som faktiskt är relevant för att genomföra just denna affär: branscherfarenhet, tidigare exits, teknisk kompetens, säljförmåga. Du hittar kärnan i varje persons bakgrund och gör den investeringsrelevant.`;
+
+  const user = `Skriv sektionen "Ledning och Styrelse" för ett informationsmemorandum.
+
+TEAMDATA:
+${teamStr}
+
+INSTRUKTION:
+Per person – ställ dig frågan: Varför är just denna person rätt för just denna roll i detta bolag? Vad i deras bakgrund ger investeraren förtroende? Lyft det specifikt, undvik generiska formuleringar som "bred erfarenhet från branschen".
+
+Format per person:
+**[Namn], [Roll]**
+2-3 meningar som etablerar varför denna person är trovärdig i sin roll. Fokusera på det som är mest relevant för bolagets nuvarande fas och mål.
+
+Avsluta med en kort (1 mening) sammantagen kommentar om teamets samlade styrka.`;
+
+  streamSection(res, system, user, 1500);
 });
 
 app.post('/api/generate-offering-terms', async (req, res) => {
