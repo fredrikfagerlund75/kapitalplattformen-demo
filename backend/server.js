@@ -852,23 +852,27 @@ app.post('/api/kapitalradgivaren/emissionsanalys', async (req, res) => {
       const teckningskurs20 = (börsdataInfo.price || 0) * 0.8;
       const behovdaAktier = teckningskurs20 > 0 ? Math.round(behovSEK / teckningskurs20) : null;
       const mandatAktier = börsdataInfo.bemyndigande || null;
-      const utspädning = (behovdaAktier && börsdataInfo.sharesOutstanding)
-        ? ((behovdaAktier / (börsdataInfo.sharesOutstanding + behovdaAktier)) * 100).toFixed(1)
+      const uteståendeAktier = börsdataInfo.sharesOutstanding || null;
+      // Utrymme = bemyndigande − utestående aktier (styrelsen får emittera upp till bemyndigandet totalt)
+      const utrymmeNyaAktier = (mandatAktier && uteståendeAktier) ? Math.max(0, mandatAktier - uteståendeAktier) : mandatAktier;
+      const utspädning = (behovdaAktier && uteståendeAktier)
+        ? ((behovdaAktier / (uteståendeAktier + behovdaAktier)) * 100).toFixed(1)
         : null;
-      maxKapitalEnligtMandatMSEK = (mandatAktier && teckningskurs20 > 0)
-        ? ((mandatAktier * teckningskurs20) / 1000000).toFixed(1)
+      maxKapitalEnligtMandatMSEK = (utrymmeNyaAktier && teckningskurs20 > 0)
+        ? ((utrymmeNyaAktier * teckningskurs20) / 1000000).toFixed(1)
         : null;
-      const mandatRäcker = mandatAktier && behovdaAktier ? mandatAktier >= behovdaAktier : null;
+      const mandatRäcker = utrymmeNyaAktier && behovdaAktier ? utrymmeNyaAktier >= behovdaAktier : null;
 
       börsdataAvsnitt = `\nBÖRSDATA & EMISSIONSMANDAT:
 Börsvärde: ${börsvärde} MSEK
 Utestående aktier: ${utestående} st
 Aktiekurs: ${kurs} SEK
-${mandatAktier ? `Bolagsstämmans bemyndigande: ${mandatAktier.toLocaleString('sv-SE')} aktier` : 'Bemyndigande: ej angivet'}
+${mandatAktier ? `Bolagsstämmans bemyndigande (max totalt antal aktier): ${mandatAktier.toLocaleString('sv-SE')} aktier` : 'Bemyndigande: ej angivet'}
+${utrymmeNyaAktier && uteståendeAktier ? `Utrymme för nya aktier inom bemyndigande: ${utrymmeNyaAktier.toLocaleString('sv-SE')} aktier (bemyndigande − utestående)` : ''}
 ${maxKapitalEnligtMandatMSEK ? `Max kapital inom befintligt bemyndigande (vid 20% rabatt): ${maxKapitalEnligtMandatMSEK} MSEK` : ''}
 ${behovdaAktier ? `Beräknade aktier för emission (vid 20% rabatt): ~${behovdaAktier.toLocaleString('sv-SE')} st` : ''}
 ${utspädning ? `Beräknad utspädning: ~${utspädning}% av totalt antal aktier efter emission` : ''}
-${mandatRäcker === true ? '→ Bemyndigandet RÄCKER för föreslagen emission.' : mandatRäcker === false ? '→ VARNING: Bemyndigandet räcker INTE för föreslagen emission.' : ''}
+${mandatRäcker === true ? '→ Bemyndigandet RÄCKER för föreslagen emission.' : mandatRäcker === false ? '→ VARNING: Bemyndigandet räcker INTE — utrymmet inom bemyndigandet täcker inte antalet behövda aktier.' : ''}
 `;
     }
 

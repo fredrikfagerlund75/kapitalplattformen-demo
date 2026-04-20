@@ -1658,7 +1658,9 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
               const teckningskurs = stockData.price * 0.8;
               const behovdaAktier = teckningskurs > 0 ? Math.round(behovSEK / teckningskurs) : 0;
               const mandatAktier = parseInt(bemyndigande) || 0;
-              const räcker = mandatAktier >= behovdaAktier;
+              const utestående = stockData.sharesOutstanding || 0;
+              const utrymme = Math.max(0, mandatAktier - utestående);
+              const räcker = utrymme >= behovdaAktier;
               return (
                 <div style={{
                   background: räcker ? '#f0fff4' : '#fff5f5',
@@ -1668,7 +1670,8 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
                   <strong>{räcker ? <><CheckCircle2 size={14} strokeWidth={1.5} /> Bemyndigandet räcker</> : <><AlertTriangle size={14} strokeWidth={1.5} /> Bemyndigandet räcker INTE</>}</strong>
                   <div style={{marginTop: '0.5rem', fontSize: '0.9rem'}}>
                     <div>Beräknat behov: ~{behovdaAktier.toLocaleString('sv-SE')} nya aktier (vid 20% rabatt)</div>
-                    <div>Bemyndigande: {mandatAktier.toLocaleString('sv-SE')} aktier</div>
+                    {utestående > 0 && <div>Utrymme inom bemyndigande: {utrymme.toLocaleString('sv-SE')} aktier ({mandatAktier.toLocaleString('sv-SE')} − {utestående.toLocaleString('sv-SE')} utestående)</div>}
+                    {utestående === 0 && <div>Bemyndigande: {mandatAktier.toLocaleString('sv-SE')} aktier (utestående aktier okänt)</div>}
                     {!räcker && <div style={{color: '#c53030', marginTop: '0.5rem', fontWeight: 600}}>
                       En extra bolagsstämma krävs innan emission kan genomföras.
                     </div>}
