@@ -54,7 +54,10 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
     verksamhet: '',
     marknad: '',
     riskfaktorer: '',
-    teamBios: ''
+    teamBios: '',
+    finansiellInfo: '',
+    emissionsvillkorText: '',
+    användningText: ''
   });
 
   const [investmentThesis, setInvestmentThesis] = useState(null);
@@ -66,9 +69,9 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
       { section_key: 'marknad',         section_title: 'Marknadsöversikt',               content: generatedContent.marknad,     order_index: 2 },
       { section_key: 'riskfaktorer',    section_title: 'Riskfaktorer',                   content: generatedContent.riskfaktorer,order_index: 3 },
       { section_key: 'team',            section_title: 'Ledning och Styrelse',           content: generatedContent.teamBios,    order_index: 4 },
-      { section_key: 'finansiellt',     section_title: 'Finansiell information',         content: `Omsättning: ${formData.finansiellt.omsättning} TSEK (${formData.finansiellt.år})\nResultat: ${formData.finansiellt.resultat} TSEK\nEget kapital: ${formData.finansiellt.egetKapital} TSEK`, order_index: 5 },
-      { section_key: 'emissionsvillkor',section_title: 'Emissionsvillkor',               content: `Typ: ${projekt.emissionsvillkor.typ}\nTeckningskurs: ${projekt.emissionsvillkor.teckningskurs} SEK\nAntal nya aktier: ${projekt.emissionsvillkor.antalNyaAktier}\nEmissionsvolym: ${projekt.emissionsvillkor.emissionsvolym} SEK`, order_index: 6 },
-      { section_key: 'anvandning',      section_title: 'Användning av emissionslikvid', content: formData.användning,           order_index: 7 },
+      { section_key: 'finansiellt',     section_title: 'Finansiell information',         content: generatedContent.finansiellInfo,      order_index: 5 },
+      { section_key: 'emissionsvillkor',section_title: 'Emissionsvillkor',               content: generatedContent.emissionsvillkorText, order_index: 6 },
+      { section_key: 'anvandning',      section_title: 'Användning av emissionslikvid', content: generatedContent.användningText,      order_index: 7 },
     ].filter(s => s.content && s.content.trim());
 
     const res = await fetch(`/api/emissions/${DEMO_EMISSION_ID}/im-sections`, {
@@ -205,7 +208,7 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
 
   const handleGenerateContent = async () => {
     setLoading(true);
-    setGeneratedContent({ verksamhet: '', marknad: '', riskfaktorer: '', teamBios: '' });
+    setGeneratedContent({ verksamhet: '', marknad: '', riskfaktorer: '', teamBios: '', finansiellInfo: '', emissionsvillkorText: '', användningText: '' });
     setInvestmentThesis(null);
     setStep(6);
 
@@ -235,18 +238,24 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
 
     // Steg 2: Generera sektioner med thesis som kontext
     try {
-      const [verksamhetResp, marknadResp, riskResp, teamResp] = await Promise.all([
+      const [verksamhetResp, marknadResp, riskResp, teamResp, finansiellResp, villkorResp, användningResp] = await Promise.all([
         apiPost('/api/generate-business-section', { company, business: { description: formData.bolag.verksamhetsbeskrivning, businessModel: formData.strategi.affärsmodell }, investmentThesis: thesis }),
         apiPost('/api/generate-market-section', { company, market: { description: formData.strategi.marknadsbeskrivning, competitors: formData.strategi.konkurrenter }, investmentThesis: thesis }),
         apiPost('/api/generate-risk-factors', { company, business: { description: formData.bolag.verksamhetsbeskrivning }, financial: { revenue: formData.finansiellt.omsättning, result: formData.finansiellt.resultat }, investmentThesis: thesis }),
-        apiPost('/api/generate-team-bios', { team: formData.team, investmentThesis: thesis })
+        apiPost('/api/generate-team-bios', { team: formData.team, investmentThesis: thesis }),
+        apiPost('/api/generate-financial-section', { company, financial: { revenue: formData.finansiellt.omsättning, result: formData.finansiellt.resultat, equity: formData.finansiellt.egetKapital, år: formData.finansiellt.år }, investmentThesis: thesis }),
+        apiPost('/api/generate-emission-terms-section', { company, emission: projekt.emissionsvillkor, investmentThesis: thesis }),
+        apiPost('/api/generate-use-of-proceeds', { company, användning: formData.användning, emission: projekt.emissionsvillkor, investmentThesis: thesis })
       ]);
 
       await Promise.all([
         readStream(verksamhetResp, (chunk) => setGeneratedContent(prev => ({ ...prev, verksamhet: prev.verksamhet + chunk }))),
         readStream(marknadResp,    (chunk) => setGeneratedContent(prev => ({ ...prev, marknad: prev.marknad + chunk }))),
         readStream(riskResp,       (chunk) => setGeneratedContent(prev => ({ ...prev, riskfaktorer: prev.riskfaktorer + chunk }))),
-        readStream(teamResp,       (chunk) => setGeneratedContent(prev => ({ ...prev, teamBios: prev.teamBios + chunk })))
+        readStream(teamResp,       (chunk) => setGeneratedContent(prev => ({ ...prev, teamBios: prev.teamBios + chunk }))),
+        readStream(finansiellResp, (chunk) => setGeneratedContent(prev => ({ ...prev, finansiellInfo: prev.finansiellInfo + chunk }))),
+        readStream(villkorResp,    (chunk) => setGeneratedContent(prev => ({ ...prev, emissionsvillkorText: prev.emissionsvillkorText + chunk }))),
+        readStream(användningResp, (chunk) => setGeneratedContent(prev => ({ ...prev, användningText: prev.användningText + chunk })))
       ]);
 
       setGeneratedContent(prev => {
@@ -846,22 +855,32 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
 
               <div className="preview-card">
                 <h4>Finansiell information</h4>
-                <p>Omsättning: {formData.finansiellt.omsättning} TSEK ({formData.finansiellt.år})</p>
-                <p>Resultat: {formData.finansiellt.resultat} TSEK</p>
-                <p>Eget kapital: {formData.finansiellt.egetKapital} TSEK</p>
+                <textarea
+                  value={generatedContent.finansiellInfo}
+                  onChange={(e) => setGeneratedContent({...generatedContent, finansiellInfo: e.target.value})}
+                  rows={8}
+                  style={{width: '100%', fontFamily: 'inherit', fontSize: '0.9rem', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box'}}
+                />
               </div>
 
               <div className="preview-card">
                 <h4>Emissionsvillkor</h4>
-                <p>Typ: {projekt.emissionsvillkor.typ}</p>
-                <p>Teckningskurs: {projekt.emissionsvillkor.teckningskurs} SEK</p>
-                <p>Antal nya aktier: {projekt.emissionsvillkor.antalNyaAktier.toLocaleString('sv-SE')}</p>
-                <p>Emissionsvolym: {projekt.emissionsvillkor.emissionsvolym.toLocaleString('sv-SE')} SEK</p>
+                <textarea
+                  value={generatedContent.emissionsvillkorText}
+                  onChange={(e) => setGeneratedContent({...generatedContent, emissionsvillkorText: e.target.value})}
+                  rows={8}
+                  style={{width: '100%', fontFamily: 'inherit', fontSize: '0.9rem', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box'}}
+                />
               </div>
 
               <div className="preview-card">
                 <h4>Användning av emissionslikvid</h4>
-                <p style={{whiteSpace: 'pre-wrap'}}>{formData.användning}</p>
+                <textarea
+                  value={generatedContent.användningText}
+                  onChange={(e) => setGeneratedContent({...generatedContent, användningText: e.target.value})}
+                  rows={8}
+                  style={{width: '100%', fontFamily: 'inherit', fontSize: '0.9rem', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box'}}
+                />
               </div>
             </div>
 
