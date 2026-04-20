@@ -57,6 +57,9 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
     teamBios: ''
   });
 
+  const [investmentThesis, setInvestmentThesis] = useState(null);
+  const [analyzingCompany, setAnalyzingCompany] = useState(false);
+
   const saveImSections = async () => {
     const sections = [
       { section_key: 'verksamhet',      section_title: 'Verksamhet och Strategi',        content: generatedContent.verksamhet,  order_index: 1 },
@@ -202,18 +205,41 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
 
   const handleGenerateContent = async () => {
     setLoading(true);
-    // Reset content and jump to preview immediately so user sees it build up
     setGeneratedContent({ verksamhet: '', marknad: '', riskfaktorer: '', teamBios: '' });
+    setInvestmentThesis(null);
     setStep(6);
 
     const company = { name: formData.bolag.namn, industry: formData.bolag.bransch };
 
+    // Steg 1: Analytiskt förpass
+    setAnalyzingCompany(true);
+    let thesis = null;
+    try {
+      const analyzeResp = await apiPost('/api/analyze-company', {
+        company,
+        business:  { description: formData.bolag.verksamhetsbeskrivning, businessModel: formData.strategi.affärsmodell, strategy: formData.strategi.strategi || '' },
+        market:    { description: formData.strategi.marknadsbeskrivning, competitors: formData.strategi.konkurrenter, size: formData.strategi.marknadsstorlek || '' },
+        financial: { revenue: formData.finansiellt.omsättning, result: formData.finansiellt.resultat, equity: formData.finansiellt.egetKapital, år: formData.finansiellt.år },
+        team:      formData.team,
+        användning: formData.användning,
+        emission:  { sizeSEK: projekt?.emissionsvillkor?.emissionsvolym }
+      });
+      const analyzeData = await analyzeResp.json();
+      thesis = analyzeData.thesis;
+      setInvestmentThesis(thesis);
+    } catch (err) {
+      console.warn('Thesis analysis failed, continuing without context:', err);
+    } finally {
+      setAnalyzingCompany(false);
+    }
+
+    // Steg 2: Generera sektioner med thesis som kontext
     try {
       const [verksamhetResp, marknadResp, riskResp, teamResp] = await Promise.all([
-        apiPost('/api/generate-business-section', { company, business: { description: formData.bolag.verksamhetsbeskrivning, businessModel: formData.strategi.affärsmodell } }),
-        apiPost('/api/generate-market-section', { company, market: { description: formData.strategi.marknadsbeskrivning, competitors: formData.strategi.konkurrenter } }),
-        apiPost('/api/generate-risk-factors', { company, business: { description: formData.bolag.verksamhetsbeskrivning }, financial: { revenue: formData.finansiellt.omsättning, result: formData.finansiellt.resultat } }),
-        apiPost('/api/generate-team-bios', { team: formData.team })
+        apiPost('/api/generate-business-section', { company, business: { description: formData.bolag.verksamhetsbeskrivning, businessModel: formData.strategi.affärsmodell }, investmentThesis: thesis }),
+        apiPost('/api/generate-market-section', { company, market: { description: formData.strategi.marknadsbeskrivning, competitors: formData.strategi.konkurrenter }, investmentThesis: thesis }),
+        apiPost('/api/generate-risk-factors', { company, business: { description: formData.bolag.verksamhetsbeskrivning }, financial: { revenue: formData.finansiellt.omsättning, result: formData.finansiellt.resultat }, investmentThesis: thesis }),
+        apiPost('/api/generate-team-bios', { team: formData.team, investmentThesis: thesis })
       ]);
 
       await Promise.all([
@@ -223,7 +249,6 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
         readStream(teamResp,       (chunk) => setGeneratedContent(prev => ({ ...prev, teamBios: prev.teamBios + chunk })))
       ]);
 
-      // Save final content
       setGeneratedContent(prev => {
         onUpdateProject(projekt.id, { generatedContent: prev });
         return prev;
@@ -753,15 +778,31 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
           <div className="wizard-step">
             <h2>Granska och generera</h2>
 
-            {loading && (
+            {(loading || analyzingCompany) && (
               <div style={{background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '12px 16px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '10px', color: '#166534', fontSize: '0.9rem'}}>
                 <Sparkles size={16} strokeWidth={1.5} style={{flexShrink: 0, animation: 'spin 1.5s linear infinite'}} />
-                AI genererar alla sektioner parallellt — texten byggs upp nedan...
+                {analyzingCompany ? 'Analyserar bolaget och bygger investment thesis...' : 'AI genererar alla sektioner parallellt — texten byggs upp nedan...'}
               </div>
             )}
 
             <div className="preview-section">
               <h3><FileText size={16} strokeWidth={1.5} /> Prospekt/IM innehåll</h3>
+
+              {investmentThesis && (
+                <div style={{background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '1rem 1.25rem', marginBottom: '1.5rem', fontSize: '0.875rem', color: '#1e3a5f'}}>
+                  <div style={{fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                    <Lightbulb size={14} strokeWidth={1.5} />
+                    Investment Thesis (intern — syns inte i IM)
+                  </div>
+                  <p style={{margin: '0 0 0.5rem'}}>{investmentThesis.thesis}</p>
+                  <div style={{display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '0.5rem'}}>
+                    <div><span style={{fontWeight: 500}}>Styrkor: </span>{investmentThesis.strengths?.join(' · ')}</div>
+                  </div>
+                  <div style={{marginTop: '0.4rem'}}>
+                    <span style={{fontWeight: 500}}>Nyckelfrågan: </span>{investmentThesis.keyQuestion}
+                  </div>
+                </div>
+              )}
               
               <div className="preview-card">
                 <h4>Verksamhet och Strategi</h4>

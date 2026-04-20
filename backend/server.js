@@ -1070,6 +1070,79 @@ Professionellt och \u00f6vertygande.`;
   }
 });
 
+// ============================================================
+//  ANALYTISKT FÖRPASS — Investment Thesis
+//  Körs innan sektionsgenerering. Returnerar JSON med:
+//  { thesis, strengths[], weaknesses[], keyQuestion, stage, narrative }
+// ============================================================
+
+app.post('/api/analyze-company', async (req, res) => {
+  try {
+    const { company, business, market, financial, team, användning, emission } = req.body;
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      system: `Du är en analytiker på ett Nordic growth market-fokuserat investmentbolag.
+Du utvärderar bolag inför emissioner på Spotlight Stock Market, Nasdaq First North och NGM Nordic SME.
+Du tänker som en investerare: skeptisk men konstruktiv. Du identifierar vad som faktiskt är
+unikt och övertygande med ett bolag — och vad som är de svaga punkterna som måste adresseras.
+Du svarar ALLTID med giltig JSON och ingenting annat.`,
+      messages: [{
+        role: 'user',
+        content: `Analysera detta bolag inför ett investeringsmemorandum. Svara ENBART med JSON.
+
+BOLAGSDATA:
+Bolag: ${company.name}
+Bransch: ${company.industry}
+Verksamhet: ${business.description}
+Affärsmodell: ${business.businessModel || 'Ej specificerat'}
+Strategi: ${business.strategy || 'Ej specificerat'}
+Marknad: ${market.description || 'Ej specificerat'}
+Marknadsstorlek: ${market.size || 'Ej specificerat'}
+Konkurrenter: ${market.competitors || 'Ej specificerat'}
+Omsättning: ${financial.revenue || 'Ej angiven'} TSEK (${financial.år || ''})
+Resultat: ${financial.result || 'Ej angivet'} TSEK
+Eget kapital: ${financial.equity || 'Ej angivet'} TSEK
+Team: ${team.map(p => `${p.namn || p.name} (${p.roll || p.role})`).join(', ')}
+Emissionsvolym: ${emission?.sizeSEK ? Number(emission.sizeSEK).toLocaleString('sv-SE') + ' SEK' : 'Ej angiven'}
+Användning av kapital: ${användning || 'Ej specificerat'}
+
+Returnera exakt detta JSON-format:
+{
+  "thesis": "Investment thesis i 2-3 meningar — det starkaste argumentet för varför detta är en intressant investering just nu",
+  "strengths": [
+    "Styrka 1 — specifik och faktabaserad",
+    "Styrka 2 — specifik och faktabaserad",
+    "Styrka 3 — specifik och faktabaserad"
+  ],
+  "weaknesses": [
+    "Svaghet/risk 1 som investerare sannolikt kommer ifrågasätta",
+    "Svaghet/risk 2 som investerare sannolikt kommer ifrågasätta"
+  ],
+  "keyQuestion": "Den enskilt viktigaste frågan ett IM för detta bolag måste besvara övertygande",
+  "stage": "Bolagets fas: tidig kommersiell / tillväxt / skalning / lönsamt",
+  "narrative": "Det narrativ som bör genomsyra hela IM:et — en mening som sammanfattar bolagets story"
+}`
+      }]
+    });
+
+    let thesis;
+    try {
+      const raw = message.content[0].text.replace(/```json\n?|```/g, '').trim();
+      thesis = JSON.parse(raw);
+    } catch (parseErr) {
+      console.error('Thesis parse error:', parseErr, message.content[0].text);
+      thesis = { thesis: '', strengths: [], weaknesses: [], keyQuestion: '', stage: '', narrative: '' };
+    }
+
+    res.json({ thesis });
+  } catch (error) {
+    console.error('analyze-company error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 function streamSection(res, systemPrompt, userPrompt, maxTokens) {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -1082,14 +1155,23 @@ function streamSection(res, systemPrompt, userPrompt, maxTokens) {
 }
 
 app.post('/api/generate-business-section', async (req, res) => {
-  const { company, business } = req.body;
+  const { company, business, investmentThesis } = req.body;
+
+  const thesisContext = investmentThesis ? `
+ANALYTISK KONTEXT (låt detta genomsyra texten):
+Investment thesis: ${investmentThesis.thesis}
+Bolagets narrativ: ${investmentThesis.narrative}
+Styrkor att lyfta: ${investmentThesis.strengths?.join(' | ')}
+Nyckelfrågan detta avsnitt ska besvara: ${investmentThesis.keyQuestion}
+Bolagets fas: ${investmentThesis.stage}
+` : '';
 
   const system = `Du är en erfaren svensk emissionsrådgivare specialiserad på Nordic growth markets (Spotlight Stock Market, Nasdaq First North, NGM Nordic SME). Du har skrivit över 50 informationsmemorandum och vet exakt vad som får kvalificerade investerare att engagera sig.
 
-Ditt uppdrag är inte att sammanfatta bolagets input – utan att bygga ett övertygande narrativ kring det. Du identifierar det starkaste investeringsargumentet i materialet och låter det genomsyra hela texten. Du skriver på professionell affärssvenska.`;
+Ditt uppdrag är inte att sammanfatta bolagets input — utan att bygga ett övertygande narrativ kring det. Du identifierar det starkaste investeringsargumentet i materialet och låter det genomsyra hela texten. Du skriver på professionell affärssvenska.`;
 
   const user = `Skriv sektionen "Verksamhet och Strategi" för ett informationsmemorandum.
-
+${thesisContext}
 BOLAGSDATA:
 - Bolag: ${company.name}
 - Bransch: ${company.industry}
@@ -1099,12 +1181,12 @@ BOLAGSDATA:
 - Strategi: ${business.strategy || 'Ej specificerat'}
 
 INSTRUKTION:
-Innan du skriver – identifiera: Vad är det starkaste argumentet för detta bolag som investerare? Vad är den kritiska frågan en investerare kommer ställa? Låt svaren på dessa frågor forma texten.
+Innan du skriver — identifiera: Vad är det starkaste argumentet för detta bolag som investerare? Vad är den kritiska frågan en investerare kommer ställa? Låt svaren på dessa frågor forma texten.
 
 Struktur (max 600 ord):
-1. **Verksamheten** – Vad bolaget gör och vilket problem det löser. Var konkret.
-2. **Affärsmodellen** – Hur intäkter genereras och varför modellen är skalbar.
-3. **Strategin framåt** – Vart bolaget är på väg och vad som driver tillväxt. Koppla explicit till hur emissionslikviden accelererar detta.
+1. **Verksamheten** — Vad bolaget gör och vilket problem det löser. Var konkret.
+2. **Affärsmodellen** — Hur intäkter genereras och varför modellen är skalbar.
+3. **Strategin framåt** — Vart bolaget är på väg och vad som driver tillväxt. Koppla explicit till hur emissionslikviden accelererar detta.
 
 Skriv i löpande prosa, inte punktlistor. Professionell men tillgänglig ton.`;
 
@@ -1112,12 +1194,20 @@ Skriv i löpande prosa, inte punktlistor. Professionell men tillgänglig ton.`;
 });
 
 app.post('/api/generate-market-section', async (req, res) => {
-  const { market, company } = req.body;
+  const { market, company, investmentThesis } = req.body;
+
+  const thesisContext = investmentThesis ? `
+ANALYTISK KONTEXT:
+Investment thesis: ${investmentThesis.thesis}
+Bolagets narrativ: ${investmentThesis.narrative}
+Fas: ${investmentThesis.stage}
+Styrkor relevanta för marknadsavsnittet: ${investmentThesis.strengths?.join(' | ')}
+` : '';
 
   const system = `Du är en senior marknadsanalytiker med djup kunskap om nordiska tillväxtmarknader. Du skriver marknadsanalyser för informationsmemorandum där syftet är att etablera att marknadsopportunitet finns OCH att bolaget har en trovärdig position i den. Du ifrågasätter orealistiska marknadspåståenden och hjälper bolaget kommunicera sin adresserbara marknad på ett trovärdigt sätt.`;
 
   const user = `Skriv sektionen "Marknadsöversikt" för ett informationsmemorandum.
-
+${thesisContext}
 BOLAGSDATA:
 - Bransch: ${company.industry}
 - Marknadsbeskrivning: ${market.description}
@@ -1129,36 +1219,43 @@ INSTRUKTION:
 Analysera: Är bolaget en utmanare, nischaktör eller first-mover? Vad är bolagets faktiska konkurrensfördel givet det som beskrivs? Låt den analysen forma hur du presenterar marknaden.
 
 Struktur (max 500 ord):
-1. **Marknaden** – Storlek, tillväxt och drivkrafter. Var specifik – undvik generiska påståenden utan förankring.
-2. **Konkurrenssituationen** – Hur ser konkurrensbilden ut och var positionerar sig bolaget? Lyft differentieringen tydligt.
-3. **Möjligheten** – Varför är timing rätt nu? Vad är den adresserbara möjligheten för just detta bolag?
+1. **Marknaden** — Storlek, tillväxt och drivkrafter. Var specifik — undvik generiska påståenden utan förankring.
+2. **Konkurrenssituationen** — Hur ser konkurrensbilden ut och var positionerar sig bolaget? Lyft differentieringen tydligt.
+3. **Möjligheten** — Varför är timing rätt nu? Vad är den adresserbara möjligheten för just detta bolag?
 
-Skriv i löpande prosa. Om marknadsstorleksdata saknas – resonera kring det istället för att lämna ett tomt påstående.`;
+Skriv i löpande prosa. Om marknadsstorleksdata saknas — resonera kring det istället för att lämna ett tomt påstående.`;
 
   streamSection(res, system, user, 1800);
 });
 
 app.post('/api/generate-risk-factors', async (req, res) => {
-  const { company, business, financial } = req.body;
+  const { company, business, financial, investmentThesis } = req.body;
 
-  const system = `Du är juridik- och riskspecialist med erfarenhet av prospekt och informationsmemorandum på svenska tillväxtmarknader. Du vet att välskrivna riskfaktorer faktiskt ökar investerarförtroende – de visar att bolaget har gjort hemläxan. Dåliga riskfaktorer är generiska och listan skulle kunna gälla vilket bolag som helst. Bra riskfaktorer är specifika, materiella och visar att bolaget förstår sin situation.`;
+  const thesisContext = investmentThesis ? `
+ANALYTISK KONTEXT:
+Identifierade svagheter att adressera som riskfaktorer: ${investmentThesis.weaknesses?.join(' | ')}
+Bolagets fas: ${investmentThesis.stage}
+Nyckelfrågan investerare ställer: ${investmentThesis.keyQuestion}
+` : '';
+
+  const system = `Du är juridik- och riskspecialist med erfarenhet av prospekt och informationsmemorandum på svenska tillväxtmarknader. Du vet att välskrivna riskfaktorer faktiskt ökar investerarförtroende — de visar att bolaget har gjort hemläxan. Dåliga riskfaktorer är generiska och listan skulle kunna gälla vilket bolag som helst. Bra riskfaktorer är specifika, materiella och visar att bolaget förstår sin situation.`;
 
   const user = `Skriv sektionen "Riskfaktorer" för ett informationsmemorandum.
-
+${thesisContext}
 BOLAGSDATA:
 - Bolag: ${company.name}
 - Bransch: ${company.industry}
 - Verksamhet: ${business.description}
-- Finansiell status: Omsättning ${financial.revenue || 'ej angiven'}, Resultat ${financial.result || 'ej angivet'}
+- Finansiell status: Omsättning ${financial.revenue || 'ej angiven'} TSEK, Resultat ${financial.result || 'ej angivet'} TSEK
 
 INSTRUKTION:
-Identifiera de mest MATERIELLA riskerna för just detta bolag i denna fas. Undvik generiska risker som "vi verkar på en konkurrensutsatt marknad". Varje risk ska vara specifik nog att en investerare förstår exakt vad som kan gå fel.
+Identifiera de mest MATERIELLA riskerna för just detta bolag i denna fas. Undvik generiska risker som "vi verkar på en konkurrensutsatt marknad". Varje risk ska vara specifik nog att en investerare förstår exakt vad som kan gå fel. De analytiskt identifierade svagheterna ovan SKA adresseras — antingen som egna riskfaktorer eller vävda in i relevanta kategorier.
 
 Generera 5-7 riskfaktorer fördelade på:
-- Verksamhetsrisker (2-3 st) – specifika för bolagets affärsmodell och fas
-- Marknadsrisker (1-2 st) – relevanta för just denna bransch/geografi
-- Finansiella risker (1-2 st) – baserat på bolagets finansiella situation
-- Emissionsrisk (1 st) – risk att emissionen inte fulltecknas och konsekvenser
+- Verksamhetsrisker (2-3 st) — specifika för bolagets affärsmodell och fas
+- Marknadsrisker (1-2 st) — relevanta för just denna bransch/geografi
+- Finansiella risker (1-2 st) — baserat på bolagets finansiella situation
+- Emissionsrisk (1 st) — risk att emissionen inte fulltecknas och konsekvenser
 
 Per riskfaktor:
 **[Rubrik]**
@@ -1168,20 +1265,27 @@ Beskrivning (2-3 meningar): Vad är risken → Vad kan konsekvensen bli → Vad 
 });
 
 app.post('/api/generate-team-bios', async (req, res) => {
-  const { team } = req.body;
+  const { team, investmentThesis } = req.body;
   const teamStr = team.map(p =>
     `NAMN: ${p.name || p.namn}\nROLL: ${p.role || p.roll}\nBAKGRUND: ${p.background || p.bakgrund || 'Info saknas'}`
   ).join('\n\n');
 
-  const system = `Du skriver teamavsnitt för informationsmemorandum på svenska tillväxtmarknader. Du vet att investerare bedömer team hårt – de investerar i människor lika mycket som i idéer. Ditt uppdrag är att lyfta fram det som faktiskt är relevant för att genomföra just denna affär: branscherfarenhet, tidigare exits, teknisk kompetens, säljförmåga. Du hittar kärnan i varje persons bakgrund och gör den investeringsrelevant.`;
+  const thesisContext = investmentThesis ? `
+ANALYTISK KONTEXT:
+Bolagets fas: ${investmentThesis.stage}
+Narrativ: ${investmentThesis.narrative}
+Fokusera på hur teamet är rätt sammansatt för att exekvera på denna thesis: ${investmentThesis.thesis}
+` : '';
+
+  const system = `Du skriver teamavsnitt för informationsmemorandum på svenska tillväxtmarknader. Du vet att investerare bedömer team hårt — de investerar i människor lika mycket som i idéer. Ditt uppdrag är att lyfta fram det som faktiskt är relevant för att genomföra just denna affär: branscherfarenhet, tidigare exits, teknisk kompetens, säljförmåga. Du hittar kärnan i varje persons bakgrund och gör den investeringsrelevant.`;
 
   const user = `Skriv sektionen "Ledning och Styrelse" för ett informationsmemorandum.
-
+${thesisContext}
 TEAMDATA:
 ${teamStr}
 
 INSTRUKTION:
-Per person – ställ dig frågan: Varför är just denna person rätt för just denna roll i detta bolag? Vad i deras bakgrund ger investeraren förtroende? Lyft det specifikt, undvik generiska formuleringar som "bred erfarenhet från branschen".
+Per person — ställ dig frågan: Varför är just denna person rätt för just denna roll i detta bolag? Vad i deras bakgrund ger investeraren förtroende? Lyft det specifikt, undvik generiska formuleringar som "bred erfarenhet från branschen".
 
 Format per person:
 **[Namn], [Roll]**
