@@ -176,7 +176,7 @@ function Login({ onLogin }) {
         </div>
         <div className="lp-meta">
           <span><span className="lp-status-dot" />Systems nominal</span>
-          <span>v4.12.0</span>
+          <span>v5</span>
         </div>
       </header>
 
@@ -369,16 +369,15 @@ function Login({ onLogin }) {
 
             <p className="lp-legal">
               Genom att logga in godkänner du våra <a href="#villkor">Villkor</a> och <a href="#integritet">Integritetsmeddelande</a>.<br/>
-              Ny institution? <a href="#access" className="lp-legal-accent">Begär åtkomst →</a>
+              Ny kund? <a href="#access" className="lp-legal-accent">Begär åtkomst →</a>
             </p>
           </form>
         </section>
       </main>
 
       <footer className="lp-footer">
-        <span>© 2026 Kapitalplattformen</span>
         <span ref={clockRef}>—</span>
-        <span>Oslo · Frankfurt · London</span>
+        <span>© 2026 Kapitalplattformen</span>
       </footer>
     </div>
   );
