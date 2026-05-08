@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './Kapitalrådgivaren.css';
 import { apiPost, apiGet } from '../utils/api';
-import { ChevronLeft, ChevronRight, Target, CheckCircle2, FileText, Trash2, Loader, AlertTriangle, Lightbulb, BarChart2, TrendingUp, TrendingDown, ArrowRight, ClipboardList, Zap, Building2, SlidersHorizontal, Sparkles, Search, RefreshCw, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Target, CheckCircle2, FileText, Trash2, Loader, AlertTriangle, Lightbulb, BarChart2, TrendingUp, TrendingDown, ArrowRight, ClipboardList, Zap, Building2, SlidersHorizontal, Sparkles, Search, RefreshCw, Save, Info } from 'lucide-react';
 
 function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreateProject, onUpdateProject, onNavigate }) {
   const [step, setStep] = useState(projekt ? 'overview' : 'upload');
@@ -1660,21 +1660,26 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
               const mandatAktier = parseInt(bemyndigande) || 0;
               const utestående = stockData.sharesOutstanding || 0;
               const utrymme = Math.max(0, mandatAktier - utestående);
-              const räcker = utrymme >= behovdaAktier;
+              const täckningsgrad = behovdaAktier > 0 ? Math.round((utrymme / behovdaAktier) * 100) : null;
               return (
                 <div style={{
-                  background: räcker ? '#f0fff4' : '#fff5f5',
-                  border: `2px solid ${räcker ? '#48bb78' : '#f56565'}`,
+                  background: '#f0f7ff',
+                  border: '1.5px solid #90cdf4',
                   borderRadius: '8px', padding: '1rem', marginBottom: '1.5rem'
                 }}>
-                  <strong>{räcker ? <><CheckCircle2 size={14} strokeWidth={1.5} /> Bemyndigandet räcker</> : <><AlertTriangle size={14} strokeWidth={1.5} /> Bemyndigandet räcker INTE</>}</strong>
-                  <div style={{marginTop: '0.5rem', fontSize: '0.9rem'}}>
-                    <div>Beräknat behov: ~{behovdaAktier.toLocaleString('sv-SE')} nya aktier (vid 20% rabatt)</div>
-                    {utestående > 0 && <div>Utrymme inom bemyndigande: {utrymme.toLocaleString('sv-SE')} aktier ({mandatAktier.toLocaleString('sv-SE')} − {utestående.toLocaleString('sv-SE')} utestående)</div>}
-                    {utestående === 0 && <div>Bemyndigande: {mandatAktier.toLocaleString('sv-SE')} aktier (utestående aktier okänt)</div>}
-                    {!räcker && <div style={{color: '#c53030', marginTop: '0.5rem', fontWeight: 600}}>
-                      En extra bolagsstämma krävs innan emission kan genomföras.
-                    </div>}
+                  <strong style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                    <Info size={14} strokeWidth={1.5} /> Bemyndigande — tillgängligt utrymme
+                  </strong>
+                  <div style={{marginTop: '0.5rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '3px'}}>
+                    <div>Bemyndigande: {mandatAktier.toLocaleString('sv-SE')} aktier</div>
+                    {utestående > 0 && <div>Utestående aktier: {utestående.toLocaleString('sv-SE')} st</div>}
+                    {utestående > 0 && <div>Utrymme för nya aktier: {utrymme.toLocaleString('sv-SE')} aktier</div>}
+                    <div>Beräknat behov (vid 20% rabatt): ~{behovdaAktier.toLocaleString('sv-SE')} aktier</div>
+                    {täckningsgrad !== null && (
+                      <div style={{marginTop: '0.25rem', color: '#2b6cb0', fontWeight: 500}}>
+                        Befintligt mandat täcker ~{täckningsgrad}% av beräknat behov
+                      </div>
+                    )}
                   </div>
                 </div>
               );
