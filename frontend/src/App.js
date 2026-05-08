@@ -14,6 +14,7 @@ import Inställningar from './components/Inställningar';
 import Kassaflode from './components/Kassaflode';
 import Emissionsnyheter from './components/Emissionsnyheter';
 import Sidebar from './components/Sidebar';
+import EmissionProgress, { STAGE_IDS } from './components/EmissionProgress';
 import { apiGet, apiPost, apiPut, getAuthToken, getUser, clearAuthToken } from './utils/api';
 
 function App() {
@@ -131,31 +132,42 @@ function App() {
     <div className="app-container">
       {/* Global Navigation Bar */}
       <nav className="global-nav">
-        <div className="nav-brand">
-          <img src={logoNav} alt="Kapitalplattformen" className="nav-logo" />
-          <span className="company-name">{companySettings?.companyName || user.company}</span>
-        </div>
-        <div className="nav-actions">
-          {currentView !== 'dashboard' && (
-            <button 
-              className="nav-button"
-              onClick={() => navigateTo('dashboard')}
-            >
-              ← Tillbaka till Dashboard
+        <div className="nav-main-row">
+          <div className="nav-brand">
+            <img src={logoNav} alt="Kapitalplattformen" className="nav-logo" />
+            <span className="company-name">{companySettings?.companyName || user.company}</span>
+          </div>
+          <div className="nav-actions">
+            {currentView !== 'dashboard' && (
+              <button
+                className="nav-button"
+                onClick={() => navigateTo('dashboard')}
+              >
+                ← Tillbaka till Dashboard
+              </button>
+            )}
+            {aktivtProjekt && currentView !== 'dashboard' && (
+              <span className="active-project-indicator">
+                📊 {aktivtProjekt.name}
+              </span>
+            )}
+            <button className="nav-button" onClick={() => navigateTo('inställningar')}>
+              ⚙️ Inställningar
             </button>
-          )}
-          {aktivtProjekt && currentView !== 'dashboard' && (
-            <span className="active-project-indicator">
-              📊 {aktivtProjekt.name}
-            </span>
-          )}
-          <button className="nav-button" onClick={() => navigateTo('inställningar')}>
-            ⚙️ Inställningar
-          </button>
-          <button className="nav-button-secondary" onClick={handleLogout}>
-            Logga ut
-          </button>
+            <button className="nav-button-secondary" onClick={handleLogout}>
+              Logga ut
+            </button>
+          </div>
         </div>
+        {STAGE_IDS.includes(currentView) && (
+          <div className="nav-progress-row">
+            <EmissionProgress
+              currentView={currentView}
+              aktivtProjekt={aktivtProjekt}
+              onNavigate={navigateTo}
+            />
+          </div>
+        )}
       </nav>
 
       {/* Main Content Area */}

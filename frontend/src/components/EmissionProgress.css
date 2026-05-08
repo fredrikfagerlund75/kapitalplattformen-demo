@@ -1,0 +1,133 @@
+.ep-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Chevron pill strip ── */
+.ep-chev {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border, #E4E9EA);
+  border-radius: 10px;
+  overflow: hidden;
+  height: 44px;
+  box-shadow: 0 1px 0 rgba(11, 26, 28, 0.02);
+}
+
+.ep-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0 26px 0 32px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #748386;
+  background: #fff;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+  transition: background 0.15s, color 0.15s;
+}
+.ep-step:first-child { padding-left: 18px; }
+.ep-step:last-child  { padding-right: 22px; }
+
+/* Chevron arrow via rotated square */
+.ep-step::after {
+  content: "";
+  position: absolute;
+  right: -11px;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  background: inherit;
+  border-top: 1px solid var(--color-border, #E4E9EA);
+  border-right: 1px solid var(--color-border, #E4E9EA);
+  transform: translateY(-50%) rotate(45deg);
+  z-index: 2;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ep-step:last-child::after { display: none; }
+
+/* ── Done ── */
+.ep-step.ep-done {
+  background: #E6F4F4;
+  color: #0A5558;
+  cursor: pointer;
+}
+.ep-step.ep-done::after {
+  background: #E6F4F4;
+  border-color: color-mix(in oklab, #0D7377 25%, #E4E9EA);
+}
+.ep-step.ep-done:hover {
+  background: #d0eded;
+  color: #0A5558;
+}
+.ep-step.ep-done:hover::after {
+  background: #d0eded;
+}
+
+/* ── Current ── */
+.ep-step.ep-current {
+  background: #0D7377;
+  color: #fff;
+  font-weight: 600;
+  cursor: default;
+}
+.ep-step.ep-current::after {
+  background: #0D7377;
+  border-color: #0D7377;
+}
+
+/* ── Reachable (completed in project but not current view) ── */
+.ep-step.ep-reachable {
+  background: #fff;
+  color: #748386;
+  cursor: pointer;
+}
+.ep-step.ep-reachable:hover {
+  background: #E6F4F4;
+  color: #0A5558;
+}
+.ep-step.ep-reachable:hover::after {
+  background: #E6F4F4;
+  border-color: color-mix(in oklab, #0D7377 25%, #E4E9EA);
+}
+
+/* ── Number badge ── */
+.ep-num {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  opacity: 0.65;
+  margin-right: 8px;
+  letter-spacing: 0.04em;
+}
+.ep-step.ep-current .ep-num { opacity: 0.85; }
+
+/* ── Check icon ── */
+.ep-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  color: #0D7377;
+  flex-shrink: 0;
+}
+
+/* ── Mobile chip ── */
+.ep-mobile-chip {
+  display: none;
+  padding: 6px 14px;
+  background: #0D7377;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .ep-chev       { display: none; }
+  .ep-mobile-chip { display: inline-flex; align-items: center; }
+}
