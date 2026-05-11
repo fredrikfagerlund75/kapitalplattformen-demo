@@ -636,10 +636,11 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
                   const fd = projekt.finansiellData;
                   const quarters = Array.isArray(fd.quarters) ? fd.quarters : [];
                   const q4 = quarters.find(q => q.q === 4 && q.omsättning != null);
-                  const source = q4 || quarters.find(q => q.omsättning != null);
-                  const totalOms = source?.omsättning ?? '';
-                  const totalRes = source?.resultat ?? '';
-                  const sourceYear = source?.year;
+                  const sourceYear = q4?.year ?? quarters.find(q => q.omsättning != null)?.year;
+                  const yearQuarters = quarters.filter(q => q.year === sourceYear && q.omsättning != null);
+                  const sumQuarters = yearQuarters.length > 0 ? yearQuarters : quarters.filter(q => q.omsättning != null);
+                  const totalOms = sumQuarters.length > 0 ? sumQuarters.reduce((s, q) => s + (q.omsättning || 0), 0) : '';
+                  const totalRes = sumQuarters.length > 0 ? sumQuarters.reduce((s, q) => s + (q.resultat || 0), 0) : '';
                   setFormData(prev => ({
                     ...prev,
                     finansiellt: {
