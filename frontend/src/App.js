@@ -132,35 +132,12 @@ function App() {
     <div className="app-container">
       {/* Global Navigation Bar */}
       <nav className="global-nav">
-        <div className="nav-main-row">
-          <div className="nav-brand">
-            <img src={logoNav} alt="Kapitalplattformen" className="nav-logo" />
-            <span className="company-name">{companySettings?.companyName || user.company}</span>
-          </div>
-          <div className="nav-actions">
-            {currentView !== 'dashboard' && (
-              <button
-                className="nav-button"
-                onClick={() => navigateTo('dashboard')}
-              >
-                ← Tillbaka till Dashboard
-              </button>
-            )}
-            {aktivtProjekt && currentView !== 'dashboard' && (
-              <span className="active-project-indicator">
-                📊 {aktivtProjekt.name}
-              </span>
-            )}
-            <button className="nav-button" onClick={() => navigateTo('inställningar')}>
-              ⚙️ Inställningar
-            </button>
-            <button className="nav-button-secondary" onClick={handleLogout}>
-              Logga ut
-            </button>
-          </div>
+        <div className="nav-brand">
+          <img src={logoNav} alt="Kapitalplattformen" className="nav-logo" />
+          <span className="company-name">{companySettings?.companyName || user.company}</span>
         </div>
         {STAGE_IDS.includes(currentView) && (
-          <div className="nav-progress-row">
+          <div className="nav-progress-center">
             <EmissionProgress
               currentView={currentView}
               aktivtProjekt={aktivtProjekt}
@@ -168,6 +145,27 @@ function App() {
             />
           </div>
         )}
+        <div className="nav-actions">
+          {currentView !== 'dashboard' && (
+            <button
+              className="nav-button"
+              onClick={() => navigateTo('dashboard')}
+            >
+              ← Tillbaka till Dashboard
+            </button>
+          )}
+          {aktivtProjekt && currentView !== 'dashboard' && (
+            <span className="active-project-indicator">
+              📊 {aktivtProjekt.name}
+            </span>
+          )}
+          <button className="nav-button" onClick={() => navigateTo('inställningar')}>
+            ⚙️ Inställningar
+          </button>
+          <button className="nav-button-secondary" onClick={handleLogout}>
+            Logga ut
+          </button>
+        </div>
       </nav>
 
       {/* Main Content Area */}
