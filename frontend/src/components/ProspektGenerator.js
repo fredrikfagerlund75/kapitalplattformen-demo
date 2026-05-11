@@ -634,13 +634,22 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
               {projekt?.finansiellData && (
                 <button className="btn-primary" onClick={() => {
                   const fd = projekt.finansiellData;
-                  const quarters = Array.isArray(fd.quarters) ? fd.quarters : [];
-                  const q4 = quarters.find(q => q.q === 4 && q.omsättning != null);
-                  const sourceYear = q4?.year ?? quarters.find(q => q.omsättning != null)?.year;
-                  const yearQuarters = quarters.filter(q => q.year === sourceYear && q.omsättning != null);
-                  const sumQuarters = yearQuarters.length > 0 ? yearQuarters : quarters.filter(q => q.omsättning != null);
-                  const totalOms = sumQuarters.length > 0 ? sumQuarters.reduce((s, q) => s + (q.omsättning || 0), 0) : '';
-                  const totalRes = sumQuarters.length > 0 ? sumQuarters.reduce((s, q) => s + (q.resultat || 0), 0) : '';
+                  // Prefer helår (Jan-Dec) figures extracted directly from Q4 bokslutskommuniké
+                  let totalOms, totalRes, sourceYear;
+                  if (fd.helårsOmsättning != null) {
+                    totalOms = fd.helårsOmsättning;
+                    totalRes = fd.helårsResultat ?? '';
+                    sourceYear = fd.helårsYear;
+                  } else {
+                    // Fallback: sum all quarters from the latest year
+                    const quarters = Array.isArray(fd.quarters) ? fd.quarters : [];
+                    const q4 = quarters.find(q => q.q === 4 && q.omsättning != null);
+                    sourceYear = q4?.year ?? quarters.find(q => q.omsättning != null)?.year;
+                    const yearQuarters = quarters.filter(q => q.year === sourceYear && q.omsättning != null);
+                    const pool = yearQuarters.length > 0 ? yearQuarters : quarters.filter(q => q.omsättning != null);
+                    totalOms = pool.length > 0 ? pool.reduce((s, q) => s + (q.omsättning || 0), 0) : '';
+                    totalRes = pool.length > 0 ? pool.reduce((s, q) => s + (q.resultat || 0), 0) : '';
+                  }
                   setFormData(prev => ({
                     ...prev,
                     finansiellt: {

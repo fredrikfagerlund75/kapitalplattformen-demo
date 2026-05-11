@@ -613,7 +613,10 @@ Extrahera följande information och returnera som JSON:
   "kassa": "X",
   "skulder": "X",
   "kassaflödeRörelse": [null, -1500, null, null],
-  "period": "Q2 2025"
+  "period": "Q2 2025",
+  "helårsOmsättning": null,
+  "helårsResultat": null,
+  "helårsYear": null
 }
 
 VIKTIGT:
@@ -621,7 +624,7 @@ VIKTIGT:
 - Sätt BARA det kvartalets siffra i arrayen, alla andra kvartal ska vara null
 - "kassaflödeRörelse" ska vara en array [Q1, Q2, Q3, Q4] precis som omsättning och resultat
 - Hitta INTE PÅ siffror för kvartal som inte finns i dokumentet!
-- Om rapporten innehåller ackumulerade siffror för flera kvartal (t.ex. "jan-jun"), extrahera BARA det specifika kvartalets siffror om möjligt. Om inte, sätt ackumulerat värde på senaste kvartalet.
+- För Q4-rapporter (bokslutskommunikéer): kolumnerna innehåller vanligtvis både "Q4 YYYY" (enbart fjärde kvartalet) och "Jan-dec YYYY" (helåret). Extrahera Q4-kvartalet separat i omsättning/resultat-arrayerna. Extrahera ÄVEN helårsdata (Jan-Dec) i fälten helårsOmsättning (Nettoomsättning Jan-Dec), helårsResultat (Periodens resultat Jan-Dec) och helårsYear (räkenskapsåret som siffra, t.ex. 2025). Dessa ska vara null för Q1-, Q2- och Q3-rapporter.
 - Alla belopp i TSEK (konvertera från MSEK om nödvändigt: 1 MSEK = 1000 TSEK)
 - KASSAFLÖDE — KRITISKT VIKTIGT:
   * Använd raden "Periodens kassaflöde" eller "Förändring av likvida medel" — detta är den SISTA/NEDERSTA raden i kassaflödesanalysen, den totala summan.
@@ -705,7 +708,10 @@ Extrahera följande information och returnera som JSON:
   "kassa": "X",
   "skulder": "X",
   "kassaflödeRörelse": [null, -1500, null, null],
-  "period": "Q2 2025"
+  "period": "Q2 2025",
+  "helårsOmsättning": null,
+  "helårsResultat": null,
+  "helårsYear": null
 }
 
 VIKTIGT:
@@ -713,7 +719,7 @@ VIKTIGT:
 - Sätt BARA det kvartalets siffra i arrayen, alla andra kvartal ska vara null
 - "kassaflödeRörelse" ska vara en array [Q1, Q2, Q3, Q4] precis som omsättning och resultat
 - Hitta INTE PÅ siffror för kvartal som inte finns i dokumentet!
-- Om rapporten innehåller ackumulerade siffror för flera kvartal (t.ex. "jan-jun"), extrahera BARA det specifika kvartalets siffror om möjligt. Om inte, sätt ackumulerat värde på senaste kvartalet.
+- För Q4-rapporter (bokslutskommunikéer): kolumnerna innehåller vanligtvis både "Q4 YYYY" (enbart fjärde kvartalet) och "Jan-dec YYYY" (helåret). Extrahera Q4-kvartalet separat i omsättning/resultat-arrayerna. Extrahera ÄVEN helårsdata (Jan-Dec) i fälten helårsOmsättning (Nettoomsättning Jan-Dec), helårsResultat (Periodens resultat Jan-Dec) och helårsYear (räkenskapsåret som siffra, t.ex. 2025). Dessa ska vara null för Q1-, Q2- och Q3-rapporter.
 - Alla belopp i TSEK (konvertera från MSEK om nödvändigt: 1 MSEK = 1000 TSEK)
 - KASSAFLÖDE — KRITISKT VIKTIGT:
   * Använd raden "Periodens kassaflöde" eller "Förändring av likvida medel" — detta är den SISTA/NEDERSTA raden i kassaflödesanalysen, den totala summan.

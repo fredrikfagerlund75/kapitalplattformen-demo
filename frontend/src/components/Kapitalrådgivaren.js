@@ -329,6 +329,9 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
     let accEgetKapital = finansiellData.egetKapital;
     let accKassa = finansiellData.kassa;
     let accSkulder = finansiellData.skulder;
+    let accHelårsOmsättning = finansiellData.helårsOmsättning ?? null;
+    let accHelårsResultat = finansiellData.helårsResultat ?? null;
+    let accHelårsYear = finansiellData.helårsYear ?? null;
     const newFileNames = [];
 
     // Process files 2 at a time to stay within rate limits (50k tokens/min)
@@ -370,6 +373,11 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
             egetKapital: d.egetKapital || balanceMap[key]?.egetKapital,
             skulder: d.skulder || balanceMap[key]?.skulder
           };
+          if (fileQ === 4 && d.helårsOmsättning != null) {
+            accHelårsOmsättning = d.helårsOmsättning;
+            accHelårsResultat = d.helårsResultat ?? null;
+            accHelårsYear = d.helårsYear != null ? parseInt(d.helårsYear) : fileYear;
+          }
           const qLabel = formatQL(fileQ, fileYear);
           setUploadProgress(prev => prev.map((p, i) => i === idx ? { ...p, status: 'done', quarter: fileQ, message: `Klar (${qLabel})` } : p));
         } else {
@@ -408,7 +416,10 @@ function Kapitalrådgivaren({ user, projekt, companySettings, onBack, onCreatePr
         egetKapital: accEgetKapital,
         kassa: accKassa,
         skulder: accSkulder,
-        period: `Q${latQ} ${latY}`
+        period: `Q${latQ} ${latY}`,
+        helårsOmsättning: accHelårsOmsättning,
+        helårsResultat: accHelårsResultat,
+        helårsYear: accHelårsYear
       });
     }
 
