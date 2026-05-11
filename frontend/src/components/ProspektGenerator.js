@@ -634,15 +634,19 @@ function ProspektGenerator({ user, projekt, companySettings, onBack, onUpdatePro
               {projekt?.finansiellData && (
                 <button className="btn-primary" onClick={() => {
                   const fd = projekt.finansiellData;
-                  const totalOms = Array.isArray(fd.omsättning) ? fd.omsättning.filter(v => v !== null).reduce((a, b) => a + b, 0) : '';
-                  const totalRes = Array.isArray(fd.resultat) ? fd.resultat.filter(v => v !== null).reduce((a, b) => a + b, 0) : '';
+                  const quarters = Array.isArray(fd.quarters) ? fd.quarters : [];
+                  const q4 = quarters.find(q => q.q === 4 && q.omsättning != null);
+                  const source = q4 || quarters.find(q => q.omsättning != null);
+                  const totalOms = source?.omsättning ?? '';
+                  const totalRes = source?.resultat ?? '';
+                  const sourceYear = source?.year;
                   setFormData(prev => ({
                     ...prev,
                     finansiellt: {
-                      omsättning: totalOms || prev.finansiellt.omsättning,
-                      resultat: totalRes || prev.finansiellt.resultat,
+                      omsättning: totalOms !== '' ? totalOms : prev.finansiellt.omsättning,
+                      resultat: totalRes !== '' ? totalRes : prev.finansiellt.resultat,
                       egetKapital: fd.egetKapital || prev.finansiellt.egetKapital,
-                      år: fd.period ? parseInt(fd.period.match(/\d{4}/)?.[0]) || prev.finansiellt.år : prev.finansiellt.år
+                      år: sourceYear || (fd.period ? parseInt(fd.period.match(/\d{4}/)?.[0]) : null) || prev.finansiellt.år
                     }
                   }));
                   alert('Data importerad från Kapitalrådgivaren!');
